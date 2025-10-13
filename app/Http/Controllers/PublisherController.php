@@ -3,24 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\DocNumber;
-use App\Models\Category;
+use App\Models\Publisher;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\CategoryRequest;
 use Illuminate\Support\Facades\Storage;
-use App\Http\Resources\CategoryResource;
+use App\Http\Requests\PublisherRequest;
+use App\Http\Resources\PublisherResource;
 
-class CategoryController extends Controller
+class PublisherController extends Controller
 {
-    public function generateCategoryCode()
+    public function generatePublisherCode()
     {
         try {
-            $doc = DocNumber::where('type', 'Category')->first();
+            $doc = DocNumber::where('type', 'Publisher')->first();
 
             if (!$doc) {
-                // If no category document exists, create one
+                // If no publisher document exists, create one
                 $doc = DocNumber::create([
-                    'type' => 'Category',
-                    'prefix' => 'CAT',
+                    'type' => 'Publisher',
+                    'prefix' => 'PUB',
                     'last_id' => 0
                 ]);
             }
@@ -42,113 +42,112 @@ class CategoryController extends Controller
         }
     }
 
+
     public function index()
     {
         try {
-            $categories = Category::with('subCategories')->get();
+            $publishers = Publisher::all();
             return response()->json([
                 'success' => true,
-                'message' => 'Categories fetched successfully',
-                'data' => CategoryResource::collection($categories)
+                'message' => 'Publishers fetched successfully',
+                'data' => PublisherResource::collection($publishers)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch categories',
+                'message' => 'Failed to fetch publishers',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
-    public function show($cat_code)
+    public function show($pub_code)
     {
         try {
-            $category = Category::where('cat_code', $cat_code)->firstOrFail();
+            $publisher = Publisher::where('pub_code', $pub_code)->firstOrFail();
             return response()->json([
                 'success' => true,
-                'message' => 'Category fetched successfully',
-                'data' => new CategoryResource($category)
+                'message' => 'Publisher fetched successfully',
+                'data' => new PublisherResource($publisher)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Category not found',
+                'message' => 'Publisher not found',
                 'error' => $e->getMessage()
             ], 404);
         }
     }
 
-    public function store(CategoryRequest $request)
+    public function store(PublisherRequest $request)
     {
         try {
             $data = $request->validated();
 
-            // Check if Category code already exists
-            if (Category::where('cat_code', $data['cat_code'])->exists()) {
+            // Check if publisher code already exists
+            if (Publisher::where('pub_code', $data['pub_code'])->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Category code already exists'
+                    'message' => 'Publisher code already exists'
                 ], 422);
             }
 
             // Handle image upload
-            if ($request->hasFile('cat_image')) {
-                $imagePath = $request->file('cat_image')->store('categories', 'public');
-                $data['cat_image'] = $imagePath;
+            if ($request->hasFile('pub_image')) {
+                $imagePath = $request->file('pub_image')->store('publishers', 'public');
+                $data['pub_image'] = $imagePath;
             }
 
             $data['created_by'] = auth()->id();
-            $category = Category::create($data);
+            $publisher = Publisher::create($data);
 
-            $doc = DocNumber::where('type', 'Category')->first();
+            $doc = DocNumber::where('type', 'Publisher')->first();
             if ($doc) {
                 $doc->last_id += 1;
                 $doc->save();
             }
-
             return response()->json([
                 'success' => true,
-                'message' => 'Category created successfully',
-                'data' => new CategoryResource($category)
-            ], 201);
+                'message' => 'Publisher created successfully',
+                'data' => new PublisherResource($publisher)
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create Category',
+                'message' => 'Failed to create publisher',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    public function update(CategoryRequest $request, $cat_code)
+    public function update(PublisherRequest $request, $pub_code)
     {
         try {
-            $category = Category::where('cat_code', $cat_code)->firstOrFail();
+            $publisher = Publisher::where('pub_code', $pub_code)->firstOrFail();
             $data = $request->validated();
 
             // Handle image update if provided
-            if ($request->hasFile('cat_image')) {
+            if ($request->hasFile('pub_image')) {
                 // Delete old image if exists
-                if ($category->cat_image) {
-                    Storage::disk('public')->delete($category->cat_image);
+                if ($publisher->pub_image) {
+                    Storage::disk('public')->delete($publisher->pub_image);
                 }
 
-                $imagePath = $request->file('cat_image')->store('categories', 'public');
-                $data['cat_image'] = $imagePath;
+                $imagePath = $request->file('pub_image')->store('publishers', 'public');
+                $data['pub_image'] = $imagePath;
             }
 
             $data['updated_by'] = auth()->id();
-            $category->update($data);
+            $publisher->update($data);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Category updated successfully',
-                'data' => new CategoryResource($category)
+                'message' => 'Publisher updated successfully',
+                'data' => new PublisherResource($publisher)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update Category',
+                'message' => 'Failed to update publisher',
                 'error' => $e->getMessage()
             ], 500);
         }

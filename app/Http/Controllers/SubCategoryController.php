@@ -44,16 +44,17 @@ class SubCategoryController extends Controller
     public function index()
     {
         try {
-            $subCategories = SubCategory::all();
+            $subCategories = SubCategory::with(['category', 'department'])->get();
+
             return response()->json([
                 'success' => true,
-                'message' => 'SubCategories fetched successfully',
+                'message' => 'Sub categories fetched successfully',
                 'data' => SubCategoryResource::collection($subCategories)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch SubCategories',
+                'message' => 'Failed to fetch sub categories',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -62,16 +63,17 @@ class SubCategoryController extends Controller
     public function show($scat_code)
     {
         try {
-            $subCategory = SubCategory::where('scat_code', $scat_code)->firstOrFail();
+            $subCategory = SubCategory::with(['category.department'])->where('scat_code', $scat_code)->firstOrFail();
+
             return response()->json([
                 'success' => true,
-                'message' => 'SubCategory fetched successfully',
+                'message' => 'Sub category fetched successfully',
                 'data' => new SubCategoryResource($subCategory)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'SubCategory not found',
+                'message' => 'Sub category not found',
                 'error' => $e->getMessage()
             ], 404);
         }

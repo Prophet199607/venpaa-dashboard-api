@@ -24,6 +24,7 @@ class CategoryResource extends JsonResource
             'cat_image_url' => $this->cat_image ? asset('storage/' . $this->cat_image) : null,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
+            'sub_categories' => $this->whenLoaded('subCategories'),
         ];
     }
 }

@@ -153,4 +153,24 @@ class DepartmentController extends Controller
             ], 500);
         }
     }
+
+    public function categories($dep_code)
+    {
+        try {
+            $department = Department::where('dep_code', $dep_code)->firstOrFail();
+            $categories = $department->categories;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Categories fetched successfully',
+                'data' => $categories
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch categories',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
