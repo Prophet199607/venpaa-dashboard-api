@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Database\Seeders\StatusSeeder;
 use Database\Seeders\LocationSeeder;
 use Database\Seeders\BookTypeSeeder;
 use Database\Seeders\AdminUserSeeder;
@@ -23,6 +24,7 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             DocNumberSeeder::class,
             BookTypeSeeder::class,
+            StatusSeeder::class,
         ]);
     }
 }
