@@ -70,14 +70,13 @@ class PublisherController extends Controller
     {
         try {
             $data = $request->validated();
+            $data['created_by'] = auth()->id();
 
             // Handle image upload
             if ($request->hasFile('pub_image')) {
                 $imagePath = $request->file('pub_image')->store('publishers', 'public');
                 $data['pub_image'] = $imagePath;
             }
-
-            $data['created_by'] = auth()->id();
 
             // Check if publisher code already exists
             if (Publisher::where('pub_code', $data['pub_code'])->exists()) {
