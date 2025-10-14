@@ -24,6 +24,7 @@ class DocNumberSeeder extends Seeder
             ['type' => 'Category', 'prefix' => 'CAT', 'last_id' => 0],
             ['type' => 'Publisher', 'prefix' => 'PUB', 'last_id' => 0],
             ['type' => 'Supplier', 'prefix' => 'SUP', 'last_id' => 0],
+            ['type' => 'Book', 'prefix' => 'BK', 'last_id' => 0],
         ];
 
         foreach ($default as $key => $value) {
