@@ -14,24 +14,12 @@ class LocationController extends Controller
     public function generateLocationCode(Request $request)
     {
         try {
-            $doc = DocNumber::where('type', 'Location')->first();
-
-            if (!$doc) {
-                // If no Location document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'Location',
-                    'prefix' => 'L',
-                    'last_id' => 4
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'Location')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -83,20 +71,19 @@ class LocationController extends Controller
     {
         try {
             $data = $request->validated();
+            $data['created_by'] = auth()->id();
 
             // Handle boolean conversion from FormData
             if (isset($data['is_active'])) {
                 $data['is_active'] = (int) filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            $data['created_by'] = auth()->id();
-            $location = Location::create($data);
-
-            $doc = DocNumber::where('type', 'Location')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
+            // Check if location code already exists
+            if (Location::where('loca_code', $data['loca_code'])->exists()) {
+                $data['loca_code'] = DocNumber::where('type', 'Location')->first()->getDocCode();
             }
+
+            $location = Location::create($data);
 
             return response()->json([
                 'success' => true,

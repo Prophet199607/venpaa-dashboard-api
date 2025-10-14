@@ -24,8 +24,14 @@ class LocationRequest extends FormRequest
      */
     public function rules()
     {
+        $locationCode = $this->route('loca_code');
+
         return [
-            'loca_code' => 'required|string|max:255',
+            'loca_code' => [
+                'required',
+                'string',
+                Rule::unique('locations', 'loca_code')->ignore($locationCode, 'loca_code'),
+            ],
             'loca_name' => 'required|string|max:255',
             'location_type' => [
                 'required',
