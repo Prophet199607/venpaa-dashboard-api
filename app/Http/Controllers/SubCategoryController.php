@@ -13,24 +13,12 @@ class SubCategoryController extends Controller
     public function generateSubCategoryCode()
     {
         try {
-            $doc = DocNumber::where('type', 'SubCategory')->first();
-
-            if (!$doc) {
-                // If no SubCategory document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'SubCategory',
-                    'prefix' => 'SC',
-                    'last_id' => 0
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'SubCategory')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -83,23 +71,14 @@ class SubCategoryController extends Controller
     {
         try {
             $data = $request->validated();
-
-            // Check if SubCategory code already exists
-            if (SubCategory::where('scat_code', $data['scat_code'])->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'SubCategory code already exists'
-                ], 422);
-            }
-
             $data['created_by'] = auth()->id();
-            $subCategory = SubCategory::create($data);
 
-            $doc = DocNumber::where('type', 'SubCategory')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
+            // Check if sub category code already exists
+            if (SubCategory::where('scat_code', $data['scat_code'])->exists()) {
+                $data['scat_code'] = DocNumber::where('type', 'SubCategory')->first()->getDocCode();
             }
+
+            $subCategory = SubCategory::create($data);
 
             return response()->json([
                 'success' => true,

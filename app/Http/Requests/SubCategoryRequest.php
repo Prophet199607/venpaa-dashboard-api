@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SubCategoryRequest extends FormRequest
@@ -23,8 +24,14 @@ class SubCategoryRequest extends FormRequest
      */
     public function rules()
     {
+        $subCategoryCode = $this->route('scat_code');
+
         return [
-            'scat_code' => 'required|string|max:255',
+            'scat_code' => [
+                'required',
+                'string',
+                Rule::unique('sub_categories', 'scat_code')->ignore($subCategoryCode, 'scat_code'),
+            ],
             'scat_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'cat_code' => 'required|string|max:255',

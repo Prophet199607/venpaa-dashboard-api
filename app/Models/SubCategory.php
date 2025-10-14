@@ -20,4 +20,12 @@ class SubCategory extends Model
     {
         return $this->belongsTo(Department::class, 'department', 'dep_code');
     }
+
+    protected static function booted()
+    {
+        // Update DocNumber after successful creation
+        static::created(function ($subCategory) {
+            DocNumber::where('type', 'SubCategory')->first()?->incrementLastId();
+        });
+    }
 }
