@@ -9,4 +9,12 @@ class BookType extends Model
 {
     use HasFactory;
     protected $guarded = [];
+
+    protected static function booted()
+    {
+        // Update DocNumber after successful creation
+        static::created(function ($bookType) {
+            DocNumber::where('type', 'BookType')->first()?->incrementLastId();
+        });
+    }
 }

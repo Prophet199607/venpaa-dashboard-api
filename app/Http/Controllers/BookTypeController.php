@@ -14,24 +14,12 @@ class BookTypeController extends Controller
     public function generateBookTypeCode(Request $request)
     {
         try {
-            $doc = DocNumber::where('type', 'BookType')->first();
-
-            if (!$doc) {
-                // If no book type document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'BookType',
-                    'prefix' => 'BT',
-                    'last_id' => 3
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'BookType')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -84,13 +72,13 @@ class BookTypeController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->id();
-            $bookType = BookType::create($data);
 
-            $doc = DocNumber::where('type', 'BookType')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
+            // Check if book type code already exists
+            if (BookType::where('bkt_code', $data['bkt_code'])->exists()) {
+                $data['bkt_code'] = DocNumber::where('type', 'BookType')->first()->getDocCode();
             }
+
+            $bookType = BookType::create($data);
 
             return response()->json([
                 'success' => true,
