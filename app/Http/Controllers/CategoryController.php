@@ -14,24 +14,12 @@ class CategoryController extends Controller
     public function generateCategoryCode()
     {
         try {
-            $doc = DocNumber::where('type', 'Category')->first();
-
-            if (!$doc) {
-                // If no category document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'Category',
-                    'prefix' => 'CAT',
-                    'last_id' => 0
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'Category')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -82,14 +70,7 @@ class CategoryController extends Controller
     {
         try {
             $data = $request->validated();
-
-            // Check if Category code already exists
-            if (Category::where('cat_code', $data['cat_code'])->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Category code already exists'
-                ], 422);
-            }
+            $data['created_by'] = auth()->id();
 
             // Handle image upload
             if ($request->hasFile('cat_image')) {
@@ -97,14 +78,12 @@ class CategoryController extends Controller
                 $data['cat_image'] = $imagePath;
             }
 
-            $data['created_by'] = auth()->id();
-            $category = Category::create($data);
-
-            $doc = DocNumber::where('type', 'Category')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
+            // Check if category code already exists
+            if (Category::where('cat_code', $data['cat_code'])->exists()) {
+                $data['cat_code'] = DocNumber::where('type', 'Category')->first()->getDocCode();
             }
+
+            $category = Category::create($data);
 
             return response()->json([
                 'success' => true,

@@ -21,4 +21,12 @@ class Category extends Model
     {
         return $this->hasMany(SubCategory::class, 'cat_code', 'cat_code');
     }
+
+    protected static function booted()
+    {
+        // Update DocNumber after successful creation
+        static::created(function ($category) {
+            DocNumber::where('type', 'Category')->first()?->incrementLastId();
+        });
+    }
 }
