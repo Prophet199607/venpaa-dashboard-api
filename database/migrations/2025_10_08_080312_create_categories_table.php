@@ -18,7 +18,6 @@ class CreateCategoriesTable extends Migration
             $table->string('cat_code');
             $table->string('cat_name');
             $table->string('department')->index();
-            $table->string('cat_slug')->nullable();
             $table->string('cat_image')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

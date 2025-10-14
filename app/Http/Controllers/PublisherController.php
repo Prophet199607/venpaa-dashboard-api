@@ -14,24 +14,12 @@ class PublisherController extends Controller
     public function generatePublisherCode()
     {
         try {
-            $doc = DocNumber::where('type', 'Publisher')->first();
-
-            if (!$doc) {
-                // If no publisher document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'Publisher',
-                    'prefix' => 'PUB',
-                    'last_id' => 0
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'Publisher')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -83,14 +71,6 @@ class PublisherController extends Controller
         try {
             $data = $request->validated();
 
-            // Check if publisher code already exists
-            if (Publisher::where('pub_code', $data['pub_code'])->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Publisher code already exists'
-                ], 422);
-            }
-
             // Handle image upload
             if ($request->hasFile('pub_image')) {
                 $imagePath = $request->file('pub_image')->store('publishers', 'public');
@@ -98,18 +78,19 @@ class PublisherController extends Controller
             }
 
             $data['created_by'] = auth()->id();
+
+            // Check if publisher code already exists
+            if (Publisher::where('pub_code', $data['pub_code'])->exists()) {
+                $data['pub_code'] = DocNumber::where('type', 'Publisher')->first()->getDocCode();
+            }
+
             $publisher = Publisher::create($data);
 
-            $doc = DocNumber::where('type', 'Publisher')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
-            }
             return response()->json([
                 'success' => true,
                 'message' => 'Publisher created successfully',
                 'data' => new PublisherResource($publisher)
-            ], 200);
+            ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
