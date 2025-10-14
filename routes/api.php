@@ -5,12 +5,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\LocationController;
-use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\BookTypeController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\PublisherController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\RolePermissionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -100,6 +101,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{pub_code}', [PublisherController::class, 'show']);
         Route::post('/', [PublisherController::class, 'store']);
         Route::put('/{pub_code}', [PublisherController::class, 'update']);
+    });
+
+    // supplier routes
+    Route::group(['prefix' => 'suppliers'], function () {
+        Route::get('/generate-code', [SupplierController::class, 'generateSupplierCode']);
+        Route::get('/', [SupplierController::class, 'index']);
+        Route::get('/{sup_code}', [SupplierController::class, 'show']);
+        Route::post('/', [SupplierController::class, 'store']);
+        Route::put('/{sup_code}', [SupplierController::class, 'update']);
     });
 
     // author routes

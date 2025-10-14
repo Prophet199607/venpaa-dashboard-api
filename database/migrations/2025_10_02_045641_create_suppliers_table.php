@@ -15,6 +15,17 @@ class CreateSuppliersTable extends Migration
     {
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
+            $table->string('sup_code');
+            $table->string('sup_name');
+            $table->string('company')->nullable();
+            $table->text('address')->nullable();
+            $table->string('mobile')->nullable();
+            $table->string('telephone')->nullable();
+            $table->string('email')->nullable();
+            $table->text('description')->nullable();
+            $table->string('sup_image')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
         });
     }
