@@ -33,7 +33,7 @@ class SupplierController extends Controller
     public function index()
     {
         try {
-            $suppliers = Supplier::all();
+            $suppliers = Supplier::where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Suppliers fetched successfully',
@@ -51,7 +51,7 @@ class SupplierController extends Controller
     public function show($sup_code)
     {
         try {
-            $supplier = Supplier::where('sup_code', $sup_code)->firstOrFail();
+            $supplier = Supplier::where('sup_code', $sup_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Supplier fetched successfully',
@@ -71,6 +71,7 @@ class SupplierController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->id();
+            $data['status'] = $request->status ?? 1;
 
             // Handle image upload
             if ($request->hasFile('sup_image')) {
@@ -102,8 +103,17 @@ class SupplierController extends Controller
     public function update(SupplierRequest $request, $sup_code)
     {
         try {
-            $supplier = Supplier::where('sup_code', $sup_code)->firstOrFail();
+            $supplier = Supplier::where('sup_code', $sup_code)->first();
+
+            if (!$supplier) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Supplier not found',
+                ], 404);
+            }
+
             $data = $request->validated();
+            $data['status'] = $request->status ?? $supplier->status;
 
             // Handle image update if provided
             if ($request->hasFile('sup_image')) {
@@ -118,6 +128,37 @@ class SupplierController extends Controller
 
             $data['updated_by'] = auth()->id();
             $supplier->update($data);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier updated successfully',
+                'data' => new SupplierResource($supplier)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update Supplier',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function changeSupplierStatus($sup_code, $status)
+    {
+        try {
+            $supplier = Supplier::where('sup_code', $sup_code)->first();
+
+            if (!$supplier) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Supplier not found',
+                ], 404);
+            }
+
+            $supplier->update([
+                'status' => $status,
+                'updated_by' => auth()->id()
+            ]);
 
             return response()->json([
                 'success' => true,

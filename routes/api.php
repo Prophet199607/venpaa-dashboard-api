@@ -110,6 +110,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{sup_code}', [SupplierController::class, 'show']);
         Route::post('/', [SupplierController::class, 'store']);
         Route::put('/{sup_code}', [SupplierController::class, 'update']);
+        Route::post('/status/{sup_code}/{status}', [SupplierController::class, 'changeSupplierStatus']);
     });
 
     // author routes

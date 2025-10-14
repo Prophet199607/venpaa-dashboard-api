@@ -40,6 +40,7 @@ class SupplierRequest extends FormRequest
             'email' => 'nullable|string|email',
             'description' => 'nullable|string',
             'sup_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'status' => 'nullable|integer',
         ];
     }
 }
