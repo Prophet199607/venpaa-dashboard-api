@@ -14,24 +14,12 @@ class DepartmentController extends Controller
     public function generateDepartmentCode()
     {
         try {
-            $doc = DocNumber::where('type', 'Department')->first();
-
-            if (!$doc) {
-                // If no department document exists, create one
-                $doc = DocNumber::create([
-                    'type' => 'Department',
-                    'prefix' => 'DEP',
-                    'last_id' => 0
-                ]);
-            }
-
-            $nextId = $doc->last_id + 1;
-            $number = $doc->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            $docCode = DocNumber::where('type', 'Department')->first()->getDocCode();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Code generated successfully',
-                'code' => $number
+                'code' => $docCode['code']
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -82,14 +70,7 @@ class DepartmentController extends Controller
     {
         try {
             $data = $request->validated();
-
-            // Check if department code already exists
-            if (Department::where('dep_code', $data['dep_code'])->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Department code already exists'
-                ], 422);
-            }
+            $data['created_by'] = auth()->id();
 
             // Handle image upload
             if ($request->hasFile('dep_image')) {
@@ -97,14 +78,12 @@ class DepartmentController extends Controller
                 $data['dep_image'] = $imagePath;
             }
 
-            $data['created_by'] = auth()->id();
-            $department = Department::create($data);
-
-            $doc = DocNumber::where('type', 'Department')->first();
-            if ($doc) {
-                $doc->last_id += 1;
-                $doc->save();
+            // Check if department code already exists
+            if (Department::where('dep_code', $data['dep_code'])->exists()) {
+                $data['dep_code'] = DocNumber::where('type', 'Department')->first()->getDocCode();
             }
+
+            $department = Department::create($data);
 
             return response()->json([
                 'success' => true,

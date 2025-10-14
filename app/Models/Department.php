@@ -15,4 +15,12 @@ class Department extends Model
     {
         return $this->hasMany(Category::class, 'department', 'dep_code');
     }
+
+    protected static function booted()
+    {
+        // Update DocNumber after successful creation
+        static::created(function ($department) {
+            DocNumber::where('type', 'Department')->first()?->incrementLastId();
+        });
+    }
 }
