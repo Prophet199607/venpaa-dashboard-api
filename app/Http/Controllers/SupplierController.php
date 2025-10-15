@@ -71,7 +71,6 @@ class SupplierController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->id();
-            $data['status'] = $request->status ?? 1;
 
             // Handle image upload
             if ($request->hasFile('sup_image')) {
@@ -113,7 +112,6 @@ class SupplierController extends Controller
             }
 
             $data = $request->validated();
-            $data['status'] = $request->status ?? $supplier->status;
 
             // Handle image update if provided
             if ($request->hasFile('sup_image')) {
