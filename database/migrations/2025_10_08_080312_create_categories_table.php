@@ -19,6 +19,7 @@ class CreateCategoriesTable extends Migration
             $table->string('cat_name');
             $table->string('department')->index();
             $table->string('cat_image')->nullable();
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

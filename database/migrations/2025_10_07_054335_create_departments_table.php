@@ -18,6 +18,7 @@ class CreateDepartmentsTable extends Migration
             $table->string('dep_code');
             $table->string('dep_name');
             $table->string('dep_image')->nullable();
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

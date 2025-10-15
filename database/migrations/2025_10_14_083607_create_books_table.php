@@ -41,7 +41,7 @@ class CreateBooksTable extends Migration
             $table->string('language')->nullable();
             $table->string('cover_image')->nullable();
             $table->text('description')->nullable();
-            $table->integer('status')->nullable();
+            $table->integer('status')->default(1);
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

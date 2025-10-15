@@ -33,7 +33,7 @@ class BookTypeController extends Controller
     public function index()
     {
         try {
-            $bookTypes = BookType::all();
+            $bookTypes = BookType::where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Book types fetched successfully',
@@ -51,7 +51,7 @@ class BookTypeController extends Controller
     public function show($bkt_code)
     {
         try {
-            $bookType = BookType::where('bkt_code', $bkt_code)->firstOrFail();
+            $bookType = BookType::where('bkt_code', $bkt_code)->first();
 
             return response()->json([
                 'success' => true,
@@ -98,7 +98,7 @@ class BookTypeController extends Controller
     {
         try {
             $data = $request->validated();
-            $bookType = BookType::where('bkt_code', $bkt_code)->firstOrFail();
+            $bookType = BookType::where('bkt_code', $bkt_code)->first();
             $data['updated_by'] = auth()->id();
             $bookType->update($data);
 

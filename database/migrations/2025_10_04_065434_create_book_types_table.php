@@ -17,6 +17,7 @@ class CreateBookTypesTable extends Migration
             $table->id();
             $table->string('bkt_code');
             $table->string('bkt_name');
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

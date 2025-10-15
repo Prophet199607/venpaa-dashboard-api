@@ -19,6 +19,7 @@ class CreateSubCategoriesTable extends Migration
             $table->string('scat_name');
             $table->string('department')->index();
             $table->string('cat_code')->index();
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

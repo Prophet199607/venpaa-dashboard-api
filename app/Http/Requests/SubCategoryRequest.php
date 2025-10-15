@@ -35,6 +35,7 @@ class SubCategoryRequest extends FormRequest
             'scat_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'cat_code' => 'required|string|max:255',
+            'status' => 'nullable|integer',
         ];
     }
 }

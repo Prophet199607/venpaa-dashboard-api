@@ -32,7 +32,7 @@ class SubCategoryController extends Controller
     public function index()
     {
         try {
-            $subCategories = SubCategory::with(['category', 'department'])->get();
+            $subCategories = SubCategory::with(['category', 'department'])->where('status', 1)->get();
 
             return response()->json([
                 'success' => true,
@@ -51,7 +51,7 @@ class SubCategoryController extends Controller
     public function show($scat_code)
     {
         try {
-            $subCategory = SubCategory::with(['category.department'])->where('scat_code', $scat_code)->firstOrFail();
+            $subCategory = SubCategory::with(['category.department'])->where('scat_code', $scat_code)->first();
 
             return response()->json([
                 'success' => true,
@@ -97,7 +97,7 @@ class SubCategoryController extends Controller
     public function update(SubCategoryRequest $request, $scat_code)
     {
         try {
-            $subCategory = SubCategory::where('scat_code', $scat_code)->firstOrFail();
+            $subCategory = SubCategory::where('scat_code', $scat_code)->first();
             $data = $request->validated();
             $data['updated_by'] = auth()->id();
             $subCategory->update($data);

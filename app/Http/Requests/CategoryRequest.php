@@ -35,6 +35,7 @@ class CategoryRequest extends FormRequest
             'cat_name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'cat_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'status' => 'nullable|integer',
         ];
     }
 }

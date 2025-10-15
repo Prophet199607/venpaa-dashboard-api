@@ -32,6 +32,7 @@ class BookTypeRequest extends FormRequest
                 Rule::unique('book_types', 'bkt_code')->ignore($bookTypeCode, 'bkt_code'),
             ],
             'bkt_name' => 'required|string|max:255',
+            'status' => 'nullable|integer',
         ];
     }
 }

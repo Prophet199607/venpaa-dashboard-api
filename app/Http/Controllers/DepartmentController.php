@@ -33,7 +33,7 @@ class DepartmentController extends Controller
     public function index()
     {
         try {
-            $departments = Department::all();
+            $departments = Department::where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Departments fetched successfully',
@@ -51,7 +51,7 @@ class DepartmentController extends Controller
     public function show($dep_code)
     {
         try {
-            $department = Department::where('dep_code', $dep_code)->firstOrFail();
+            $department = Department::where('dep_code', $dep_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Department fetched successfully',
@@ -102,7 +102,7 @@ class DepartmentController extends Controller
     public function update(DepartmentRequest $request, $dep_code)
     {
         try {
-            $department = Department::where('dep_code', $dep_code)->firstOrFail();
+            $department = Department::where('dep_code', $dep_code)->first();
             $data = $request->validated();
 
             // Handle image update if provided
@@ -136,7 +136,7 @@ class DepartmentController extends Controller
     public function categories($dep_code)
     {
         try {
-            $department = Department::where('dep_code', $dep_code)->firstOrFail();
+            $department = Department::where('dep_code', $dep_code)->first();
             $categories = $department->categories;
 
             return response()->json([

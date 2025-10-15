@@ -24,9 +24,9 @@ class CreateSuppliersTable extends Migration
             $table->string('email')->nullable();
             $table->text('description')->nullable();
             $table->string('sup_image')->nullable();
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
-            $table->integer('status')->default(1);
             $table->timestamps();
         });
     }

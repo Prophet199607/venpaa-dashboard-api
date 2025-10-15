@@ -34,7 +34,7 @@ class PublisherController extends Controller
     public function index()
     {
         try {
-            $publishers = Publisher::all();
+            $publishers = Publisher::where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Publishers fetched successfully',
@@ -51,7 +51,7 @@ class PublisherController extends Controller
     public function show($pub_code)
     {
         try {
-            $publisher = Publisher::where('pub_code', $pub_code)->firstOrFail();
+            $publisher = Publisher::where('pub_code', $pub_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Publisher fetched successfully',
@@ -102,7 +102,7 @@ class PublisherController extends Controller
     public function update(PublisherRequest $request, $pub_code)
     {
         try {
-            $publisher = Publisher::where('pub_code', $pub_code)->firstOrFail();
+            $publisher = Publisher::where('pub_code', $pub_code)->first();
             $data = $request->validated();
 
             // Handle image update if provided

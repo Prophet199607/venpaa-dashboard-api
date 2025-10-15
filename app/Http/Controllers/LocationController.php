@@ -51,7 +51,7 @@ class LocationController extends Controller
     public function show($loca_code)
     {
         try {
-            $location = Location::where('loca_code', $loca_code)->firstOrFail();
+            $location = Location::where('loca_code', $loca_code)->first();
 
             return response()->json([
                 'success' => true,
@@ -108,7 +108,7 @@ class LocationController extends Controller
                 $data['is_active'] = (int) filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            $location = Location::where('loca_code', $loca_code)->firstOrFail();
+            $location = Location::where('loca_code', $loca_code)->first();
             $data['updated_by'] = auth()->id();
             $location->update($data);
 

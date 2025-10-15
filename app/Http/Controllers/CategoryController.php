@@ -33,7 +33,7 @@ class CategoryController extends Controller
     public function index()
     {
         try {
-            $categories = Category::with('subCategories')->get();
+            $categories = Category::with('subCategories')->where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Categories fetched successfully',
@@ -51,7 +51,7 @@ class CategoryController extends Controller
     public function show($cat_code)
     {
         try {
-            $category = Category::where('cat_code', $cat_code)->firstOrFail();
+            $category = Category::where('cat_code', $cat_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Category fetched successfully',
@@ -102,7 +102,7 @@ class CategoryController extends Controller
     public function update(CategoryRequest $request, $cat_code)
     {
         try {
-            $category = Category::where('cat_code', $cat_code)->firstOrFail();
+            $category = Category::where('cat_code', $cat_code)->first();
             $data = $request->validated();
 
             // Handle image update if provided

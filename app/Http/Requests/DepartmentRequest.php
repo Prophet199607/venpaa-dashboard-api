@@ -34,6 +34,7 @@ class DepartmentRequest extends FormRequest
             ],
             'dep_name' => 'required|string|max:255',
             'dep_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'status' => 'nullable|integer',
         ];
     }
 }
