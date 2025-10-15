@@ -103,8 +103,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // author routes
-    Route::group(['prefix' => 'author'], function () {
+    Route::group(['prefix' => 'authors'], function () {
+        Route::get('/generate-code', [AuthorController::class, 'generateAuthorCode']);
         Route::get('/', [AuthorController::class, 'index']);
+        Route::post('/', [AuthorController::class, 'store']);
     });
 
     // Role and Permission routes

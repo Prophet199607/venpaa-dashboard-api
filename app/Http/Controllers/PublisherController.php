@@ -51,7 +51,7 @@ class PublisherController extends Controller
     public function show($pub_code)
     {
         try {
-            $publisher = Publisher::where('pub_code', $pub_code)->firstOrFail();
+            $publisher = Publisher::where('pub_code', $pub_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Publisher fetched successfully',

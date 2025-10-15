@@ -15,6 +15,14 @@ class CreateAuthorsTable extends Migration
     {
         Schema::create('authors', function (Blueprint $table) {
             $table->id();
+            $table->string('auth_code');
+            $table->string('auth_name');
+            $table->string('auth_name_tamil')->nullable();
+            $table->text('description')->nullable();
+            $table->string('auth_image')->nullable();
+            $table->string('status')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
         });
     }

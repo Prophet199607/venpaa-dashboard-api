@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AuthorRequest extends FormRequest
@@ -13,7 +14,7 @@ class AuthorRequest extends FormRequest
      */
     public function authorize()
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,8 +24,19 @@ class AuthorRequest extends FormRequest
      */
     public function rules()
     {
+        $authorCode = $this->route('auth_code');
+
         return [
-            //
+            'auth_code' => [
+                'required',
+                'string',
+                Rule::unique('authors', 'auth_code')->ignore($authorCode, 'auth_code'),
+            ],
+
+            'auth_name' => 'required|string',
+            'auth_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'auth_name_tamil' => 'nullable|string',
+            'description' => 'nullable|string',
         ];
     }
 }
