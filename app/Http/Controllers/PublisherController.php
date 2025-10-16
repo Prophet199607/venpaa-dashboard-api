@@ -30,7 +30,6 @@ class PublisherController extends Controller
         }
     }
 
-
     public function index()
     {
         try {
@@ -48,6 +47,7 @@ class PublisherController extends Controller
             ], 500);
         }
     }
+
     public function show($pub_code)
     {
         try {
