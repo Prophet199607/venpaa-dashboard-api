@@ -20,7 +20,7 @@ class CreateAuthorsTable extends Migration
             $table->string('auth_name_tamil')->nullable();
             $table->text('description')->nullable();
             $table->string('auth_image')->nullable();
-            $table->string('status')->nullable();
+            $table->integer('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

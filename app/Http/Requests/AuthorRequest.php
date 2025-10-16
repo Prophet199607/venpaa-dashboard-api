@@ -37,6 +37,7 @@ class AuthorRequest extends FormRequest
             'auth_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'auth_name_tamil' => 'nullable|string',
             'description' => 'nullable|string',
+            'status' => 'nullable|integer',
         ];
     }
 }
