@@ -21,22 +21,22 @@ class CreateBooksTable extends Migration
             $table->string('isbn')->nullable();
             $table->year('publish_year')->nullable();
 
-            $table->unsignedBigInteger('book_type')->index('book_type');
-            $table->unsignedBigInteger('department')->index('department');
-            $table->unsignedBigInteger('category')->index('category');
-            $table->unsignedBigInteger('sub_category')->index('sub_category');
-            $table->unsignedBigInteger('publisher')->index('publisher');
-            $table->unsignedBigInteger('supplier')->index('supplier');
-            $table->unsignedBigInteger('author')->index('author');
+            $table->string('book_type')->index('book_type');
+            $table->string('department')->index('department');
+            $table->string('category')->index('category');
+            $table->string('sub_category')->index('sub_category');
+            $table->string('publisher')->index('publisher');
+            $table->string('supplier')->index('supplier');
+            $table->string('author')->index('author');
 
             $table->string('pack_size')->nullable();
-            $table->string('alert_qty')->nullable();
+            $table->integer('alert_qty')->nullable();
 
-            $table->string('width')->nullable();
-            $table->string('height')->nullable();
-            $table->string('depth')->nullable();
-            $table->string('weight')->nullable();
-            $table->string('pages')->nullable();
+            $table->decimal('width', 8, 2)->nullable();
+            $table->decimal('height', 8, 2)->nullable();
+            $table->decimal('depth', 8, 2)->nullable();
+            $table->decimal('weight', 8, 2)->nullable();
+            $table->integer('pages')->nullable();
             $table->string('barcode')->nullable();
             $table->string('language')->nullable();
             $table->string('cover_image')->nullable();

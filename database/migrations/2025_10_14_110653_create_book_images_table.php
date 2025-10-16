@@ -15,7 +15,7 @@ class CreateBookImagesTable extends Migration
     {
         Schema::create('book_images', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('book_code')->index('book_code');
+            $table->string('book_code')->index('book_code');
             $table->string('image');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
