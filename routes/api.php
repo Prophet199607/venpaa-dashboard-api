@@ -92,6 +92,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{cat_code}', [CategoryController::class, 'show']);
         Route::post('/', [CategoryController::class, 'store']);
         Route::put('/{cat_code}', [CategoryController::class, 'update']);
+        Route::get('/{cat_code}/sub-categories', [CategoryController::class, 'subCategories']);
     });
 
     // publisher routes

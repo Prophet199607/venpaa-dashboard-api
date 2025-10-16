@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CategoryRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Resources\CategoryResource;
+use App\Http\Resources\SubCategoryResource;
 
 class CategoryController extends Controller
 {
@@ -128,6 +129,26 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update Category',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function subCategories($cat_code)
+    {
+        try {
+            $category = Category::where('cat_code', $cat_code)->firstOrFail();
+            $subCategories = $category->subCategories;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sub-categories fetched successfully',
+                'data' => SubCategoryResource::collection($subCategories)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch sub-categories',
                 'error' => $e->getMessage()
             ], 500);
         }
