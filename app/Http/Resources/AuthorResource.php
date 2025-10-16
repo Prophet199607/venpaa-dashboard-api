@@ -17,10 +17,10 @@ class AuthorResource extends JsonResource
         return [
             'auth_code'             => $this->auth_code,
             'auth_name'             => $this->auth_name,
-            'auth_name_tamil'       => $this->website,
-            'description'           => $this->auth_name_tamil,
+            'auth_name_tamil'       => $this->auth_name_tamil,
+            'description'           => $this->description,
             'auth_image'            => $this->auth_image,
-            'auth_image_url'        => $this->auth_image_url ? asset('storage/' . $this->auth_image) : null,
+            'auth_image_url'        => $this->auth_image ? asset('storage/' . $this->auth_image) : null,
             'created_by'            => $this->created_by,
             'updated_by'            => $this->updated_by,
         ];
