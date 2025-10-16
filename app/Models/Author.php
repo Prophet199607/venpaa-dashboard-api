@@ -9,4 +9,12 @@ class Author extends Model
 {
     use HasFactory;
     protected $guarded = [];
+
+    protected static function booted()
+    {
+        // Update DocNumber after successful creation
+        static::created(function ($author) {
+            DocNumber::where('type', 'Author')->first()?->incrementLastId();
+        });
+    }
 }
