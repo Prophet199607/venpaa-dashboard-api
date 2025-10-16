@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookController;
 use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\BookTypeController;
@@ -121,6 +122,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{auth_code}', [AuthorController::class, 'show']);
         Route::post('/', [AuthorController::class, 'store']);
         Route::put('/{auth_code}', [AuthorController::class, 'update']);
+    });
+
+    // book routes
+    Route::group(['prefix' => 'books'], function () {
+        Route::get('/generate-code', [BookController::class, 'generateBookCode']);
+        Route::get('/', [BookController::class, 'index']);
+        Route::get('/{book_code}', [BookController::class, 'show']);
+        Route::post('/', [BookController::class, 'store']);
+        Route::put('/{book_code}', [BookController::class, 'update']);
     });
 
     // Role and Permission routes
