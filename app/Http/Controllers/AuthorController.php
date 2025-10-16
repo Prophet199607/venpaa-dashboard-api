@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\AuthorRequest;
-use App\Http\Resources\AuthorResource;
 use App\Models\Author;
 use App\Models\DocNumber;
-use Illuminate\Http\Request;
+use App\Http\Requests\AuthorRequest;
+use App\Http\Resources\AuthorResource;
+use Illuminate\Support\Facades\Storage;
+
 
 class AuthorController extends Controller
 {
@@ -28,15 +29,11 @@ class AuthorController extends Controller
             ], 500);
         }
     }
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+
     public function index()
     {
         try {
-            $authors = Author::all();
+            $authors = Author::where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Authors fetched successfully',
@@ -51,31 +48,40 @@ class AuthorController extends Controller
         }
     }
 
+    public function show($auth_code)
+    {
+        try {
+            $author = Author::where('auth_code', $auth_code)->first();
+            return response()->json([
+                'success' => true,
+                'message' => 'Author fetched successfully',
+                'data' => new AuthorResource($author)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Author not found',
+                'error' => $e->getMessage()
+            ], 404);
+        }
+    }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(AuthorRequest $request)
     {
-
         try {
             $data = $request->validated();
+            $data['created_by'] = auth()->id();
+
             // Handle image upload
             if ($request->hasFile('auth_image')) {
                 $imagePath = $request->file('auth_image')->store('authors', 'public');
                 $data['auth_image'] = $imagePath;
             }
 
-            $data['created_by'] = auth()->id();
-
             // Check if Author code already exists
             if (Author::where('auth_code', $data['auth_code'])->exists()) {
                 $data['auth_code'] = DocNumber::where('type', 'Author')->first()->getDocCode();
             }
-
 
             $author = Author::create($data);
 
@@ -93,37 +99,37 @@ class AuthorController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
+    public function update(AuthorRequest $request, $auth_code)
     {
-        //
-    }
+        try {
+            $author = Author::where('auth_code', $auth_code)->first();
+            $data = $request->validated();
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
+            // Handle image update if provided
+            if ($request->hasFile('auth_image')) {
+                // Delete old image if exists
+                if ($author->auth_image) {
+                    Storage::disk('public')->delete($author->auth_image);
+                }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        //
+                $imagePath = $request->file('auth_image')->store('authors', 'public');
+                $data['auth_image'] = $imagePath;
+            }
+
+            $data['updated_by'] = auth()->id();
+            $author->update($data);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Author updated successfully',
+                'data' => new AuthorResource($author)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update author',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
