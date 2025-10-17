@@ -57,13 +57,21 @@ class BookController extends Controller
     {
         try {
             $book = Book::where('book_code', $book_code)
-                ->with(['author', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplier', 'images'])
+                ->with(['author', 'subCategory.category.department', 'bookType', 'publisher', 'supplier', 'images'])
                 ->first();
+
+            if (!$book) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Book not found',
+                    'error' => 'The requested book does not exist.'
+                ], 404);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Book fetched successfully',
-                'data' => new BookResource($book)
+                'data' => new BookResource($book->load('images'))
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

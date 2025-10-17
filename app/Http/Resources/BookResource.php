@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\SubCategoryResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class BookResource extends JsonResource
@@ -20,13 +21,13 @@ class BookResource extends JsonResource
             'title'         => $this->title,
             'isbn'          => $this->isbn,
             'publish_year'  => $this->publish_year,
-            'book_type'     => $this->whenLoaded('bookType'),
-            'department'    => $this->whenLoaded('department'),
-            'category'      => $this->whenLoaded('category'),
-            'sub_category'  => $this->whenLoaded('subCategory'),
-            'publisher'     => $this->whenLoaded('publisher'),
-            'supplier'      => $this->whenLoaded('supplier'),
-            'author'        => $this->whenLoaded('author'),
+            'book_type'     => $this->book_type,
+            'department'    => $this->department,
+            'category'      => $this->category,
+            'sub_category'  => new SubCategoryResource($this->whenLoaded('subCategory')),
+            'publisher'     => $this->publisher,
+            'supplier'      => $this->supplier,
+            'author'        => $this->author,
             'pack_size'     => $this->pack_size,
             'alert_qty'     => $this->alert_qty,
             'width'         => $this->width,
@@ -38,7 +39,11 @@ class BookResource extends JsonResource
             'language'      => $this->language,
             'cover_image'   => $this->cover_image,
             'cover_image_url' => $this->cover_image ? asset('storage/' . $this->cover_image) : null,
-            'images'        => $this->whenLoaded('images'),
+            'image_urls'    => $this->whenLoaded('images', function () {
+                return $this->images->map(function ($bookImage) {
+                    return asset('storage/' . $bookImage->image);
+                });
+            }),
             'description'   => $this->description,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
