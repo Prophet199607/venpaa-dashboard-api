@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\AuthorResource;
 use App\Http\Resources\SubCategoryResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,7 +28,7 @@ class BookResource extends JsonResource
             'sub_category'  => new SubCategoryResource($this->whenLoaded('subCategory')),
             'publisher'     => $this->publisher,
             'supplier'      => $this->supplier,
-            'author'        => $this->author,
+            'author'        => new AuthorResource($this->whenLoaded('authorDetails')),
             'pack_size'     => $this->pack_size,
             'alert_qty'     => $this->alert_qty,
             'width'         => $this->width,

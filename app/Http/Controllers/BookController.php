@@ -36,7 +36,7 @@ class BookController extends Controller
     {
         try {
             $books = Book::where('status', 1)
-                ->with(['author', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplier', 'images'])
+                ->with(['authorDetails', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplier', 'images'])
                 ->get();
 
             return response()->json([
@@ -57,7 +57,7 @@ class BookController extends Controller
     {
         try {
             $book = Book::where('book_code', $book_code)
-                ->with(['author', 'subCategory.category.department', 'bookType', 'publisher', 'supplier', 'images'])
+                ->with(['authorDetails', 'subCategory.category.department', 'bookType', 'publisher', 'supplier', 'images'])
                 ->first();
 
             if (!$book) {
@@ -117,7 +117,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $book->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'author', 'images']);
+            $book->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'authorDetails', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -182,7 +182,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $book->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'author', 'images']);
+            $book->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'authorDetails', 'images']);
 
             return response()->json([
                 'success' => true,
