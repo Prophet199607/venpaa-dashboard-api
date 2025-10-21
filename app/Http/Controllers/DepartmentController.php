@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DocNumber;
 use App\Models\Department;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\DepartmentRequest;
@@ -69,21 +70,27 @@ class DepartmentController extends Controller
     public function store(DepartmentRequest $request)
     {
         try {
+            DB::beginTransaction();
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Handle image upload
-            if ($request->hasFile('dep_image')) {
-                $imagePath = $request->file('dep_image')->store('departments', 'public');
-                $data['dep_image'] = $imagePath;
-            }
-
             // Check if department code already exists
             if (Department::where('dep_code', $data['dep_code'])->exists()) {
-                $data['dep_code'] = DocNumber::where('type', 'Department')->first()->getDocCode();
+                $docCode = DocNumber::where('type', 'Department')->first()->getDocCode();
+                $data['dep_code'] = $docCode['code'];
+            }
+
+            // Handle image upload
+            if ($request->hasFile('dep_image')) {
+                $image = $request->file('dep_image');
+                $filename = $data['dep_code'] . '.' . $image->getClientOriginalExtension();
+                $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+            } else {
+                $data['dep_image'] = $data['dep_code'];
             }
 
             $department = Department::create($data);
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -91,6 +98,7 @@ class DepartmentController extends Controller
                 'data' => new DepartmentResource($department)
             ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create department',
@@ -102,22 +110,30 @@ class DepartmentController extends Controller
     public function update(DepartmentRequest $request, $dep_code)
     {
         try {
+            DB::beginTransaction();
             $department = Department::where('dep_code', $dep_code)->first();
             $data = $request->validated();
+            $data['updated_by'] = auth()->id();
 
-            // Handle image update if provided
-            if ($request->hasFile('dep_image')) {
-                // Delete old image if exists
+            $new_dep_code = $data['dep_code'] ?? $dep_code;
+
+            // If dep_code is changing, or if a new image is uploaded, the old image is invalid.
+            if ((isset($data['dep_code']) && $data['dep_code'] !== $dep_code) || $request->hasFile('dep_image')) {
                 if ($department->dep_image) {
                     Storage::disk('public')->delete($department->dep_image);
                 }
-
-                $imagePath = $request->file('dep_image')->store('departments', 'public');
-                $data['dep_image'] = $imagePath;
             }
 
-            $data['updated_by'] = auth()->id();
+            if ($request->hasFile('dep_image')) {
+                $image = $request->file('dep_image');
+                $filename = $new_dep_code . '.' . $image->getClientOriginalExtension();
+                $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+            } else {
+                $data['dep_image'] = $new_dep_code;
+            }
+
             $department->update($data);
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -125,6 +141,7 @@ class DepartmentController extends Controller
                 'data' => new DepartmentResource($department)
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update department',

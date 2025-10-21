@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DocNumber;
 use App\Models\Category;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CategoryRequest;
 use Illuminate\Support\Facades\Storage;
@@ -70,21 +71,27 @@ class CategoryController extends Controller
     public function store(CategoryRequest $request)
     {
         try {
+            DB::beginTransaction();
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Handle image upload
-            if ($request->hasFile('cat_image')) {
-                $imagePath = $request->file('cat_image')->store('categories', 'public');
-                $data['cat_image'] = $imagePath;
-            }
-
             // Check if category code already exists
             if (Category::where('cat_code', $data['cat_code'])->exists()) {
-                $data['cat_code'] = DocNumber::where('type', 'Category')->first()->getDocCode();
+                $docCode = DocNumber::where('type', 'Category')->first()->getDocCode();
+                $data['cat_code'] = $docCode['code'];
+            }
+
+            // Handle image upload
+            if ($request->hasFile('cat_image')) {
+                $image = $request->file('cat_image');
+                $filename = $data['cat_code'] . '.' . $image->getClientOriginalExtension();
+                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+            } else {
+                $data['cat_image'] = $data['cat_code'];
             }
 
             $category = Category::create($data);
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -92,6 +99,7 @@ class CategoryController extends Controller
                 'data' => new CategoryResource($category)
             ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create Category',
@@ -103,22 +111,30 @@ class CategoryController extends Controller
     public function update(CategoryRequest $request, $cat_code)
     {
         try {
+            DB::beginTransaction();
             $category = Category::where('cat_code', $cat_code)->first();
             $data = $request->validated();
+            $data['updated_by'] = auth()->id();
 
-            // Handle image update if provided
-            if ($request->hasFile('cat_image')) {
-                // Delete old image if exists
+            $new_cat_code = $data['cat_code'] ?? $cat_code;
+
+            // If cat_code is changing, or if a new image is uploaded, the old image is invalid.
+            if ((isset($data['cat_code']) && $data['cat_code'] !== $cat_code) || $request->hasFile('cat_image')) {
                 if ($category->cat_image) {
                     Storage::disk('public')->delete($category->cat_image);
                 }
-
-                $imagePath = $request->file('cat_image')->store('categories', 'public');
-                $data['cat_image'] = $imagePath;
             }
 
-            $data['updated_by'] = auth()->id();
+            if ($request->hasFile('cat_image')) {
+                $image = $request->file('cat_image');
+                $filename = $new_cat_code . '.' . $image->getClientOriginalExtension();
+                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+            } else {
+                $data['cat_image'] = $new_cat_code;
+            }
+
             $category->update($data);
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -126,6 +142,7 @@ class CategoryController extends Controller
                 'data' => new CategoryResource($category)
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update Category',

@@ -7,7 +7,7 @@ use App\Models\DocNumber;
 use App\Http\Requests\AuthorRequest;
 use App\Http\Resources\AuthorResource;
 use Illuminate\Support\Facades\Storage;
-
+use PhpParser\Comment\Doc;
 
 class AuthorController extends Controller
 {
@@ -72,15 +72,19 @@ class AuthorController extends Controller
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Handle image upload
-            if ($request->hasFile('auth_image')) {
-                $imagePath = $request->file('auth_image')->store('authors', 'public');
-                $data['auth_image'] = $imagePath;
-            }
-
             // Check if Author code already exists
             if (Author::where('auth_code', $data['auth_code'])->exists()) {
-                $data['auth_code'] = DocNumber::where('type', 'Author')->first()->getDocCode();
+                $docCode = DocNumber::where('type', 'Author')->first()->getDocCode();
+                $data['auth_code'] = $docCode['code'];
+            }
+
+            // Handle image upload
+            if ($request->hasFile('auth_image')) {
+                $image = $request->file('auth_image');
+                $filename = $data['auth_code'] . '.' . $image->getClientOriginalExtension();
+                $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+            } else {
+                $data['auth_image'] = $data['auth_code'];
             }
 
             $author = Author::create($data);
@@ -104,19 +108,25 @@ class AuthorController extends Controller
         try {
             $author = Author::where('auth_code', $auth_code)->first();
             $data = $request->validated();
+            $data['updated_by'] = auth()->id();
 
-            // Handle image update if provided
-            if ($request->hasFile('auth_image')) {
-                // Delete old image if exists
+            $new_auth_code = $data['auth_code'] ?? $auth_code;
+
+            // If auth_code is changing, or if a new image is uploaded, the old image is invalid.
+            if ((isset($data['auth_code']) && $data['auth_code'] !== $auth_code) || $request->hasFile('auth_image')) {
                 if ($author->auth_image) {
                     Storage::disk('public')->delete($author->auth_image);
                 }
-
-                $imagePath = $request->file('auth_image')->store('authors', 'public');
-                $data['auth_image'] = $imagePath;
             }
 
-            $data['updated_by'] = auth()->id();
+            if ($request->hasFile('auth_image')) {
+                $image = $request->file('auth_image');
+                $filename = $new_auth_code . '.' . $image->getClientOriginalExtension();
+                $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+            } else {
+                $data['auth_image'] = $new_auth_code;
+            }
+
             $author->update($data);
 
             return response()->json([

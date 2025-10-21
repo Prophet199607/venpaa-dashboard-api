@@ -87,6 +87,13 @@ class BookController extends Controller
         try {
             DB::beginTransaction();
             $data = $request->validated();
+
+            // Check if Book code already exists
+            if (Book::where('book_code', $data['book_code'])->exists()) {
+                $docCode = DocNumber::where('type', 'Book')->first()->getDocCode();
+                $data['book_code'] = $docCode['code'];
+            }
+
             $data['created_by'] = auth()->id();
 
             // Separate image data from book data
@@ -96,8 +103,11 @@ class BookController extends Controller
             // Handle cover image upload
             if ($request->hasFile('cover_image')) {
                 $coverImage = $request->file('cover_image');
-                $coverImagePath = $coverImage->store('books/cover', 'public');
+                $filename = $data['book_code'] . '.' . $coverImage->getClientOriginalExtension();
+                $coverImagePath = $coverImage->storeAs('books/cover', $filename, 'public');
                 $data['cover_image'] = $coverImagePath;
+            } else {
+                $data['cover_image'] = $data['book_code'];
             }
 
             $book = Book::create($data);
@@ -105,7 +115,9 @@ class BookController extends Controller
             // Handle multiple images upload
             if ($images) {
                 foreach ($images as $image) {
-                    $imagePath = $image->store('books/images', 'public');
+                    $timestamp = now()->format('YmdHisu');
+                    $filename = $book->book_code . '-' . $timestamp . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('books/images', $filename, 'public');
                     BookImage::create([
                         'book_code' => $book->book_code,
                         'image' => $imagePath,
@@ -141,20 +153,27 @@ class BookController extends Controller
             DB::beginTransaction();
             $book = Book::where('book_code', $book_code)->first();
             $data = $request->validated();
+            $data['updated_by'] = auth()->id();
+
+            $new_book_code = $data['book_code'] ?? $book_code;
 
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
 
-            // Handle cover image update if provided
-            if ($request->hasFile('cover_image')) {
-                // Delete old image if exists
+            // Handle cover image update
+            if ($request->hasFile('cover_image') || (isset($data['book_code']) && $data['book_code'] !== $book_code)) {
                 if ($book->cover_image) {
                     Storage::disk('public')->delete($book->cover_image);
                 }
+            }
 
-                $imagePath = $request->file('cover_image')->store('books/cover', 'public');
-                $data['cover_image'] = $imagePath;
+            if ($request->hasFile('cover_image')) {
+                $coverImage = $request->file('cover_image');
+                $filename = $new_book_code . '.' . $coverImage->getClientOriginalExtension();
+                $data['cover_image'] = $coverImage->storeAs('books/cover', $filename, 'public');
+            } else {
+                $data['cover_image'] = $new_book_code;
             }
 
             // Handle multiple images update
@@ -167,18 +186,18 @@ class BookController extends Controller
 
                 // Upload new images
                 foreach ($images as $imagefile) {
-                    $path = $imagefile->store('books/gallery', 'public');
+                    $timestamp = now()->format('YmdHisu');
+                    $filename = $new_book_code . '-' . $timestamp . '.' . $imagefile->getClientOriginalExtension();
+                    $path = $imagefile->storeAs('books/images', $filename, 'public');
                     BookImage::create([
-                        'book_code' => $book->book_code,
+                        'book_code' => $new_book_code,
                         'image' => $path,
-                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                     ]);
                 }
             }
 
-            $data['updated_by'] = auth()->id();
             $book->update($data);
-
             DB::commit();
 
             // Load relationships for the resource
