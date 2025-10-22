@@ -13,7 +13,7 @@ class DocNumber extends Model
     public function getDocCode()
     {
         $nextId = $this->last_id + 1;
-        $code = $this->prefix . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+        $code = $this->prefix . str_pad($nextId, $this->length, '0', STR_PAD_LEFT);
         return ['code' => $code, 'id' => $nextId];
     }
 

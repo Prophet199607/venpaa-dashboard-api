@@ -4,8 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-use function PHPSTORM_META\type;
-
 class CreateDocNumbersTable extends Migration
 {
     /**
@@ -20,6 +18,7 @@ class CreateDocNumbersTable extends Migration
             $table->string('type');
             $table->string('prefix');
             $table->integer('last_id');
+            $table->integer('length');
             $table->timestamps();
         });
     }
