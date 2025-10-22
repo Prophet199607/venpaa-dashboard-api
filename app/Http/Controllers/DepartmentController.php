@@ -129,7 +129,7 @@ class DepartmentController extends Controller
                 $filename = $new_dep_code . '.' . $image->getClientOriginalExtension();
                 $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
             } else {
-                $data['dep_image'] = $new_dep_code;
+                unset($data['dep_image']);
             }
 
             $department->update($data);

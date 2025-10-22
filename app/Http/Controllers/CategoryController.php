@@ -130,7 +130,7 @@ class CategoryController extends Controller
                 $filename = $new_cat_code . '.' . $image->getClientOriginalExtension();
                 $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
             } else {
-                $data['cat_image'] = $new_cat_code;
+                unset($data['cat_image']);
             }
 
             $category->update($data);

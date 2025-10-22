@@ -130,7 +130,7 @@ class SupplierController extends Controller
                 $filename = $new_sup_code . '.' . $image->getClientOriginalExtension();
                 $data['sup_image'] = $image->storeAs('suppliers', $filename, 'public');
             } else {
-                $data['sup_image'] = $new_sup_code;
+                unset($data['sup_image']);
             }
 
             $supplier->update($data);

@@ -129,7 +129,7 @@ class PublisherController extends Controller
                 $filename = $new_pub_code . '.' . $image->getClientOriginalExtension();
                 $data['pub_image'] = $image->storeAs('publishers', $filename, 'public');
             } else {
-                $data['pub_image'] = $new_pub_code;
+                unset($data['pub_image']);
             }
 
             $publisher->update($data);

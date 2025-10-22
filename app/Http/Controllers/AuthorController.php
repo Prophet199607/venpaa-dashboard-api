@@ -124,7 +124,7 @@ class AuthorController extends Controller
                 $filename = $new_auth_code . '.' . $image->getClientOriginalExtension();
                 $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
             } else {
-                $data['auth_image'] = $new_auth_code;
+                unset($data['auth_image']);
             }
 
             $author->update($data);
