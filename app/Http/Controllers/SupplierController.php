@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use App\Models\DocNumber;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SupplierRequest;
@@ -145,6 +146,41 @@ class SupplierController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update Supplier',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function search(Request $request)
+    {
+        try {
+            $searchTerm = $request->search;
+
+            if (empty($searchTerm)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Suppliers fetched successfully',
+                    'data' => []
+                ], 200);
+            }
+
+            $suppliers = Supplier::where('status', 1)
+                ->where(function ($query) use ($searchTerm) {
+                    $query->where('sup_name', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('sup_code', 'LIKE', '%' . $searchTerm . '%');
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Suppliers fetched successfully',
+                'data' => SupplierResource::collection($suppliers)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch suppliers',
                 'error' => $e->getMessage()
             ], 500);
         }

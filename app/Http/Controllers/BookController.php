@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\DocNumber;
 use App\Models\BookImage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\BookRequest;
 use App\Http\Controllers\Controller;
@@ -214,6 +215,43 @@ class BookController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update book',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function search(Request $request)
+    {
+        try {
+            $searchTerm = $request->search;
+
+            if (empty($searchTerm)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'books fetched successfully',
+                    'data' => []
+                ], 200);
+            }
+
+            $books = Book::where('status', 1)
+                ->where(function ($query) use ($searchTerm) {
+                    $query->where('book_code', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('title', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Books fetched successfully',
+                'data' => BookResource::collection($books)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch books',
                 'error' => $e->getMessage()
             ], 500);
         }

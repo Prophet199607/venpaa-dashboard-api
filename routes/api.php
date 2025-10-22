@@ -109,6 +109,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'suppliers'], function () {
         Route::get('/generate-code', [SupplierController::class, 'generateSupplierCode']);
         Route::get('/', [SupplierController::class, 'index']);
+        Route::get('/search', [SupplierController::class, 'search']);
         Route::get('/{sup_code}', [SupplierController::class, 'show']);
         Route::post('/', [SupplierController::class, 'store']);
         Route::put('/{sup_code}', [SupplierController::class, 'update']);
@@ -128,6 +129,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
         Route::get('/', [BookController::class, 'index']);
+        Route::get('/search', [BookController::class, 'search']);
         Route::get('/{book_code}', [BookController::class, 'show']);
         Route::post('/', [BookController::class, 'store']);
         Route::put('/{book_code}', [BookController::class, 'update']);
