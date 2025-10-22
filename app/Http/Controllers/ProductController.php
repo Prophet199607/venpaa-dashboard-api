@@ -162,18 +162,16 @@ class ProductController extends Controller
             unset($data['images']);
 
             // Handle product image update
-            if ($request->hasFile('prod_image') || (isset($data['prod_code']) && $data['prod_code'] !== $prod_code)) {
+            if ($request->hasFile('prod_image')) {
+                // Delete old image if exists
                 if ($product->prod_image) {
                     Storage::disk('public')->delete($product->prod_image);
                 }
-            }
-
-            if ($request->hasFile('prod_image')) {
                 $prodImage = $request->file('prod_image');
                 $filename = $new_prod_code . '.' . $prodImage->getClientOriginalExtension();
                 $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
             } else {
-                $data['prod_image'] = $new_prod_code;
+                unset($data['prod_image']);
             }
 
             // Handle multiple images update
