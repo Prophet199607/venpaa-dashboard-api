@@ -54,8 +54,8 @@ class Product extends Model
     protected static function booted()
     {
         // Update DocNumber after successful creation
-        static::created(function ($book) {
-            DocNumber::where('type', 'Book')->first()?->incrementLastId();
+        static::created(function ($product) {
+            DocNumber::where('type', 'Product')->first()?->incrementLastId();
         });
     }
 }
