@@ -3,16 +3,18 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\AuthorController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\LocationController;
-use App\Http\Controllers\BookTypeController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\SupplierController;
-use App\Http\Controllers\PublisherController;
-use App\Http\Controllers\DepartmentController;
-use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\RolePermissionController;
+
+use App\Http\Controllers\Master\BookController;
+use App\Http\Controllers\Master\AuthorController;
+use App\Http\Controllers\Master\BookTypeController;
+use App\Http\Controllers\Master\CategoryController;
+use App\Http\Controllers\Master\LocationController;
+use App\Http\Controllers\Master\SupplierController;
+use App\Http\Controllers\Master\PublisherController;
+use App\Http\Controllers\Master\DepartmentController;
+use App\Http\Controllers\Master\SubCategoryController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -126,13 +128,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // product routes
-    Route::group(['prefix' => 'products'], function () {
-        Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
-        Route::get('/', [ProductController::class, 'index']);
-        Route::get('/search', [ProductController::class, 'search']);
-        Route::get('/{prod_code}', [ProductController::class, 'show']);
-        Route::post('/', [ProductController::class, 'store']);
-        Route::put('/{prod_code}', [ProductController::class, 'update']);
+    Route::group(['prefix' => 'books'], function () {
+        Route::get('/generate-code', [BookController::class, 'generateBookCode']);
+        Route::get('/', [BookController::class, 'index']);
+        Route::get('/search', [BookController::class, 'search']);
+        Route::get('/{prod_code}', [BookController::class, 'show']);
+        Route::post('/', [BookController::class, 'store']);
+        Route::put('/{prod_code}', [BookController::class, 'update']);
     });
 
     // Role and Permission routes
