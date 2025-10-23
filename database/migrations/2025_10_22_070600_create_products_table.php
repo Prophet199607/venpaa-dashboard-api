@@ -18,7 +18,7 @@ class CreateProductsTable extends Migration
 
             $table->string('prod_code');
             $table->string('prod_name');
-            $table->string('short_description');
+            $table->string('short_description')->nullable();
             $table->string('department')->index('department');
             $table->string('category')->index('category');
             $table->string('sub_category')->index('sub_category');
