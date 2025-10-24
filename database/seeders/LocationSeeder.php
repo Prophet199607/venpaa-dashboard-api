@@ -17,7 +17,7 @@ class LocationSeeder extends Seeder
     {
         DB::table('locations')->insert([
             [
-                'loca_code' => 'L001',
+                'loca_code' => '001',
                 'loca_name' => 'HeadBranch',
                 'location_type' => 'Branch',
                 'delivery_address' => 'Jaffna',
@@ -28,7 +28,7 @@ class LocationSeeder extends Seeder
                 'updated_at' => Carbon::now(),
             ],
             [
-                'loca_code' => 'L002',
+                'loca_code' => '002',
                 'loca_name' => 'Colombo',
                 'location_type' => 'Branch',
                 'delivery_address' => 'Wallewatthe',
@@ -39,7 +39,7 @@ class LocationSeeder extends Seeder
                 'updated_at' => Carbon::now(),
             ],
             [
-                'loca_code' => 'L003',
+                'loca_code' => '003',
                 'loca_name' => 'Colombo',
                 'location_type' => 'Exhibition',
                 'delivery_address' => 'BMICH',
@@ -50,7 +50,7 @@ class LocationSeeder extends Seeder
                 'updated_at' => Carbon::now(),
             ],
             [
-                'loca_code' => 'L004',
+                'loca_code' => '004',
                 'loca_name' => 'Jaffna Trade Fair',
                 'location_type' => 'Exhibition',
                 'delivery_address' => 'Jaffna',
