@@ -7,6 +7,7 @@ use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
+use App\Http\Controllers\Master\ProductController;
 use App\Http\Controllers\Master\BookTypeController;
 use App\Http\Controllers\Master\CategoryController;
 use App\Http\Controllers\Master\LocationController;
@@ -127,11 +128,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/{auth_code}', [AuthorController::class, 'update']);
     });
 
-    // product routes
+    // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
         Route::get('/', [BookController::class, 'index']);
-        Route::get('/search', [BookController::class, 'search']);
         Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/', [BookController::class, 'store']);
         Route::put('/{prod_code}', [BookController::class, 'update']);
