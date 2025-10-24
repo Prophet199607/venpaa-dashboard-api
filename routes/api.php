@@ -137,6 +137,16 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/{prod_code}', [BookController::class, 'update']);
     });
 
+    // products routes
+    Route::group(['prefix' => 'products'], function () {
+        Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
+        Route::get('/', [ProductController::class, 'index']);
+        Route::get('/search', [ProductController::class, 'search']);
+        Route::get('/{prod_code}', [ProductController::class, 'show']);
+        Route::post('/', [ProductController::class, 'store']);
+        Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
     // Role and Permission routes
     // Route::post('/role', [RolePermissionController::class, 'createRole']);
     // Route::post('/permission', [RolePermissionController::class, 'createPermission']);
