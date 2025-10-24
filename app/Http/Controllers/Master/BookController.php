@@ -59,7 +59,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authorDetails', 'subCategory.category.department', 'bookType', 'publisher', 'supplier', 'images'])
+                ->with(['authorDetails', 'subCategory.category.department', 'bookType', 'publisher', 'supplierDetails', 'images'])
                 ->first();
 
             if (!$product) {
@@ -130,7 +130,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'authorDetails', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authorDetails', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -200,7 +200,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplier', 'authorDetails', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authorDetails', 'images']);
 
             return response()->json([
                 'success' => true,

@@ -41,7 +41,7 @@ class Product extends Model
         return $this->belongsTo(Publisher::class, 'publisher', 'pub_code');
     }
 
-    public function supplier()
+    public function supplierDetails()
     {
         return $this->belongsTo(Supplier::class, 'supplier', 'sup_code');
     }
