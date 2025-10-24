@@ -21,4 +21,25 @@ class DocNumber extends Model
     {
         $this->increment('last_id');
     }
+
+    public static function generate(string $type, string $prefix, int $length = 8, ?string $loca_code = null)
+    {
+        // If a location code is provided, create a location-specific type and prefix.
+        if ($loca_code) {
+            $type = $type . '_' . $loca_code;
+            $prefix = $prefix . $loca_code;
+        }
+
+        $docNumber = self::firstOrCreate(
+            ['type' => $type],
+            ['prefix' => $prefix, 'length' => $length, 'last_id' => 0]
+        );
+
+        $docCode = $docNumber->getDocCode();
+
+        // Increment last_id immediately for temporary codes
+        $docNumber->incrementLastId();
+
+        return $docCode['code'];
+    }
 }
