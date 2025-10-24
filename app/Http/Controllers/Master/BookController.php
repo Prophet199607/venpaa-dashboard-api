@@ -37,7 +37,8 @@ class BookController extends Controller
     {
         try {
             $products = Product::where('status', 1)
-                ->with(['authorDetails', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplier', 'images'])
+                ->where('department', '10')
+                ->with(['authorDetails', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplierDetails', 'images'])
                 ->get();
 
             return response()->json([
