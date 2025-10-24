@@ -16,6 +16,9 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 
+use App\Http\Controllers\Transaction\PurchaseOrderController;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -145,6 +148,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::post('/', [ProductController::class, 'store']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // purchase order routes
+    Route::group(['prefix' => 'purchase-orders'], function () {
+        Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
     });
 
     // Role and Permission routes
