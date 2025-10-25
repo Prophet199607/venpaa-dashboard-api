@@ -15,7 +15,10 @@ class Publisher extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($publisher) {
-            DocNumber::where('type', 'Publisher')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'Publisher')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

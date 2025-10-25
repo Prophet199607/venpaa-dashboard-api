@@ -12,9 +12,13 @@ class Supplier extends Model
 
     protected static function booted()
     {
+
         // Update DocNumber after successful creation
         static::created(function ($supplier) {
-            DocNumber::where('type', 'Supplier')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'Supplier')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }
