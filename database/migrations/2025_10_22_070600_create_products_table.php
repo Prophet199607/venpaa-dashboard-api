@@ -23,6 +23,12 @@ class CreateProductsTable extends Migration
             $table->string('category')->index('category');
             $table->string('sub_category')->index('sub_category');
 
+            $table->string('pack_size')->nullable();
+            $table->decimal('purchase_price')->default(0.0);
+            $table->decimal('selling_price')->default(0.0);
+            $table->decimal('marked_price')->default(0.0)->nullable();
+            $table->decimal('wholesale_price')->default(0.0)->nullable();
+
             $table->string('supplier')->index('supplier');
             $table->string('book_type')->index('book_type')->nullable();
             $table->string('publisher')->index('publisher')->nullable();
@@ -30,9 +36,7 @@ class CreateProductsTable extends Migration
 
             $table->string('isbn')->nullable();
             $table->year('publish_year')->nullable();
-            $table->string('pack_size')->nullable();
             $table->integer('alert_qty')->nullable();
-
             $table->decimal('width', 8, 2)->nullable();
             $table->decimal('height', 8, 2)->nullable();
             $table->decimal('depth', 8, 2)->nullable();

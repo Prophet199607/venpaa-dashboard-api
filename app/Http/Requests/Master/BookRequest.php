@@ -38,6 +38,12 @@ class BookRequest extends FormRequest
             'category' => 'required|exists:categories,cat_code',
             'sub_category' => 'required|exists:sub_categories,scat_code',
 
+            'pack_size' => 'nullable|string',
+            'purchase_price' => 'nullable|numeric',
+            'selling_price' => 'nullable|numeric',
+            'marked_price' => 'nullable|numeric',
+            'wholesale_price' => 'nullable|numeric',
+
             'supplier' => 'required|exists:suppliers,sup_code',
             'book_type' => 'nullable|exists:book_types,bkt_code',
             'publisher' => 'nullable|exists:publishers,pub_code',
@@ -45,9 +51,7 @@ class BookRequest extends FormRequest
 
             'isbn' => 'nullable|string',
             'publish_year' => 'nullable|digits:4',
-            'pack_size' => 'nullable|string',
             'alert_qty' => 'nullable|integer',
-
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',

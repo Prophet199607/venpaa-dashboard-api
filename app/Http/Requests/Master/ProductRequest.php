@@ -38,10 +38,14 @@ class ProductRequest extends FormRequest
             'category' => 'required|exists:categories,cat_code',
             'sub_category' => 'required|exists:sub_categories,scat_code',
 
-            'supplier' => 'required|exists:suppliers,sup_code',
             'pack_size' => 'nullable|string',
-            'alert_qty' => 'nullable|integer',
+            'purchase_price' => 'nullable|numeric',
+            'selling_price' => 'nullable|numeric',
+            'marked_price' => 'nullable|numeric',
+            'wholesale_price' => 'nullable|numeric',
 
+            'supplier' => 'required|exists:suppliers,sup_code',
+            'alert_qty' => 'nullable|integer',
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',
