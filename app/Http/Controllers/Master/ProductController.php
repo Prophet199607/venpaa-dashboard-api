@@ -222,17 +222,23 @@ class ProductController extends Controller
     {
         try {
             $searchTerm = $request->search;
+            $supplier = $request->supplier;
 
             if (empty($searchTerm)) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Products fetched successfully',
-                    'data' => []
+                    'data' => [],
                 ], 200);
             }
 
-            $products = Product::where('status', 1)
-                ->where(function ($query) use ($searchTerm) {
+            $query = Product::where('status', 1);
+
+            if ($supplier) {
+                $query->where('supplier', $supplier);
+            }
+
+            $products = $query->where(function ($query) use ($searchTerm) {
                     $query->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
                         ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
                         ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
