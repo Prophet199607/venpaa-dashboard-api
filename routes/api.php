@@ -153,6 +153,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
         Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
+        Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
+        Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
+        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
+        Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
     });
 
     // Role and Permission routes
