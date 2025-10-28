@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Database\Seeders\UnitSeeder;
 use Database\Seeders\StatusSeeder;
 use Database\Seeders\LocationSeeder;
 use Database\Seeders\BookTypeSeeder;
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
     public function run()
     {
         $this->call([
+            UnitSeeder::class,
             LocationSeeder::class,
             AdminUserSeeder::class,
             DocNumberSeeder::class,

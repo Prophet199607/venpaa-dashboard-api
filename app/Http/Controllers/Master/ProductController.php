@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Master;
 
+use App\Models\Unit;
 use App\Models\Product;
 use App\Models\DocNumber;
 use App\Models\ProductImage;
@@ -222,17 +223,23 @@ class ProductController extends Controller
     {
         try {
             $searchTerm = $request->search;
+            $supplier = $request->supplier;
 
             if (empty($searchTerm)) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Products fetched successfully',
-                    'data' => []
+                    'data' => [],
                 ], 200);
             }
 
-            $products = Product::where('status', 1)
-                ->where(function ($query) use ($searchTerm) {
+            $query = Product::where('status', 1);
+
+            if ($supplier) {
+                $query->where('supplier', $supplier);
+            }
+
+            $products = $query->where(function ($query) use ($searchTerm) {
                     $query->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
                         ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
                         ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
@@ -250,6 +257,25 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch products',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function unitTypes()
+    {
+        try {
+            $units = Unit::all();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Unit types fetched successfully',
+                'data' => $units,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch unit types',
                 'error' => $e->getMessage()
             ], 500);
         }
