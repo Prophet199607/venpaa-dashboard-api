@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Transaction;
 
-use Illuminate\Support\Facades\DB;
 use App\Models\DocNumber;
-use App\Models\PurchaseOrder;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
 use App\Http\Requests\Transaction\TempTransactionDetailRequest;
+use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
 use App\Http\Resources\Transaction\TempTransactionDetailResource;
+use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class PurchaseOrderController extends Controller
 {
@@ -164,89 +165,82 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    public function draftPurchaseOrder(TempTransactionDetailRequest $request)
+    public function draftPurchaseOrder(TempTransactionHeaderRequest $request)
     {
         DB::beginTransaction();
 
         try {
             $data = $request->validated();
-            $user = auth()->user();
+            $data['created_by'] = auth()->user()->id;
 
-            // Create temp header
-            $tempHeader = TempTransactionHeader::create([
-                'created_by'        => $user->id,
-                'doc_no'            => $data['doc_no'],
-                'iid'               => $data['iid'],
-                'ref_number'        => $data['ref_number'],
-                'document_date'     => $data['date'],
-                'expected_date'     => $data['expected_date'],
-                'transaction_date'  => $data['transaction_date'],
-                'delivery_location' => $data['deliveryLocation'],
-                'location'          => $data['selectedLocation'],
-                'payment_mode'      => $data['payment_method'],
-                'supplier_code'     => $data['selectedSupplier'],
-                'remarks_ref'       => $data['remarks_ref'],
-                'delivery_address'  => $data['delivery_address'],
-                'invoice_amount'    => $data['invoice_amount'],
-                'invoice_date'      => $data['invoice_date'],
-                'invoice_no'        => $data['invoice_number'],
-                'net_total'         => $data['netAmount'],
-                'discount'          => $data['discount'],
-                'dis_per'           => $data['dis_per'],
-                'tax_per'           => $data['tax_per'],
-                'tax'               => $data['tax'],
-                'subtotal'          => $data['subtotal'],
-                'grn_remarks'       => $data['grn_remarks'],
-                'industry_code'     => $user->industry_code ?? null,
-            ]);
+            $tempHeader = TempTransactionHeader::create($data);
 
-            // Attach details to header
             TempTransactionDetail::where('doc_no', $data['doc_no'])
-                ->where('industry_code', $user->industry_code)
                 ->update([
                     'temp_transaction_header_id' => $tempHeader->id,
                 ]);
 
-            // Always handle as PO
-            $docNoField = 'grn_no'; // For now, re-using field as in old code
-            $docNumber = $data['po_no'] ?? null;
-
-            // Update header with PO number if available
-            if (!empty($docNumber)) {
-                TempTransactionHeader::where([
-                    'doc_no' => $data['doc_no'],
-                    'industry_code' => $user->industry_code,
-                ])->update([
-                    $docNoField => $docNumber,
-                ]);
-            }
-
-            // Increment DocNumber table for PO type only
             $doc = DocNumber::where('type', 'TempPO')->first();
             if ($doc) {
                 $doc->increment('last_id');
             }
 
-            // Fetch and return the updated header details
-            $response_detail = TempTransactionHeader::where('doc_no', $data['doc_no'])->get();
-
             DB::commit();
 
             return response()->json([
-                'type'    => 'success',
+                'success' => true,
                 'message' => 'PO drafted successfully!',
-                'detail'  => $response_detail
+                'data'  => new TempTransactionHeaderResource($tempHeader)
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to draft the purchase order',
-                'error'   => $e->getMessage(),
+                'error'   => $e->getMessage()
             ], 500);
         }
     }
 
+    public function updateDraftPurchaseOrder(TempTransactionHeaderRequest $request, $doc_no)
+    {
+        DB::beginTransaction();
+
+        try {
+            $purchaseOrder = TempTransactionHeader::where('doc_no', $doc_no)->first();
+
+            if (!$purchaseOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Purchase order not found.'
+                ], 404);
+            }
+
+            $data = $request->validated();
+            $data['updated_by'] = auth()->user()->id;
+
+            $purchaseOrder->update($data);
+
+            TempTransactionDetail::where('doc_no', $doc_no)->update([
+                'temp_transaction_header_id' => $purchaseOrder->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order updated successfully.',
+                'data' => new TempTransactionHeaderResource($purchaseOrder->fresh())
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update purchase order.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     public function removeUnsaved($doc_no)
     {
@@ -265,6 +259,34 @@ class PurchaseOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to clear products.',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getUnsavedSessions()
+    {
+        try {
+            $unsavedSessions = TempTransactionDetail::where('created_by', auth()->id())
+                ->where('temp_transaction_header_id', 0)
+                ->distinct()
+                ->pluck('doc_no');
+
+            if ($unsavedSessions->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'No unsaved sessions found.'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $unsavedSessions
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch unsaved sessions.', 'error' => $e->getMessage()
             ], 500);
         }
     }
