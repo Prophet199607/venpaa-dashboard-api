@@ -47,6 +47,7 @@ class CreateProductsTable extends Migration
             $table->string('prod_image')->nullable();
             $table->text('description')->nullable();
             $table->integer('status')->default(1);
+            $table->string('unit_name')->default("NOS");
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
