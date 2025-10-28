@@ -64,6 +64,7 @@ class BookRequest extends FormRequest
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
+            'unit_name' => 'nullable|string',
         ];
     }
 }

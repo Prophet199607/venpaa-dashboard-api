@@ -49,6 +49,8 @@ class BookResource extends JsonResource
                 });
             }),
             'description'   => $this->description,
+            'status'        => $this->status ? '1' : '0',
+            'unit_name'     => $this->unit_name,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
         ];
