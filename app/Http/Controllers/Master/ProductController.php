@@ -233,20 +233,20 @@ class ProductController extends Controller
                 ], 200);
             }
 
-            $query = Product::where('status', 1);
+            $query = Product::where('status', 1)->with('unit');
 
             if ($supplier) {
                 $query->where('supplier', $supplier);
             }
 
             $products = $query->where(function ($query) use ($searchTerm) {
-                    $query->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
-                        ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
-                        ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
-                        ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
-                })
-                ->limit(100)
-                ->get();
+                $query->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
+            })
+            ->limit(100)
+            ->get();
 
             return response()->json([
                 'success' => true,
