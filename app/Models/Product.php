@@ -16,6 +16,11 @@ class Product extends Model
         return $this->belongsTo(Author::class, 'author', 'auth_code');
     }
 
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class, 'unit_name', 'unit_name');
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class, 'category', 'cat_code');
