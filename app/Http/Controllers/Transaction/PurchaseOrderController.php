@@ -14,6 +14,31 @@ use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class PurchaseOrderController extends Controller
 {
+    private function processDiscountAndTax(array $data): array
+    {
+        // Handle discount
+        if (isset($data['discount']) && $data['discount'] > 0) {
+            $data['dis_per'] = 0;
+        } elseif (isset($data['dis_per']) && $data['dis_per'] > 0) {
+            $data['discount'] = 0;
+        } else {
+            $data['discount'] = 0;
+            $data['dis_per'] = 0;
+        }
+
+        // Handle tax
+        if (isset($data['tax']) && $data['tax'] > 0) {
+            $data['tax_per'] = 0;
+        } elseif (isset($data['tax_per']) && $data['tax_per'] > 0) {
+            $data['tax'] = 0;
+        } else {
+            $data['tax'] = 0;
+            $data['tax_per'] = 0;
+        }
+
+        return $data;
+    }
+
     public function getTempPoNumber($loca_code)
     {
         try {
@@ -45,6 +70,7 @@ class PurchaseOrderController extends Controller
                 $existingProduct->update([
                     'temp_transaction_header_id' => 0,
                     'purchase_price' => $data['purchase_price'],
+                    'selling_price' => $data['selling_price'],
                     'updated_by' => auth()->id(),
                 ]);
                 $existingProduct->increment('pack_qty', $data['pack_qty']);
@@ -65,6 +91,7 @@ class PurchaseOrderController extends Controller
                     'prod_name' => $data['prod_name'],
                     'qty' => $data['qty'],
                     'purchase_price' => $data['purchase_price'],
+                    'selling_price' => $data['selling_price'],
                     'pack_size' => $data['pack_size'],
                     'pack_qty' => $data['pack_qty'],
                     'free_qty' => $data['free_qty'],
@@ -172,6 +199,7 @@ class PurchaseOrderController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->user()->id;
+            $data = $this->processDiscountAndTax($data);
 
             $tempHeader = TempTransactionHeader::create($data);
 
@@ -218,6 +246,7 @@ class PurchaseOrderController extends Controller
 
             $data = $request->validated();
             $data['updated_by'] = auth()->user()->id;
+            $data = $this->processDiscountAndTax($data);
 
             $purchaseOrder->update($data);
 
