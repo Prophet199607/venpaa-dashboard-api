@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Transaction;
 
+use App\Models\Product;
+use App\Models\Location;
 use App\Models\DocNumber;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -39,6 +41,47 @@ class PurchaseOrderController extends Controller
         return $data;
     }
 
+    private function getSessionDetails($docNo)
+    {
+        // Extract location from doc_no
+        $prefixLength = 2;
+        $locaCodeLength = 3;
+        $locaCode = substr($docNo, $prefixLength, $locaCodeLength);
+
+        // Get location details
+        $location = null;
+        if ($locaCode) {
+            $location = Location::where('loca_code', $locaCode)->first();
+        }
+
+        // Get supplier from the first product in the session
+        $firstProduct = TempTransactionDetail::where('doc_no', $docNo)
+            ->where('temp_transaction_header_id', 0)
+            ->first();
+
+        $supplier = null;
+        if ($firstProduct) {
+            $product = Product::with('supplierDetails')->where('prod_code', $firstProduct->prod_code)->first();
+            $supplier = $product?->supplierDetails;
+        }
+
+        return [
+            'doc_no' => $docNo,
+            'location' => $location ? [
+                'loca_code' => $location->loca_code,
+                'loca_name' => $location->loca_name,
+            ] : null,
+            'supplier' => $supplier ? [
+                'sup_code' => $supplier->sup_code,
+                'sup_name' => $supplier->sup_name,
+            ] : null,
+            'product_count' => TempTransactionDetail::where('doc_no', $docNo)
+                ->where('temp_transaction_header_id', 0)
+                ->count(),
+            'created_at' => $firstProduct ? $firstProduct->created_at : null,
+        ];
+    }
+
     public function getTempPoNumber($loca_code)
     {
         try {
@@ -53,6 +96,30 @@ class PurchaseOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate code',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getTempProducts($doc_no)
+    {
+        try {
+            $products = TempTransactionDetail::where('doc_no', $doc_no)
+                ->where('temp_transaction_header_id', 0)
+                ->get();
+
+            // Get session details including location and supplier
+            $sessionDetails = $this->getSessionDetails($doc_no);
+
+            return response()->json([
+                'success' => true,
+                'data' => TempTransactionDetailResource::collection($products),
+                'session_details' => $sessionDetails
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch temp products.',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -146,19 +213,6 @@ class PurchaseOrderController extends Controller
                 'message' => 'Failed to update product',
                 'error' => $e->getMessage(),
             ], 500);
-        }
-    }
-
-    public function getTempProducts($doc_no)
-    {
-        try {
-            $products = TempTransactionDetail::where('doc_no', $doc_no)->orderBy('line_no')->get();
-            return response()->json([
-                'success' => true,
-                'data' => TempTransactionDetailResource::collection($products),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to fetch products.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -308,14 +362,21 @@ class PurchaseOrderController extends Controller
                 ]);
             }
 
+            // Get session details including location and supplier
+            $sessionDetails = [];
+            foreach ($unsavedSessions as $doc_no) {
+                $sessionDetails[] = $this->getSessionDetails($doc_no);
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => $unsavedSessions
+                'data' => $sessionDetails
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch unsaved sessions.', 'error' => $e->getMessage()
+                'message' => 'Failed to fetch unsaved sessions.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
