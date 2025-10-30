@@ -22,11 +22,11 @@ class DocNumber extends Model
         $this->increment('last_id');
     }
 
-    public static function generate(string $type, string $prefix, int $length = 8, ?string $loca_code = null)
+    public static function generate(string $type, string $prefix, int $length = 8, ?string $loca_code = null, bool $useSeparator = false)
     {
         // If a location code is provided, create a location-specific type and prefix.
         if ($loca_code) {
-            $type = $type . '_' . $loca_code;
+            $type = $useSeparator ? $type . '_' . $loca_code : $type . $loca_code;
             $prefix = $prefix . $loca_code;
         }
 
