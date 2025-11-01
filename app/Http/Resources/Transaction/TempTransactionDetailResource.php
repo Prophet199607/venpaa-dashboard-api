@@ -38,6 +38,10 @@ class TempTransactionDetailResource extends JsonResource
             'line_wise_discount_value' => $this->line_wise_discount_value,
             'dis_per' => $this->dis_per,
             'amount' => $this->amount,
+            'unit_name' => $this->product->unit_name,
+            'unit' => [
+                'unit_type' => $this->product->unit->unit_type,
+            ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
