@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Transaction;
 use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
+use Illuminate\Http\Request;
+use App\Models\TransactionDetail;
+use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
@@ -106,6 +109,7 @@ class PurchaseOrderController extends Controller
         try {
             $products = TempTransactionDetail::where('doc_no', $doc_no)
                 ->where('temp_transaction_header_id', 0)
+                ->with('product.unit')
                 ->get();
 
             // Get session details including location and supplier
@@ -322,6 +326,65 @@ class PurchaseOrderController extends Controller
                 'message' => 'Failed to update purchase order.',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function loadAllPurchaseOrders(Request $request)
+    {
+        if ($request->status == 'drafted') {
+            $purchaseOrders = TempTransactionHeader::where('iid', 'PO')
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+                $data = $po->toArray();
+                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+                return $data;
+            });
+
+            $purchaseOrders->setCollection($formattedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft purchase orders loaded successfully!',
+                'status' => 'drafted',
+                'data' => $purchaseOrders->items()
+            ]);
+        } else {
+            $purchaseOrders = TransactionHeader::where('iid', 'PO')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied purchase orders loaded successfully!',
+                'status' => 'applied',
+                'data' => $purchaseOrders->items()
+            ]);
+        }
+    }
+
+    public function loadPurchaseOrderByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionHeader::with('transactionDetails')->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionHeader::with(['TempTransactionDetails' => function ($query) {
+                $query->orderBy('line_no');
+            }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
         }
     }
 
