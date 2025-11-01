@@ -20,4 +20,9 @@ class TempTransactionHeader extends Model
     {
         return $this->hasMany(TempTransactionDetail::class);
     }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_code', 'sup_code');
+    }
 }
