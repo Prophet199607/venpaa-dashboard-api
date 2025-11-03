@@ -329,6 +329,61 @@ class PurchaseOrderController extends Controller
         }
     }
 
+    public function store(TempTransactionHeaderRequest $request)
+    {
+        try {
+            return DB::transaction(function () use ($request) {
+                $data = $this->processDiscountAndTax($request->validated());
+                $poNumber = DocNumber::generate('PO', 'PO', 8, $data['location']);
+
+                $headerData = $data;
+                unset($headerData['id']);
+                $transactionHeader = TransactionHeader::create([
+                    ...$headerData,
+                    'doc_no'      => $poNumber,
+                    'temp_doc_no' => $data['doc_no'],
+                ]);
+
+                // Load temp products for this temp doc
+                $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
+                    ->orderBy('line_no')
+                    ->get();
+
+                foreach ($tempProducts as $temp) {
+                    $tempData = $temp->toArray();
+                    unset($tempData['temp_transaction_header_id'], $tempData['id']);
+                    TransactionDetail::create([
+                        ...$tempData,
+                        'transaction_header_id'    => $transactionHeader->id,
+                        'doc_no'                   => $poNumber,
+                    ]);
+                }
+
+                // Clean up temp details for this doc
+                if (TempTransactionDetail::where('doc_no', $data['doc_no'])->exists()) {
+                    TempTransactionDetail::where('doc_no', $data['doc_no'])->delete();
+                }
+
+                // Clean up temp header for this doc
+                if (TempTransactionHeader::where('doc_no', $data['doc_no'])->exists()) {
+                    TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Purchase order stored successfully.',
+                    'data'    => $transactionHeader->fresh(),
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store purchase order.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function loadAllPurchaseOrders(Request $request)
     {
         if ($request->status == 'drafted') {
@@ -353,8 +408,17 @@ class PurchaseOrderController extends Controller
             ]);
         } else {
             $purchaseOrders = TransactionHeader::where('iid', 'PO')
+                ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
+
+            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+                $data = $po->toArray();
+                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+                return $data;
+            });
+
+            $purchaseOrders->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
@@ -368,7 +432,9 @@ class PurchaseOrderController extends Controller
     public function loadPurchaseOrderByCode($doc_number, $status, $iid)
     {
         if ($status == 'applied') {
-            $transactionHeaders = TransactionHeader::with('transactionDetails')->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+            $transactionHeaders = TransactionHeader::with(['transactionDetails.product.unit', 'transactionDetails' => function ($query) {
+                $query->orderBy('line_no');
+            }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Purchase order loaded successfully!',

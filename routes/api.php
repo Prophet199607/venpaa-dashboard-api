@@ -153,17 +153,18 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
+        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
+        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
         Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
         Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
         Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
-        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
         Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
-        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
         Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
+        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
+        Route::post('/save-po', [PurchaseOrderController::class, 'store']);
         Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
-        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
-        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
     });
 
     // Role and Permission routes
