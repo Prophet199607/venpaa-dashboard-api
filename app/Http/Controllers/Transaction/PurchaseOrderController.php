@@ -376,7 +376,7 @@ class PurchaseOrderController extends Controller
                 'data' => $transactionHeaders
             ]);
         } elseif ($status == 'drafted') {
-            $tempTransactionHeaders = TempTransactionHeader::with(['TempTransactionDetails' => function ($query) {
+            $tempTransactionHeaders = TempTransactionHeader::with(['TempTransactionDetails.product.unit', 'TempTransactionDetails' => function ($query) {
                 $query->orderBy('line_no');
             }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
             return response()->json([
