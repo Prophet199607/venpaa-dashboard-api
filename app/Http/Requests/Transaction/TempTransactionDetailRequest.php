@@ -41,7 +41,7 @@ class TempTransactionDetailRequest extends FormRequest
             'physical_qty' => 'nullable|numeric',
             'pack_size' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
-            'line_wise_discount_value' => 'nullable|numeric',
+            'line_wise_discount_value' => 'nullable|string',
             'dis_per' => 'nullable|numeric',
             'amount' => 'nullable|numeric',
         ];
