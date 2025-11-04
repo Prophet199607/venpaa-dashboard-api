@@ -44,6 +44,27 @@ class PurchaseOrderController extends Controller
         return $data;
     }
 
+    private function processLineWiseDiscount(array $data): array
+    {
+        if (isset($data['line_wise_discount_value'])) {
+            $discountStr = $data['line_wise_discount_value'];
+            if (is_string($discountStr) && str_ends_with($discountStr, '%')) {
+                $percentage = (float) rtrim($discountStr, '%');
+                $packQty = (float) ($data['pack_qty'] ?? 0);
+                $packSize = (float) ($data['pack_size'] ?? 0);
+                $qty = (float) ($data['qty'] ?? 0);
+                $totalQty = ($packQty * $packSize) + $qty;
+                $amountBeforeDiscount = $data['purchase_price'] * $totalQty;
+                $data['line_wise_discount_value'] = ($amountBeforeDiscount * $percentage) / 100;
+            } else {
+                $data['line_wise_discount_value'] = (float) $discountStr;
+            }
+        } else {
+            $data['line_wise_discount_value'] = 0;
+        }
+        return $data;
+    }
+
     private function getSessionDetails($docNo)
     {
         // Extract location from doc_no
@@ -133,6 +154,7 @@ class PurchaseOrderController extends Controller
     {
         try {
             $data = $request->validated();
+            $data = $this->processLineWiseDiscount($data);
             $existingProduct = TempTransactionDetail::where('doc_no', $data['doc_no'])
                 ->where('prod_code', $data['prod_code'])
                 ->first();
@@ -193,6 +215,7 @@ class PurchaseOrderController extends Controller
     {
         try {
             $data = $request->validated();
+            $data = $this->processLineWiseDiscount($data);
             $productToUpdate = TempTransactionDetail::find($id);
 
             if (!$productToUpdate) {
