@@ -145,14 +145,26 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
         Route::get('/', [ProductController::class, 'index']);
         Route::get('/search', [ProductController::class, 'search']);
-        Route::get('/{prod_code}', [ProductController::class, 'show']);
+        Route::get('/unit-types', [ProductController::class, 'unitTypes']);
         Route::post('/', [ProductController::class, 'store']);
+        Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
     });
 
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
+        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
+        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
         Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
+        Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
+        Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
+        Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
+        Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
+        Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
+        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
+        Route::post('/save-po', [PurchaseOrderController::class, 'store']);
+        Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
     });
 
     // Role and Permission routes
