@@ -162,18 +162,33 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // Route::post('/user/role', [RolePermissionController::class, 'assignRoleToUser']);
 });
 
+//1st
+// Route::middleware(['auth:sanctum', 'role:admin', 'prefix' => 'v1'])->group(function () {
+//     // Roles
+//     Route::get('/roles', [RolePermissionController::class, 'getRoles']);
+//     Route::post('/roles', [RolePermissionController::class, 'createRole']);
+//     Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
 
-Route::middleware(['auth:sanctum', 'role:admin', 'prefix' => 'v1'])->group(function () {
-    // Roles
-    Route::get('/roles', [RolePermissionController::class, 'getRoles']);
-    Route::post('/roles', [RolePermissionController::class, 'createRole']);
-    Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
+//     // Permissions
+//     Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
+//     Route::post('/permissions', [RolePermissionController::class, 'createPermission']);
+//     Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
+// });
 
-    // Permissions
-    Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
-    Route::post('/permissions', [RolePermissionController::class, 'createPermission']);
-    Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
-});
+//2nd
+Route::middleware(['auth:sanctum', 'role:admin'])
+    ->prefix('v1')
+    ->group(function () {
+        // Roles
+        Route::get('/roles', [RolePermissionController::class, 'getRoles']);
+        Route::post('/roles', [RolePermissionController::class, 'createRole']);
+        Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
+
+        // Permissions
+        Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
+        Route::post('/permissions', [RolePermissionController::class, 'createPermission']);
+        Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
+    });
 
 
 // Route::group(['prefix' => 'v'], function () {
