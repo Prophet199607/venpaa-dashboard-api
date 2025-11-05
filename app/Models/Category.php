@@ -26,7 +26,10 @@ class Category extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($category) {
-            DocNumber::where('type', 'Category')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'Category')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

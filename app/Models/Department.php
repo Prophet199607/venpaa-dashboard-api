@@ -20,7 +20,10 @@ class Department extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($department) {
-            DocNumber::where('type', 'Department')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'Department')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

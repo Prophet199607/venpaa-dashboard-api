@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             DocNumberSeeder::class,
             BookTypeSeeder::class,
             StatusSeeder::class,
+            RolePermissionSeeder::class,
         ]);
     }
 }

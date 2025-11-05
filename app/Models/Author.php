@@ -14,7 +14,11 @@ class Author extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($author) {
-            DocNumber::where('type', 'Author')->first()?->incrementLastId();
+
+            $docNumber = DocNumber::where('type', 'Author')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

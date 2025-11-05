@@ -14,7 +14,10 @@ class BookType extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($bookType) {
-            DocNumber::where('type', 'BookType')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'BookType')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

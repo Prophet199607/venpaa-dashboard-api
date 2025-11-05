@@ -60,7 +60,10 @@ class Product extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($product) {
-            DocNumber::where('type', 'Product')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'Product')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

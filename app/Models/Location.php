@@ -14,7 +14,11 @@ class Location extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($location) {
-            DocNumber::where('type', 'Location')->first()?->incrementLastId();
+
+            $docNumber = DocNumber::where('type', 'Location')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }

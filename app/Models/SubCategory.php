@@ -25,7 +25,10 @@ class SubCategory extends Model
     {
         // Update DocNumber after successful creation
         static::created(function ($subCategory) {
-            DocNumber::where('type', 'SubCategory')->first()?->incrementLastId();
+            $docNumber = DocNumber::where('type', 'SubCategory')->first();
+            if ($docNumber) {
+                $docNumber->incrementLastId();
+            }
         });
     }
 }
