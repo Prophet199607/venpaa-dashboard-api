@@ -289,11 +289,6 @@ class PurchaseOrderController extends Controller
                     'temp_transaction_header_id' => $tempHeader->id,
                 ]);
 
-            $doc = DocNumber::where('type', 'TempPO')->first();
-            if ($doc) {
-                $doc->increment('last_id');
-            }
-
             DB::commit();
 
             return response()->json([
