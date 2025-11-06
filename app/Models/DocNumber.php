@@ -10,10 +10,12 @@ class DocNumber extends Model
     use HasFactory;
     protected $guarded = [];
 
-    public function getDocCode()
+    public function getDocCode(?string $loca_code = null, bool $useSeparator = false)
     {
         $nextId = $this->last_id + 1;
-        $code = $this->prefix . str_pad($nextId, $this->length, '0', STR_PAD_LEFT);
+        $padded = str_pad($nextId, $this->length, '0', STR_PAD_LEFT);
+        $middle = $loca_code ? ($useSeparator ? $loca_code : $loca_code) : '';
+        $code = $this->prefix . $middle . $padded;
         return ['code' => $code, 'id' => $nextId];
     }
 
@@ -24,20 +26,13 @@ class DocNumber extends Model
 
     public static function generate(string $type, string $prefix, int $length = 8, ?string $loca_code = null, bool $useSeparator = false)
     {
-        // If a location code is provided, create a location-specific type and prefix.
-        if ($loca_code) {
-            $type = $useSeparator ? $type . '_' . $loca_code : $type . $loca_code;
-            $prefix = $prefix . $loca_code;
-        }
-
         $docNumber = self::firstOrCreate(
             ['type' => $type],
             ['prefix' => $prefix, 'length' => $length, 'last_id' => 0]
         );
 
-        $docCode = $docNumber->getDocCode();
+        $docCode = $docNumber->getDocCode($loca_code, $useSeparator);
 
-        // Increment last_id immediately for temporary codes
         $docNumber->incrementLastId();
 
         return $docCode['code'];
