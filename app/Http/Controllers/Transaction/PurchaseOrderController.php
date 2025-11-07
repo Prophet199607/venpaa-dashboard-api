@@ -472,6 +472,49 @@ class PurchaseOrderController extends Controller
         }
     }
 
+    public function viewPurchaseOrderByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionHeader::with([
+                'supplier',
+                'location',
+                'deliveryLocation',
+                'transactionDetails.product.unit',
+                'transactionDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionHeader::with([
+                'supplier',
+                'location',
+                'deliveryLocation',
+                'TempTransactionDetails.product.unit',
+                'TempTransactionDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Purchase order loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
+        }
+    }
+
     public function removeUnsaved($doc_no)
     {
         try {
