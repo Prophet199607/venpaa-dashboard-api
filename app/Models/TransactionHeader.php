@@ -25,4 +25,14 @@ class TransactionHeader extends Model
     {
         return $this->belongsTo(Supplier::class, 'supplier_code', 'sup_code');
     }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location', 'loca_code');
+    }
+
+    public function deliveryLocation()
+    {
+        return $this->belongsTo(Location::class, 'delivery_location', 'loca_code');
+    }
 }
