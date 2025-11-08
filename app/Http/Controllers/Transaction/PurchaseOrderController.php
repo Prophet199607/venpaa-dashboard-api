@@ -52,8 +52,8 @@ class PurchaseOrderController extends Controller
                 $percentage = (float) rtrim($discountStr, '%');
                 $packQty = (float) ($data['pack_qty'] ?? 0);
                 $packSize = (float) ($data['pack_size'] ?? 0);
-                $qty = (float) ($data['qty'] ?? 0);
-                $totalQty = ($packQty * $packSize) + $qty;
+                $uniQty = (float) ($data['unit_qty'] ?? 0);
+                $totalQty = ($packQty * $packSize) + $uniQty;
                 $amountBeforeDiscount = $data['purchase_price'] * $totalQty;
                 $data['line_wise_discount_value'] = ($amountBeforeDiscount * $percentage) / 100;
             } else {
@@ -167,7 +167,7 @@ class PurchaseOrderController extends Controller
                     'updated_by' => auth()->id(),
                 ]);
                 $existingProduct->increment('pack_qty', $data['pack_qty']);
-                $existingProduct->increment('qty', $data['qty']);
+                $existingProduct->increment('unit_qty', $data['unit_qty']);
                 $existingProduct->increment('free_qty', $data['free_qty']);
                 $existingProduct->increment('total_qty', $data['total_qty']);
                 $existingProduct->increment('amount', $data['amount']);
@@ -182,11 +182,11 @@ class PurchaseOrderController extends Controller
                     'line_no' => $nextLineNo,
                     'iid' => $data['iid'],
                     'prod_name' => $data['prod_name'],
-                    'qty' => $data['qty'],
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
                     'pack_size' => $data['pack_size'],
                     'pack_qty' => $data['pack_qty'],
+                    'unit_qty' => $data['unit_qty'],
                     'free_qty' => $data['free_qty'],
                     'total_qty' => $data['total_qty'],
                     'amount' => $data['amount'],

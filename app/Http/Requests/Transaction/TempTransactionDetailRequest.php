@@ -38,7 +38,7 @@ class TempTransactionDetailRequest extends FormRequest
             'physical_pack_qty' => 'nullable|numeric',
             'physical_unit_qty' => 'nullable|numeric',
             'total_qty' => 'nullable|numeric',
-            'physical_qty' => 'nullable|numeric',
+            'physical_total_qty' => 'nullable|numeric',
             'pack_size' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
             'line_wise_discount_value' => 'nullable|string',
@@ -58,7 +58,7 @@ class TempTransactionDetailRequest extends FormRequest
         }
 
         $rules['pack_qty'] = $quantityRules;
-        $rules['qty'] = $quantityRules;
+        $rules['unit_qty'] = $quantityRules;
         $rules['free_qty'] = $quantityRules;
 
         return $rules;
