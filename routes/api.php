@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\UserController;
 
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
@@ -201,6 +202,26 @@ Route::middleware(['auth:sanctum', 'role:admin'])
         Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
         Route::post('/permissions', [RolePermissionController::class, 'createPermission']);
         Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
+
+        // Role-Permission assignment
+        Route::get('/roles/{roleId}/permissions', [RolePermissionController::class, 'getRolePermissions']);
+        Route::post('/roles/{roleId}/permissions', [RolePermissionController::class, 'assignPermissionsToRole']);
+
+        // User-Permission assignment
+        Route::get('/users/{userId}/permissions', [RolePermissionController::class, 'getUserPermissions']);
+        Route::post('/users/{userId}/permissions', [RolePermissionController::class, 'assignPermissionsToUser']);
+
+        // User-Role assignment
+        Route::post('/users/{userId}/roles', [RolePermissionController::class, 'assignRolesToUser']);
+
+        // User management routes (admin only)
+        Route::group(['prefix' => 'users'], function () {
+            Route::get('/', [UserController::class, 'index']);
+            Route::post('/', [UserController::class, 'store']);
+            Route::get('/{id}', [UserController::class, 'show']);
+            Route::put('/{id}', [UserController::class, 'update']);
+            Route::delete('/{id}', [UserController::class, 'destroy']);
+        });
     });
 
 
