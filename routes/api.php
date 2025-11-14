@@ -12,6 +12,7 @@ use App\Http\Controllers\Master\ProductController;
 use App\Http\Controllers\Master\BookTypeController;
 use App\Http\Controllers\Master\CategoryController;
 use App\Http\Controllers\Master\LocationController;
+use App\Http\Controllers\Master\LanguageController;
 use App\Http\Controllers\Master\SupplierController;
 use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
@@ -103,6 +104,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [CategoryController::class, 'store']);
         Route::put('/{cat_code}', [CategoryController::class, 'update']);
         Route::get('/{cat_code}/sub-categories', [CategoryController::class, 'subCategories']);
+    });
+
+    // language routes
+    Route::group(['prefix' => 'languages'], function () {
+        Route::get('/', [LanguageController::class, 'index']);
     });
 
     // publisher routes

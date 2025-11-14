@@ -8,9 +8,10 @@ use Database\Seeders\StatusSeeder;
 use Database\Seeders\LocationSeeder;
 use Database\Seeders\BookTypeSeeder;
 use Database\Seeders\SupplierSeeder;
+use Database\Seeders\LanguageSeeder;
 use Database\Seeders\AdminUserSeeder;
 use Database\Seeders\DocNumberSeeder;
-
+use Illuminate\Support\Facades\Lang;
 
 class DatabaseSeeder extends Seeder
 {
@@ -27,6 +28,7 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             DocNumberSeeder::class,
             BookTypeSeeder::class,
+            LanguageSeeder::class,
             SupplierSeeder::class,
             StatusSeeder::class,
             RolePermissionSeeder::class,
