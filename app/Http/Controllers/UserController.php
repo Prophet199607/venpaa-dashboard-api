@@ -146,7 +146,19 @@ class UserController extends Controller
      */
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::with('roles')->findOrFail($id);
+
+        $isAdminUser = $user->roles->contains(function ($role) {
+            return strtolower($role->name) === 'admin';
+        });
+
+        if ($isAdminUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The admin user cannot be deleted.',
+            ], 403);
+        }
+
         $user->delete();
 
         return response()->json([

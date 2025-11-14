@@ -35,4 +35,14 @@ class AuthController extends Controller
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Logged out']);
     }
+
+    public function me(Request $request) {
+        $user = $request->user()->load('roles');
+
+        return response()->json([
+            'user' => $user,
+            'roles' => $user->roles->pluck('name'),
+            'permissions' => $user->getAllPermissions()->pluck('name'),
+        ]);
+    }
 }

@@ -56,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // });
 
 Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
+    Route::get('/me', [AuthController::class, 'me']);
+
     // location routes
     Route::group(['prefix' => 'locations'], function () {
         Route::get('/generate-code', [LocationController::class, 'generateLocationCode']);
@@ -197,6 +199,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])
         Route::get('/roles', [RolePermissionController::class, 'getRoles']);
         Route::post('/roles', [RolePermissionController::class, 'createRole']);
         Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
+        Route::put('/roles/{id}', [RolePermissionController::class, 'updateRole']);
 
         // Permissions
         Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);

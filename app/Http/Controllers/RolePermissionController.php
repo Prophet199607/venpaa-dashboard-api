@@ -6,6 +6,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class RolePermissionController extends Controller
 {
@@ -16,16 +17,66 @@ class RolePermissionController extends Controller
 
     public function createRole(Request $request)
     {
-        $request->validate(['name' => 'required|string|unique:roles,name']);
-        $role = Role::create(['name' => $request->name]);
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9_]+$/',
+                'unique:roles,name',
+            ],
+        ]);
+
+        $role = Role::create(['name' => strtolower($validated['name'])]);
         return response()->json($role);
     }
 
     public function deleteRole($id)
     {
         $role = Role::findOrFail($id);
+
+        if (strtolower($role->name) === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'The admin role cannot be deleted.',
+            ], 403);
+        }
+
         $role->delete();
         return response()->json(['message' => 'Role deleted']);
+    }
+
+    public function updateRole(Request $request, $id)
+    {
+        $role = Role::findOrFail($id);
+
+        $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9_]+$/',
+                Rule::unique('roles', 'name')->ignore($role->id),
+            ],
+        ]);
+
+        $newName = strtolower($request->name);
+
+        if (strtolower($role->name) === 'admin' && $newName !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'The admin role name cannot be changed.',
+            ], 403);
+        }
+
+        $role->name = $newName;
+        $role->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Role updated successfully',
+            'data' => $role,
+        ]);
     }
 
     public function getPermissions()
@@ -88,12 +139,52 @@ class RolePermissionController extends Controller
      */
     public function getUserPermissions($userId)
     {
-        $user = User::findOrFail($userId);
-        $permissions = $user->getAllPermissions();
+        $user = User::with('roles.permissions')->findOrFail($userId);
+
+        $directPermissions = $user->getDirectPermissions();
+        $inheritedPermissions = $user->getPermissionsViaRoles();
+
+        $directPermissionIds = $directPermissions->pluck('id')->values();
+        $inheritedPermissionIds = $inheritedPermissions
+            ->pluck('id')
+            ->reject(function ($id) use ($directPermissionIds) {
+                return $directPermissionIds->contains($id);
+            })
+            ->unique()
+            ->values();
+
+        $rolePermissionsMap = [];
+        foreach ($user->roles as $role) {
+            foreach ($role->permissions as $permission) {
+                $rolePermissionsMap[$permission->id]['roles'][] = $role->name;
+            }
+        }
+
+        $allPermissions = $directPermissions
+            ->merge($inheritedPermissions)
+            ->unique('id')
+            ->values()
+            ->map(function ($permission) use ($directPermissionIds, $rolePermissionsMap) {
+                $isDirect = $directPermissionIds->contains($permission->id);
+                $roles = $rolePermissionsMap[$permission->id]['roles'] ?? [];
+
+                return [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'guard_name' => $permission->guard_name,
+                    'source' => $isDirect ? 'direct' : 'role',
+                    'roles' => array_values(array_unique($roles)),
+                ];
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
-            'data' => $permissions,
+            'data' => [
+                'permissions' => $allPermissions,
+                'direct_permission_ids' => $directPermissionIds->toArray(),
+                'inherited_permission_ids' => $inheritedPermissionIds->toArray(),
+            ],
         ]);
     }
 
