@@ -21,4 +21,9 @@ class Author extends Model
             }
         });
     }
+
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'product_authors', 'id', 'prod_code');
+    }
 }

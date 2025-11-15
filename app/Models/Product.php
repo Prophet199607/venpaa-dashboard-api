@@ -11,9 +11,11 @@ class Product extends Model
     use HasFactory;
     protected $guarded = [];
 
-    public function authorDetails()
+    public function authors()
     {
-        return $this->belongsTo(Author::class, 'author', 'auth_code');
+        return $this->belongsToMany(Author::class, 'product_authors', 'prod_code', 'author_id')
+                    ->using(ProductAuthor::class)
+                    ->withTimestamps();
     }
 
     public function unit()
