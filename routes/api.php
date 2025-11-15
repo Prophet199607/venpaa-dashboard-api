@@ -115,6 +115,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'publishers'], function () {
         Route::get('/generate-code', [PublisherController::class, 'generatePublisherCode']);
         Route::get('/', [PublisherController::class, 'index']);
+        Route::get('/search', [PublisherController::class, 'search']);
         Route::get('/{pub_code}', [PublisherController::class, 'show']);
         Route::post('/', [PublisherController::class, 'store']);
         Route::put('/{pub_code}', [PublisherController::class, 'update']);

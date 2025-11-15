@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Master;
 
 use App\Models\DocNumber;
 use App\Models\Publisher;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -145,6 +146,41 @@ class PublisherController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update publisher',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function search(Request $request)
+    {
+        try {
+            $searchTerm = $request->query('query');
+
+            if (empty($searchTerm)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Publishers fetched successfully',
+                    'data' => []
+                ], 200);
+            }
+
+            $publishers = Publisher::where('status', 1)
+                ->where(function ($query) use ($searchTerm) {
+                    $query->where('pub_name', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('pub_code', 'LIKE', '%' . $searchTerm . '%');
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Publishers fetched successfully',
+                'data' => PublisherResource::collection($publishers)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch publishers',
                 'error' => $e->getMessage()
             ], 500);
         }
