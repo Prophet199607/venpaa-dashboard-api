@@ -47,7 +47,7 @@ class BookRequest extends FormRequest
             'supplier' => 'required|exists:suppliers,sup_code',
             'book_type' => 'nullable|exists:book_types,bkt_code',
             'publisher' => 'nullable|exists:publishers,pub_code',
-            'author' => 'nullable|exists:authors,auth_code',
+            'author' => 'nullable|string',
 
             'isbn' => 'nullable|string',
             'publish_year' => 'nullable|digits:4',
@@ -66,5 +66,14 @@ class BookRequest extends FormRequest
             'status' => 'nullable|integer',
             'unit_name' => 'nullable|string',
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        if ($this->has('author') && is_array($this->author)) {
+            $this->merge([
+                'author' => implode(',', $this->author)
+            ]);
+        }
     }
 }
