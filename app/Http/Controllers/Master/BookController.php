@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Master;
 
+use App\Models\Author;
 use App\Models\Product;
 use App\Models\DocNumber;
 use App\Models\ProductImage;
-use Illuminate\Http\Request;
+use App\Models\ProductAuthor;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -38,7 +39,7 @@ class BookController extends Controller
         try {
             $products = Product::where('status', 1)
                 ->where('department', '10')
-                ->with(['authorDetails', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplierDetails', 'images'])
+                ->with(['authors', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplierDetails', 'images'])
                 ->get();
 
             return response()->json([
@@ -59,7 +60,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authorDetails', 'subCategory.category.department', 'bookType', 'publisher', 'supplierDetails', 'images'])
+                ->with(['authors', 'subCategory.category.department', 'bookType', 'publisher', 'supplierDetails', 'images'])
                 ->first();
 
             if (!$product) {
@@ -97,6 +98,22 @@ class BookController extends Controller
                 $data['prod_code'] = $docCode['code'];
             }
 
+            // Handle authors data - get author codes from comma-separated string
+            $authorCodes = [];
+            if ($request->has('author') && !empty($request->input('author'))) {
+                $authorCodes = explode(',', $request->input('author'));
+                // Validate that all author codes exist
+                $existingAuthors = Author::whereIn('auth_code', $authorCodes)->pluck('auth_code')->toArray();
+                $nonExistingAuthors = array_diff($authorCodes, $existingAuthors);
+
+                if (!empty($nonExistingAuthors)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some authors do not exist: ' . implode(', ', $nonExistingAuthors)
+                    ], 422);
+                }
+            }
+
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
@@ -111,7 +128,22 @@ class BookController extends Controller
                 $data['prod_image'] = $data['prod_code'];
             }
 
+            unset($data['author']);
             $product = Product::create($data);
+
+            // Handle authors data
+            if (!empty($authorCodes)) {
+                foreach ($authorCodes as $authorCode) {
+                    $author = Author::where('auth_code', $authorCode)->first();
+                    if ($author) {
+                        ProductAuthor::create([
+                            'prod_code' => $product->prod_code,
+                            'author_id' => $author->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
 
             // Handle multiple images upload
             if ($images) {
@@ -130,7 +162,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authorDetails', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authors', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -157,6 +189,22 @@ class BookController extends Controller
             $data['updated_by'] = auth()->id();
 
             $new_prod_code = $data['prod_code'] ?? $prod_code;
+
+            // Handle authors data - get author codes from comma-separated string
+            $authorCodes = [];
+            if ($request->has('author') && !empty($request->input('author'))) {
+                $authorCodes = explode(',', $request->input('author'));
+                // Validate that all author codes exist
+                $existingAuthors = Author::whereIn('auth_code', $authorCodes)->pluck('auth_code')->toArray();
+                $nonExistingAuthors = array_diff($authorCodes, $existingAuthors);
+
+                if (!empty($nonExistingAuthors)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some authors do not exist: ' . implode(', ', $nonExistingAuthors)
+                    ], 422);
+                }
+            }
 
             // Separate image data from book data
             $images = $request->file('images');
@@ -196,11 +244,32 @@ class BookController extends Controller
                 }
             }
 
+            unset($data['author']);
             $product->update($data);
+
+            // Sync authors - delete existing and create new rows
+            if ($authorCodes !== null) {
+                // Delete existing author relationships
+                ProductAuthor::where('prod_code', $product->prod_code)->delete();
+
+                // Create new author relationships
+                foreach ($authorCodes as $authorCode) {
+                    $author = Author::where('auth_code', $authorCode)->first();
+                    if ($author) {
+                        ProductAuthor::create([
+                            'prod_code' => $product->prod_code,
+                            'author_id' => $author->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authorDetails', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authors', 'images']);
 
             return response()->json([
                 'success' => true,
