@@ -30,7 +30,14 @@ class BookResource extends JsonResource
             'wholesale_price' => $this->wholesale_price,
             'book_type'     => $this->book_type,
             'publisher'     => $this->publisher,
-            'author'        => new AuthorResource($this->whenLoaded('authorDetails')),
+            'authors'       => $this->whenLoaded('authors', function () {
+                return $this->authors->map(function ($author) {
+                    return [
+                        'value' => $author->auth_code,
+                        'label' => $author->auth_name
+                    ];
+                });
+            }),
             'isbn'          => $this->isbn,
             'publish_year'  => $this->publish_year,
             'alert_qty'     => $this->alert_qty,

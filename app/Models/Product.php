@@ -13,8 +13,7 @@ class Product extends Model
 
     public function authors()
     {
-        return $this->belongsToMany(Author::class, 'product_authors', 'prod_code', 'author_id')
-                    ->using(ProductAuthor::class)
+        return $this->belongsToMany(Author::class, 'product_authors', 'prod_code', 'author_id', 'prod_code', 'id')
                     ->withTimestamps();
     }
 
