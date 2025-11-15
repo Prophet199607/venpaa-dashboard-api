@@ -32,7 +32,6 @@ class CreateProductsTable extends Migration
             $table->string('supplier')->index('supplier');
             $table->string('book_type')->index('book_type')->nullable();
             $table->string('publisher')->index('publisher')->nullable();
-            $table->string('author')->index('author')->nullable();
 
             $table->string('isbn')->nullable();
             $table->year('publish_year')->nullable();
