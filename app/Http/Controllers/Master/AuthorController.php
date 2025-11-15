@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Master;
 
 use App\Models\Author;
 use App\Models\DocNumber;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\AuthorRequest;
@@ -63,6 +64,34 @@ class AuthorController extends Controller
                 'message' => 'Author not found',
                 'error' => $e->getMessage()
             ], 404);
+        }
+    }
+
+    public function search(Request $request)
+    {
+        try {
+            $query = $request->input('query', '');
+
+            $authors = Author::where('status', 1)
+                ->where(function ($q) use ($query) {
+                    $q->where('auth_name', 'LIKE', "%{$query}%")
+                    ->orWhere('auth_code', 'LIKE', "%{$query}%");
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Authors search results',
+                'data' => AuthorResource::collection($authors),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to search authors',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
