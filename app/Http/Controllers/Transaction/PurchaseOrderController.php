@@ -463,6 +463,13 @@ class PurchaseOrderController extends Controller
             $tempTransactionHeaders = TempTransactionHeader::with(['TempTransactionDetails.product.unit', 'TempTransactionDetails' => function ($query) {
                 $query->orderBy('line_no');
             }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+
+            if ($tempTransactionHeaders) {
+                // Ensure location and delivery_location are codes, not objects
+                $tempTransactionHeaders->location = $tempTransactionHeaders->getRawOriginal('location');
+                $tempTransactionHeaders->delivery_location = $tempTransactionHeaders->getRawOriginal('delivery_location');
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Purchase order loaded successfully!',
