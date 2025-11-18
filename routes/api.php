@@ -183,7 +183,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // item request routes
     Route::group(['prefix' => 'item-requests'], function () {
         Route::get('/load-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'loadItemRequestByCode']);
-        Route::get('/view-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'viewItemRequestByCode']);
         Route::get('/load-all-item-requests', [ItemRequestController::class, 'loadAllItemRequests']);
         Route::get('/generate-code/{loca_code}', [ItemRequestController::class, 'getTempIrNumber']);
         Route::get('/temp-products/{doc_no}', [ItemRequestController::class, 'getTempProducts']);
