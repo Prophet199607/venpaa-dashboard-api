@@ -387,6 +387,8 @@ class PurchaseOrderController extends Controller
                     TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
                 }
 
+                DB::commit();
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Purchase order stored successfully.',
@@ -394,6 +396,7 @@ class PurchaseOrderController extends Controller
                 ]);
             });
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to store purchase order.',
@@ -547,6 +550,7 @@ class PurchaseOrderController extends Controller
     {
         try {
             $unsavedSessions = TempTransactionDetail::where('created_by', auth()->id())
+                ->where('iid', 'PO')
                 ->where('temp_transaction_header_id', 0)
                 ->distinct()
                 ->pluck('doc_no');
