@@ -18,6 +18,7 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 
+use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
 
 
@@ -177,6 +178,23 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/save-po', [PurchaseOrderController::class, 'store']);
         Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
         Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
+    });
+
+    // item request routes
+    Route::group(['prefix' => 'item-requests'], function () {
+        Route::get('/load-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'loadItemRequestByCode']);
+        Route::get('/view-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'viewItemRequestByCode']);
+        Route::get('/load-all-item-requests', [ItemRequestController::class, 'loadAllItemRequests']);
+        Route::get('/generate-code/{loca_code}', [ItemRequestController::class, 'getTempIrNumber']);
+        Route::get('/temp-products/{doc_no}', [ItemRequestController::class, 'getTempProducts']);
+        Route::get('/unsaved-sessions', [ItemRequestController::class, 'getUnsavedSessions']);
+        Route::put('/update-product/{id}', [ItemRequestController::class, 'updateProduct']);
+        Route::post('/unsave/{doc_no}', [ItemRequestController::class, 'removeUnsaved']);
+        Route::post('/draft', [ItemRequestController::class, 'draftItemRequest']);
+        Route::post('/add-product', [ItemRequestController::class, 'addProduct']);
+        Route::post('/save-ir', [ItemRequestController::class, 'store']);
+        Route::put('/draft/{doc_no}', [ItemRequestController::class, 'updateDraftItemRequest']);
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteTempDetail']);
     });
 
     // Role and Permission routes
