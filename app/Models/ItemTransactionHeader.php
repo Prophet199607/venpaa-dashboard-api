@@ -30,4 +30,9 @@ class ItemTransactionHeader extends Model
     {
         return $this->belongsTo(Location::class, 'location', 'loca_code');
     }
+
+    public function deliveryLocation()
+    {
+        return $this->belongsTo(Location::class, 'delivery_location', 'loca_code');
+    }
 }
