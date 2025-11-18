@@ -164,7 +164,7 @@ class PurchaseOrderController extends Controller
                     'temp_transaction_header_id' => 0,
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
-                    'updated_by' => auth()->id(),
+                    'created_by' => auth()->id(),
                 ]);
                 $existingProduct->increment('pack_qty', $data['pack_qty']);
                 $existingProduct->increment('unit_qty', $data['unit_qty']);
@@ -225,7 +225,18 @@ class PurchaseOrderController extends Controller
                 ], 404);
             }
 
-            $productToUpdate->update($data);
+            $productToUpdate->update([
+                'purchase_price' => $data['purchase_price'],
+                'selling_price' => $data['selling_price'],
+                'pack_size' => $data['pack_size'],
+                'pack_qty' => $data['pack_qty'],
+                'unit_qty' => $data['unit_qty'],
+                'free_qty' => $data['free_qty'],
+                'total_qty' => $data['total_qty'],
+                'line_wise_discount_value' => $data['line_wise_discount_value'],
+                'amount' => $data['amount'],
+                'updated_by' => auth()->user()->id,
+           ]);
 
             $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
 
@@ -408,7 +419,7 @@ class PurchaseOrderController extends Controller
     public function loadAllPurchaseOrders(Request $request)
     {
         if ($request->status == 'drafted') {
-            $purchaseOrders = TempTransactionHeader::where('iid', 'PO')
+            $purchaseOrders = TempTransactionHeader::where('iid', $request->iid)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
@@ -428,7 +439,7 @@ class PurchaseOrderController extends Controller
                 'data' => $purchaseOrders->items()
             ]);
         } else {
-            $purchaseOrders = TransactionHeader::where('iid', 'PO')
+            $purchaseOrders = TransactionHeader::where('iid', $request->iid)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
