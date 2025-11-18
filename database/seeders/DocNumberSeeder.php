@@ -26,6 +26,8 @@ class DocNumberSeeder extends Seeder
             ['type' => 'Author', 'prefix' => 'AUT', 'last_id' => 0, 'length' => 3],
             ['type' => 'TempPO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
             ['type' => 'PO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
+            ['type' => 'TempIR', 'prefix' => 'IR', 'last_id' => 0, 'length' => 8],
+            ['type' => 'IR', 'prefix' => 'IR', 'last_id' => 0, 'length' => 8],
         ];
 
         foreach ($default as $key => $value) {
