@@ -474,7 +474,7 @@ class PurchaseOrderController extends Controller
                 'data' => $transactionHeaders
             ]);
         } elseif ($status == 'drafted') {
-            $tempTransactionHeaders = TempTransactionHeader::with(['TempTransactionDetails.product.unit', 'TempTransactionDetails' => function ($query) {
+            $tempTransactionHeaders = TempTransactionHeader::with(['tempTransactionDetails.product.unit', 'tempTransactionDetails' => function ($query) {
                 $query->orderBy('line_no');
             }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
 
@@ -519,8 +519,8 @@ class PurchaseOrderController extends Controller
                 'supplier',
                 'location',
                 'deliveryLocation',
-                'TempTransactionDetails.product.unit',
-                'TempTransactionDetails' => function ($query) {
+                'tempTransactionDetails.product.unit',
+                'tempTransactionDetails' => function ($query) {
                     $query->orderBy('line_no');
                 }
             ])

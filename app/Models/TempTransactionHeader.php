@@ -16,7 +16,7 @@ class TempTransactionHeader extends Model
         'transaction_date' => 'datetime',
     ];
 
-    public function TempTransactionDetails()
+    public function tempTransactionDetails()
     {
         return $this->hasMany(TempTransactionDetail::class);
     }
