@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
-use App\Models\ItemTransactionDetail;
-use App\Models\ItemTransactionHeader;
+use App\Models\ItemReqTransDetail;
+use App\Models\ItemReqTransHeader;
 use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
 use App\Http\Resources\Transaction\TempTransactionDetailResource;
@@ -369,7 +369,7 @@ class ItemRequestController extends Controller
 
                 $headerData = $data;
                 unset($headerData['id']);
-                $transactionHeader = ItemTransactionHeader::create([
+                $itemReqTransHeader = ItemReqTransHeader::create([
                     ...$headerData,
                     'doc_no'      => $irNumber,
                     'temp_doc_no' => $data['doc_no'],
@@ -384,9 +384,9 @@ class ItemRequestController extends Controller
                 foreach ($tempProducts as $temp) {
                     $tempData = $temp->toArray();
                     unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    ItemTransactionDetail::create([
+                    ItemReqTransDetail::create([
                         ...$tempData,
-                        'item_transaction_header_id'    => $transactionHeader->id,
+                        'item_transaction_header_id'    => $itemReqTransHeader->id,
                         'doc_no'       => $irNumber,
                         'created_by'   => auth()->id(),
                     ]);
@@ -407,7 +407,7 @@ class ItemRequestController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Item request stored successfully.',
-                    'data'    => $transactionHeader->fresh(),
+                    'data'    => $itemReqTransHeader->fresh(),
                 ]);
             });
         } catch (\Exception $e) {
@@ -443,7 +443,7 @@ class ItemRequestController extends Controller
                 'data' => $itemRequests->items()
             ]);
         } else {
-            $itemRequests = ItemTransactionHeader::where('iid', $request->iid)
+            $itemRequests = ItemReqTransHeader::where('iid', $request->iid)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
@@ -468,14 +468,14 @@ class ItemRequestController extends Controller
     public function loadItemRequestByCode($doc_number, $status, $iid)
     {
         if ($status == 'applied') {
-            $itemTransactionHeaders = ItemTransactionHeader::with([
+            $itemReqTransHeaders = ItemReqTransHeader::with([
                 'supplier',
                 'location',
                 'deliveryLocation',
-                'itemTransactionDetails' => function ($query) {
+                'itemReqTransDetails' => function ($query) {
                     $query->orderBy('line_no');
                 },
-                'itemTransactionDetails.product.unit'
+                'itemReqTransDetails.product.unit'
             ])
             ->where(['doc_no' => $doc_number, 'iid' => $iid])
             ->first();
@@ -484,7 +484,7 @@ class ItemRequestController extends Controller
                 'success' => true,
                 'message' => 'Item request loaded successfully!',
                 'status' => 'applied',
-                'data' => $itemTransactionHeaders
+                'data' => $itemReqTransHeaders
             ]);
         } elseif ($status == 'drafted') {
             $tempTransactionHeaders = TempTransactionHeader::with([
