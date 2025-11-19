@@ -472,12 +472,12 @@ class ItemRequestController extends Controller
                 'supplier',
                 'location',
                 'deliveryLocation',
-                'tempTransactionDetails.product.unit',
-                'tempTransactionDetails' => function ($query) {
+                'itemTransactionDetails' => function ($query) {
                     $query->orderBy('line_no');
-                }
+                },
+                'itemTransactionDetails.product.unit'
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->where(['doc_no' => $doc_number, 'iid' => $iid])
             ->first();
 
             return response()->json([
@@ -491,12 +491,12 @@ class ItemRequestController extends Controller
                 'supplier',
                 'location',
                 'deliveryLocation',
-                'tempTransactionDetails.product.unit',
                 'tempTransactionDetails' => function ($query) {
                     $query->orderBy('line_no');
-                }
+                },
+                'tempTransactionDetails.product.unit'
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->where(['doc_no' => $doc_number, 'iid' => $iid])
             ->first();
 
             return response()->json([
