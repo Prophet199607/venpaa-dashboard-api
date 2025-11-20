@@ -154,7 +154,7 @@ class SupplierController extends Controller
     public function search(Request $request)
     {
         try {
-            $searchTerm = $request->search;
+            $searchTerm = $request->query('query');
 
             if (empty($searchTerm)) {
                 return response()->json([

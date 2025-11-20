@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Master;
 
 use App\Models\Unit;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\DocNumber;
-use App\Models\ProductImage;
 use Illuminate\Http\Request;
+use App\Models\ProductImage;
+use App\Models\ProductSupplier;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +41,7 @@ class ProductController extends Controller
         try {
             $products = Product::where('status', 1)
                 ->where('department', '!=', '10')
-                ->with(['category', 'subCategory', 'department', 'supplierDetails', 'images'])
+                ->with(['category', 'subCategory', 'department', 'suppliers', 'images'])
                 ->get();
 
             return response()->json([
@@ -60,7 +62,7 @@ class ProductController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['subCategory.category.department', 'supplierDetails', 'images'])
+                ->with(['subCategory.category.department', 'suppliers', 'images'])
                 ->first();
 
             if (!$product) {
@@ -98,6 +100,22 @@ class ProductController extends Controller
                 $data['prod_code'] = $docCode['code'];
             }
 
+            // Handle suppliers data
+            $supplierCodes = [];
+            if ($request->has('supplier') && !empty($request->input('supplier'))) {
+                $supplierCodes = explode(',', $request->input('supplier'));
+                // Validate that all supplier codes exist
+                $existingSuppliers = Supplier::whereIn('sup_code', $supplierCodes)->pluck('sup_code')->toArray();
+                $nonExistingSuppliers = array_diff($supplierCodes, $existingSuppliers);
+
+                if (!empty($nonExistingSuppliers)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some suppliers do not exist: ' . implode(', ', $nonExistingSuppliers)
+                    ], 422);
+                }
+            }
+
             // Separate image data from product data
             $images = $request->file('images');
             unset($data['images']);
@@ -112,7 +130,22 @@ class ProductController extends Controller
                 $data['prod_image'] = $data['prod_code'];
             }
 
+            unset($data['supplier']);
             $product = Product::create($data);
+
+            // Handle suppliers data
+            if (!empty($supplierCodes)) {
+                foreach ($supplierCodes as $supplierCode) {
+                    $supplier = Supplier::where('sup_code', $supplierCode)->first();
+                    if ($supplier) {
+                        ProductSupplier::create([
+                            'prod_code' => $product->prod_code,
+                            'supplier_id' => $supplier->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
 
             // Handle multiple images upload
             if ($images) {
@@ -131,7 +164,7 @@ class ProductController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'supplierDetails', 'images']);
+            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -158,6 +191,22 @@ class ProductController extends Controller
             $data['updated_by'] = auth()->id();
 
             $new_prod_code = $data['prod_code'] ?? $prod_code;
+
+            // Handle suppliers data
+            $supplierCodes = [];
+            if ($request->has('supplier') && !empty($request->input('supplier'))) {
+                $supplierCodes = explode(',', $request->input('supplier'));
+                // Validate that all supplier codes exist
+                $existingSuppliers = Supplier::whereIn('sup_code', $supplierCodes)->pluck('sup_code')->toArray();
+                $nonExistingSuppliers = array_diff($supplierCodes, $existingSuppliers);
+
+                if (!empty($nonExistingSuppliers)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some suppliers do not exist: ' . implode(', ', $nonExistingSuppliers)
+                    ], 422);
+                }
+            }
 
             // Separate image data from product data
             $images = $request->file('images');
@@ -197,11 +246,33 @@ class ProductController extends Controller
                 }
             }
 
+            unset($data['supplier']);
             $product->update($data);
             DB::commit();
 
+            // Sync suppliers - delete existing and create new rows
+            if ($supplierCodes !== null) {
+                // Delete existing supplier relationships
+                ProductSupplier::where('prod_code', $product->prod_code)->delete();
+
+                // Create new supplier relationships
+                foreach ($supplierCodes as $supplierCode) {
+                    $supplier = Supplier::where('sup_code', $supplierCode)->first();
+                    if ($supplier) {
+                        ProductSupplier::create([
+                            'prod_code' => $product->prod_code,
+                            'supplier_id' => $supplier->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'supplierDetails', 'images']);
+            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,

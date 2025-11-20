@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Master;
 
 use App\Models\Author;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\DocNumber;
 use App\Models\ProductImage;
 use App\Models\ProductAuthor;
+use App\Models\ProductSupplier;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +41,7 @@ class BookController extends Controller
         try {
             $products = Product::where('status', 1)
                 ->where('department', '10')
-                ->with(['authors', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'supplierDetails', 'images'])
+                ->with(['authors', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'suppliers', 'images'])
                 ->get();
 
             return response()->json([
@@ -60,7 +62,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authors', 'subCategory.category.department', 'bookType', 'publisher', 'supplierDetails', 'images'])
+                ->with(['authors', 'subCategory.category.department', 'bookType', 'publisher', 'suppliers', 'images'])
                 ->first();
 
             if (!$product) {
@@ -98,7 +100,7 @@ class BookController extends Controller
                 $data['prod_code'] = $docCode['code'];
             }
 
-            // Handle authors data - get author codes from comma-separated string
+            // Handle authors data
             $authorCodes = [];
             if ($request->has('author') && !empty($request->input('author'))) {
                 $authorCodes = explode(',', $request->input('author'));
@@ -110,6 +112,22 @@ class BookController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Some authors do not exist: ' . implode(', ', $nonExistingAuthors)
+                    ], 422);
+                }
+            }
+
+            // Handle suppliers data
+            $supplierCodes = [];
+            if ($request->has('supplier') && !empty($request->input('supplier'))) {
+                $supplierCodes = explode(',', $request->input('supplier'));
+                // Validate that all supplier codes exist
+                $existingSuppliers = Supplier::whereIn('sup_code', $supplierCodes)->pluck('sup_code')->toArray();
+                $nonExistingSuppliers = array_diff($supplierCodes, $existingSuppliers);
+
+                if (!empty($nonExistingSuppliers)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some suppliers do not exist: ' . implode(', ', $nonExistingSuppliers)
                     ], 422);
                 }
             }
@@ -129,6 +147,7 @@ class BookController extends Controller
             }
 
             unset($data['author']);
+            unset($data['supplier']);
             $product = Product::create($data);
 
             // Handle authors data
@@ -139,6 +158,20 @@ class BookController extends Controller
                         ProductAuthor::create([
                             'prod_code' => $product->prod_code,
                             'author_id' => $author->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
+            // Handle suppliers data
+            if (!empty($supplierCodes)) {
+                foreach ($supplierCodes as $supplierCode) {
+                    $supplier = Supplier::where('sup_code', $supplierCode)->first();
+                    if ($supplier) {
+                        ProductSupplier::create([
+                            'prod_code' => $product->prod_code,
+                            'supplier_id' => $supplier->id,
                             'created_by' => auth()->id()
                         ]);
                     }
@@ -162,7 +195,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authors', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'authors', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -190,7 +223,7 @@ class BookController extends Controller
 
             $new_prod_code = $data['prod_code'] ?? $prod_code;
 
-            // Handle authors data - get author codes from comma-separated string
+            // Handle authors data
             $authorCodes = [];
             if ($request->has('author') && !empty($request->input('author'))) {
                 $authorCodes = explode(',', $request->input('author'));
@@ -202,6 +235,22 @@ class BookController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Some authors do not exist: ' . implode(', ', $nonExistingAuthors)
+                    ], 422);
+                }
+            }
+
+            // Handle suppliers data
+            $supplierCodes = [];
+            if ($request->has('supplier') && !empty($request->input('supplier'))) {
+                $supplierCodes = explode(',', $request->input('supplier'));
+                // Validate that all supplier codes exist
+                $existingSuppliers = Supplier::whereIn('sup_code', $supplierCodes)->pluck('sup_code')->toArray();
+                $nonExistingSuppliers = array_diff($supplierCodes, $existingSuppliers);
+
+                if (!empty($nonExistingSuppliers)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some suppliers do not exist: ' . implode(', ', $nonExistingSuppliers)
                     ], 422);
                 }
             }
@@ -245,6 +294,7 @@ class BookController extends Controller
             }
 
             unset($data['author']);
+            unset($data['supplier']);
             $product->update($data);
 
             // Sync authors - delete existing and create new rows
@@ -266,10 +316,29 @@ class BookController extends Controller
                 }
             }
 
+            // Sync suppliers - delete existing and create new rows
+            if ($supplierCodes !== null) {
+                // Delete existing supplier relationships
+                ProductSupplier::where('prod_code', $product->prod_code)->delete();
+
+                // Create new supplier relationships
+                foreach ($supplierCodes as $supplierCode) {
+                    $supplier = Supplier::where('sup_code', $supplierCode)->first();
+                    if ($supplier) {
+                        ProductSupplier::create([
+                            'prod_code' => $product->prod_code,
+                            'supplier_id' => $supplier->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'supplierDetails', 'authors', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,
