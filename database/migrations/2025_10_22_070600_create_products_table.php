@@ -30,6 +30,7 @@ class CreateProductsTable extends Migration
             $table->decimal('wholesale_price')->default(0.0)->nullable();
 
             $table->string('supplier')->index('supplier');
+            $table->string('title_in_other_language')->nullable();
             $table->string('book_type')->index('book_type')->nullable();
             $table->string('publisher')->index('publisher')->nullable();
 

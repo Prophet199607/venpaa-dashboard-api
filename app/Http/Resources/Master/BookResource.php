@@ -28,6 +28,7 @@ class BookResource extends JsonResource
             'selling_price' => $this->selling_price,
             'marked_price'  => $this->marked_price,
             'wholesale_price' => $this->wholesale_price,
+            'title_in_other_language' => $this->title_in_other_language,
             'book_type'     => $this->book_type,
             'publisher'     => $this->publisher,
             'authors'       => $this->whenLoaded('authors', function () {

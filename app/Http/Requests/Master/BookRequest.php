@@ -44,6 +44,7 @@ class BookRequest extends FormRequest
             'marked_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
 
+            'title_in_other_language' => 'nullable|string',
             'supplier' => 'required|exists:suppliers,sup_code',
             'book_type' => 'nullable|exists:book_types,bkt_code',
             'publisher' => 'nullable|exists:publishers,pub_code',
