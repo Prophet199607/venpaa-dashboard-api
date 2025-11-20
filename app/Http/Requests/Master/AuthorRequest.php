@@ -35,7 +35,7 @@ class AuthorRequest extends FormRequest
 
             'auth_name' => 'required|string',
             'auth_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'auth_name_tamil' => 'nullable|string',
+            'auth_name_other_language' => 'nullable|string',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
         ];

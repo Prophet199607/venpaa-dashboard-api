@@ -17,7 +17,7 @@ class CreateAuthorsTable extends Migration
             $table->id();
             $table->string('auth_code');
             $table->string('auth_name');
-            $table->string('auth_name_tamil')->nullable();
+            $table->string('auth_name_other_language')->nullable();
             $table->text('description')->nullable();
             $table->string('auth_image')->nullable();
             $table->integer('status')->default(1);
