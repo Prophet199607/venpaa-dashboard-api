@@ -9,11 +9,14 @@ use Illuminate\Http\Request;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
+use App\Models\ItemReqTransDetail;
+use App\Models\ItemReqTransHeader;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
-use App\Models\ItemReqTransDetail;
-use App\Models\ItemReqTransHeader;
+use App\Http\Requests\Transaction\ItemReqTransDetailRequest;
+use App\Http\Requests\Transaction\ItemReqTransHeaderRequest;
+use App\Http\Resources\Transaction\ItemReqTransDetailResource;
 use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
 use App\Http\Resources\Transaction\TempTransactionDetailResource;
@@ -560,6 +563,248 @@ class ItemRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch unsaved sessions.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    // Pending Item Requests Functions
+    public function updateItemReqProduct(ItemReqTransDetailRequest $request, $id)
+    {
+       try {
+            $data = $request->validated();
+            $data = $this->processLineWiseDiscount($data);
+            $productToUpdate = ItemReqTransDetail::find($id);
+
+            if (!$productToUpdate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found.',
+                ], 404);
+            }
+
+           $productToUpdate->update([
+                'purchase_price' => $data['purchase_price'],
+                'selling_price' => $data['selling_price'],
+                'pack_size' => $data['pack_size'],
+                'pack_qty' => $data['pack_qty'],
+                'unit_qty' => $data['unit_qty'],
+                'free_qty' => $data['free_qty'],
+                'total_qty' => $data['total_qty'],
+                'line_wise_discount_value' => $data['line_wise_discount_value'],
+                'amount' => $data['amount'],
+                'updated_by' => auth()->user()->id,
+           ]);
+
+            $response_detail = ItemReqTransDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully!',
+                'data' => ItemReqTransDetailResource::collection($response_detail),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update product',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function deleteItemReqDetail($doc_no, $line_no)
+    {
+        try {
+            ItemReqTransDetail::where(['doc_no' => $doc_no, 'line_no' => $line_no])->delete();
+            $rowsToUpdate = ItemReqTransDetail::where('doc_no', $doc_no)
+                ->where('line_no', '>', $line_no)
+                ->orderBy('line_no')
+                ->get();
+
+            foreach ($rowsToUpdate as $row) {
+                $row->line_no = $row->line_no - 1;
+                $row->save();
+            }
+
+            $response_detail = ItemReqTransDetail::where('doc_no', $doc_no)->orderBy('line_no')->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product deleted successfully!',
+                'data' => ItemReqTransDetailResource::collection($response_detail),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete product',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function rejectIr(ItemReqTransHeaderRequest $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->validated();
+
+            $itemRequest = ItemReqTransHeader::where('doc_no', $data['doc_no'])->first();
+
+            if (!$itemRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item request not found.'
+                ], 404);
+            }
+
+            $itemRequest->update([
+                'approval_status' => 'rejected',
+                'is_approved' => false,
+                'updated_by' => auth()->id(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item request rejected successfully.',
+                'data' => $itemRequest
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject item request.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function storeItemReq(ItemReqTransHeaderRequest $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->validated();
+            $itemRequest = ItemReqTransHeader::where('doc_no', $data['doc_no'])->first();
+
+            if (!$itemRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item request not found.'
+                ], 404);
+            }
+
+            $itemRequest->update([
+                'subtotal' => $data['subtotal'] ?? $itemRequest->subtotal,
+                'net_total' => $data['net_total'] ?? $itemRequest->net_total,
+                'discount' => $data['discount'] ?? $itemRequest->discount,
+                'dis_per' => $data['dis_per'] ?? $itemRequest->dis_per,
+                'tax' => $data['tax'] ?? $itemRequest->tax,
+                'tax_per' => $data['tax_per'] ?? $itemRequest->tax_per,
+                'approval_status' => 'approved',
+                'is_approved' => true,
+                'approved_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+            ]);
+
+            $poNumber = DocNumber::generate('PO', 'PO', 8, $data['location']);
+            $transactionHeader = TransactionHeader::create([
+                'doc_no' => $poNumber,
+                'temp_doc_no' => $itemRequest->doc_no,
+                'location' => $data['location'],
+                'document_date' => $data['document_date'] ?? now(),
+                'expected_date' => $data['expected_date'] ?? null,
+                'iid' => 'PO',
+                'supplier_code' => $data['supplier_code'],
+                'delivery_address' => $data['delivery_address'],
+                'delivery_location' => $data['delivery_location'],
+                'remarks_ref' => $data['remarks_ref'],
+                'payment_mode' => $data['payment_mode'],
+                'subtotal' => $data['subtotal'] ?? 0,
+                'net_total' => $data['net_total'] ?? 0,
+                'discount' => $data['discount'] ?? 0,
+                'dis_per' => $data['dis_per'] ?? 0,
+                'tax' => $data['tax'] ?? 0,
+                'tax_per' => $data['tax_per'] ?? 0,
+                'created_by' => auth()->id(),
+            ]);
+
+            $itemRequestDetails = ItemReqTransDetail::where('doc_no', $data['doc_no'])->get();
+            foreach ($itemRequestDetails as $detail) {
+                TransactionDetail::create([
+                    'transaction_header_id' => $transactionHeader->id,
+                    'doc_no' => $poNumber,
+                    'prod_code' => $detail->prod_code,
+                    'line_no' => $detail->line_no,
+                    'iid' => 'PO',
+                    'prod_name' => $detail->prod_name,
+                    'purchase_price' => $detail->purchase_price,
+                    'selling_price' => $detail->selling_price,
+                    'pack_size' => $detail->pack_size,
+                    'pack_qty' => $detail->pack_qty,
+                    'unit_qty' => $detail->unit_qty,
+                    'free_qty' => $detail->free_qty,
+                    'total_qty' => $detail->total_qty,
+                    'line_wise_discount_value' => $detail->line_wise_discount_value,
+                    'amount' => $detail->amount,
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item request approved and PO created successfully.',
+                'data' => [
+                    'item_request' => $itemRequest,
+                    'purchase_order' => $transactionHeader,
+                    'po_number' => $poNumber
+                ]
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve item request.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function loadAppliedItemRequestsByStatus(Request $request)
+    {
+        try {
+            $status = $request->get('approval_status', 'all');
+            $docNo = $request->get('doc_no');
+
+            $query = ItemReqTransHeader::where('iid', 'IR')
+                ->orderBy('id', 'desc');
+
+            if ($status !== 'all') {
+                $query->where('approval_status', $status);
+            }
+
+            if ($docNo) {
+                $query->where('doc_no', 'like', '%' . $docNo . '%');
+            }
+
+            $itemRequests = $query->paginate(10);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied item requests loaded successfully!',
+                'data' => $itemRequests->items(),
+                'total' => $itemRequests->total(),
+                'current_page' => $itemRequests->currentPage(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load applied item requests.',
                 'error' => $e->getMessage()
             ], 500);
         }
