@@ -47,9 +47,10 @@ class Product extends Model
         return $this->belongsTo(Publisher::class, 'publisher', 'pub_code');
     }
 
-    public function supplierDetails()
+    public function suppliers()
     {
-        return $this->belongsTo(Supplier::class, 'supplier', 'sup_code');
+        return $this->belongsToMany(Supplier::class, 'product_suppliers', 'prod_code', 'supplier_id', 'prod_code', 'id')
+                    ->withTimestamps();
     }
 
     public function images()

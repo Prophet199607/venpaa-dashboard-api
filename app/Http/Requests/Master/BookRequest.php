@@ -45,9 +45,9 @@ class BookRequest extends FormRequest
             'wholesale_price' => 'nullable|numeric',
 
             'title_in_other_language' => 'nullable|string',
-            'supplier' => 'required|exists:suppliers,sup_code',
             'book_type' => 'nullable|exists:book_types,bkt_code',
             'publisher' => 'nullable|exists:publishers,pub_code',
+            'supplier' => 'nullable|string',
             'author' => 'nullable|string',
 
             'isbn' => 'nullable|string',
@@ -74,6 +74,11 @@ class BookRequest extends FormRequest
         if ($this->has('author') && is_array($this->author)) {
             $this->merge([
                 'author' => implode(',', $this->author)
+            ]);
+        }
+        if ($this->has('supplier') && is_array($this->supplier)) {
+            $this->merge([
+                'supplier' => implode(',', $this->supplier)
             ]);
         }
     }

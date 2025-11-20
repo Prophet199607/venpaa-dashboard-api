@@ -22,7 +22,14 @@ class ProductResource extends JsonResource
             'department'    => $this->department,
             'category'      => $this->category,
             'sub_category'  => new SubCategoryResource($this->whenLoaded('subCategory')),
-            'supplier'      => new SupplierResource($this->whenLoaded('supplierDetails')),
+            'suppliers'       => $this->whenLoaded('suppliers', function () {
+                return $this->suppliers->map(function ($supplier) {
+                    return [
+                        'value' => $supplier->sup_code,
+                        'label' => $supplier->sup_name
+                    ];
+                });
+            }),
             'pack_size'     => $this->pack_size,
             'purchase_price'=> $this->purchase_price,
             'selling_price' => $this->selling_price,

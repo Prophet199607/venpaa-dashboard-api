@@ -44,7 +44,7 @@ class ProductRequest extends FormRequest
             'marked_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
 
-            'supplier' => 'required|exists:suppliers,sup_code',
+            'supplier' => 'nullable|string',
             'alert_qty' => 'nullable|integer',
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
@@ -58,5 +58,14 @@ class ProductRequest extends FormRequest
             'status' => 'nullable|integer',
             'unit_name' => 'nullable|string',
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        if ($this->has('supplier') && is_array($this->supplier)) {
+            $this->merge([
+                'supplier' => implode(',', $this->supplier)
+            ]);
+        }
     }
 }
