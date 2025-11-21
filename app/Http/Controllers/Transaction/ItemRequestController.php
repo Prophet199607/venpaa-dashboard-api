@@ -90,8 +90,8 @@ class ItemRequestController extends Controller
 
         $supplier = null;
         if ($firstProduct) {
-            $product = Product::with('supplierDetails')->where('prod_code', $firstProduct->prod_code)->first();
-            $supplier = $product?->supplierDetails;
+            $product = Product::with('suppliers')->where('prod_code', $firstProduct->prod_code)->first();
+            $supplier = $product?->suppliers->first();
         }
 
         return [

@@ -307,7 +307,9 @@ class ProductController extends Controller
             $query = Product::where('status', 1)->with('unit');
 
             if ($supplier) {
-                $query->where('supplier', $supplier);
+                $query->whereHas('suppliers', function ($q) use ($supplier) {
+                    $q->where('sup_code', $supplier);
+                });
             }
 
             $products = $query->where(function ($query) use ($searchTerm) {
