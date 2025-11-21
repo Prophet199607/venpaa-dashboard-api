@@ -85,8 +85,8 @@ class PurchaseOrderController extends Controller
 
         $supplier = null;
         if ($firstProduct) {
-            $product = Product::with('supplierDetails')->where('prod_code', $firstProduct->prod_code)->first();
-            $supplier = $product?->supplierDetails;
+            $product = Product::with('suppliers')->where('prod_code', $firstProduct->prod_code)->first();
+            $supplier = $product?->suppliers->first();
         }
 
         return [
@@ -533,6 +533,40 @@ class PurchaseOrderController extends Controller
                 'status' => 'drafted',
                 'data' => $tempTransactionHeaders
             ]);
+        }
+    }
+
+    public function getAppliedPurchaseOrders(Request $request)
+    {
+        try {
+            $location = $request->input('location');
+            $supplier = $request->input('supplier');
+
+            $query = TransactionHeader::where('iid', 'PO');
+
+            if ($location) $query->where('location', $location);
+            if ($supplier) $query->where('supplier_code', $supplier);
+
+            $purchaseOrders = $query
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->get(['doc_no', 'supplier_code']);
+            $formattedData = $purchaseOrders->map(function ($po) {
+                return [
+                    'doc_no' => $po->doc_no,
+                    'sup_name' => $po->supplier ? $po->supplier->sup_name : 'N/A',
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied purchase orders loaded successfully!',
+                'data' => $formattedData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 'message' => 'Failed to fetch applied purchase orders', 'error' => $e->getMessage()
+            ], 500);
         }
     }
 
