@@ -20,6 +20,7 @@ use App\Http\Controllers\Master\SubCategoryController;
 
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
+use App\Http\Controllers\Transaction\GoodReceiveNoteController;
 
 
 
@@ -163,26 +164,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/{prod_code}', [ProductController::class, 'update']);
     });
 
-    // purchase order routes
-    Route::group(['prefix' => 'purchase-orders'], function () {
-        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
-        Route::get('/view-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'viewPurchaseOrderByCode']);
-        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
-        Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
-        Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
-        Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
-
-        Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
-        Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
-
-        Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
-        Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
-        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
-        Route::post('/save-po', [PurchaseOrderController::class, 'store']);
-
-        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
-    });
-
     // item request routes
     Route::group(['prefix' => 'item-requests'], function () {
         Route::get('/load-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'loadItemRequestByCode']);
@@ -205,6 +186,35 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::delete('/delete-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteTempDetail']);
         Route::delete('/delete-item-req-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteItemReqDetail']);
+    });
+
+    // purchase order routes
+    Route::group(['prefix' => 'purchase-orders'], function () {
+        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
+        Route::get('/view-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'viewPurchaseOrderByCode']);
+        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
+        Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
+        Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
+        Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
+        Route::get('/applied', [PurchaseOrderController::class, 'getAppliedPurchaseOrders']);
+
+        Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
+        Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
+
+        Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
+        Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
+        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
+        Route::post('/save-po', [PurchaseOrderController::class, 'store']);
+
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
+    });
+
+    // good receive note routes
+    Route::group(['prefix' => 'good-receive-notes'], function () {
+        Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
+        Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
+        Route::get('/temp-products/{doc_no}', [GoodReceiveNoteController::class, 'getTempProducts']);
+        Route::post('/unsave/{doc_no}', [GoodReceiveNoteController::class, 'removeUnsaved']);
     });
 
     // Role and Permission routes
