@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
@@ -132,6 +133,80 @@ class GoodReceiveNoteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch temp products.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function draftGoodReceiveNote(TempTransactionHeaderRequest $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->validated();
+            $data['created_by'] = auth()->user()->id;
+            $data = $this->processDiscountAndTax($data);
+
+            $tempHeader = TempTransactionHeader::create($data);
+
+            TempTransactionDetail::where('doc_no', $data['doc_no'])
+                ->update([
+                    'temp_transaction_header_id' => $tempHeader->id,
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'GRN drafted successfully!',
+                'data'  => new TempTransactionHeaderResource($tempHeader)
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to draft the good receive note',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateGoodReceiveNote(TempTransactionHeaderRequest $request, $doc_no)
+    {
+        DB::beginTransaction();
+
+        try {
+            $purchaseOrder = TempTransactionHeader::where('doc_no', $doc_no)->first();
+
+            if (!$purchaseOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Good receive note not found.'
+                ], 404);
+            }
+
+            $data = $request->validated();
+            $data['updated_by'] = auth()->user()->id;
+            $data = $this->processDiscountAndTax($data);
+
+            $purchaseOrder->update($data);
+
+            TempTransactionDetail::where('doc_no', $doc_no)->update([
+                'temp_transaction_header_id' => $purchaseOrder->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Good receive note updated successfully.',
+                'data' => new TempTransactionHeaderResource($purchaseOrder->fresh())
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update good receive note.',
                 'error' => $e->getMessage()
             ], 500);
         }
