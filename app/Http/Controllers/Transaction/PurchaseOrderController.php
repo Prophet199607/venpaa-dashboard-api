@@ -238,9 +238,9 @@ class PurchaseOrderController extends Controller
                 'updated_by' => auth()->user()->id,
            ]);
 
-            $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+           $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
 
-            return response()->json([
+           return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully!',
                 'data' => TempTransactionDetailResource::collection($response_detail),
@@ -280,6 +280,63 @@ class PurchaseOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to delete product',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAllPOProducts(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $poDocNumber = $request->input('doc_number');
+            $grnDocNumber = $request->input('grn_number');
+            $iid = $request->input('iid');
+
+            if (!$poDocNumber || !$grnDocNumber || !$iid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing required parameters: doc_number, grn_number, and iid are required.'
+                ], 400);
+            }
+
+            // Fetch all products from the selected Purchase Order
+            $poProducts = TransactionDetail::where('doc_no', $poDocNumber)
+                ->orderBy('line_no')
+                ->get();
+
+            // Create new TempTransactionDetail records for the GRN
+            foreach ($poProducts as $poProduct) {
+                TempTransactionDetail::create([
+                    'temp_transaction_header_id' => 0,
+                    'doc_no' => $grnDocNumber,
+                    'iid' => $iid,
+                    'line_no' => $poProduct->line_no,
+                    'prod_code' => $poProduct->prod_code,
+                    'prod_name' => $poProduct->prod_name,
+                    'purchase_price' => $poProduct->purchase_price,
+                    'selling_price' => $poProduct->selling_price,
+                    'pack_size' => $poProduct->pack_size,
+                    'pack_qty' => $poProduct->pack_qty,
+                    'unit_qty' => $poProduct->unit_qty,
+                    'free_qty' => $poProduct->free_qty,
+                    'total_qty' => $poProduct->total_qty,
+                    'amount' => $poProduct->amount,
+                    'line_wise_discount_value' => $poProduct->line_wise_discount_value,
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Products from PO have been successfully added to the GRN.',
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process products: ' . $e->getMessage(),
             ], 500);
         }
     }
