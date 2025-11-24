@@ -42,6 +42,7 @@ class CreateItemReqTransHeadersTable extends Migration
             $table->date('invoice_date')->nullable();
             $table->decimal('invoice_amount')->default(0);
             $table->string('approval_status')->default('pending');
+            $table->string('approval_remarks')->nullable();
             $table->boolean('is_approved')->default(0);
             $table->string('approved_by')->nullable();
             $table->integer('created_by')->nullable();
