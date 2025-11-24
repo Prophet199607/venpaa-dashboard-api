@@ -49,6 +49,7 @@ class ItemReqTransHeaderRequest extends FormRequest
             'invoice_no' => 'nullable|string|max:255',
             'invoice_date' => 'nullable|date',
             'invoice_amount' => 'nullable|numeric',
+            'approval_remarks' => 'nullable|string',
         ];
     }
 }

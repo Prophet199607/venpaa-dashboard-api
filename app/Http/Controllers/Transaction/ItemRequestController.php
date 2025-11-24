@@ -568,8 +568,6 @@ class ItemRequestController extends Controller
         }
     }
 
-
-    // Pending Item Requests Functions
     public function updateItemReqProduct(ItemReqTransDetailRequest $request, $id)
     {
        try {
@@ -661,6 +659,7 @@ class ItemRequestController extends Controller
 
             $itemRequest->update([
                 'approval_status' => 'rejected',
+                'approval_remarks' => $data['approval_remarks'],
                 'is_approved' => false,
                 'updated_by' => auth()->id(),
             ]);
@@ -705,6 +704,7 @@ class ItemRequestController extends Controller
                 'tax' => $data['tax'] ?? $itemRequest->tax,
                 'tax_per' => $data['tax_per'] ?? $itemRequest->tax_per,
                 'approval_status' => 'approved',
+                'approval_remarks' => $data['approval_remarks'],
                 'is_approved' => true,
                 'approved_by' => auth()->id(),
                 'updated_by' => auth()->id(),
