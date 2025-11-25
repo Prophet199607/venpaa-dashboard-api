@@ -37,6 +37,8 @@ class CreateItemReqTransDetailsTable extends Migration
             $table->decimal('line_wise_discount_value')->default(0);
             $table->decimal('dis_per')->default(0);
             $table->decimal('amount')->default(0);
+            $table->string('status')->default('active');
+            $table->boolean('is_current')->default(1);
             $table->integer('created_by')->nullable();
             $table->integer('updated_by')->nullable();
             $table->timestamps();

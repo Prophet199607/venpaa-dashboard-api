@@ -45,6 +45,7 @@ class CreateItemReqTransHeadersTable extends Migration
             $table->string('approval_remarks')->nullable();
             $table->boolean('is_approved')->default(0);
             $table->string('approved_by')->nullable();
+            $table->string('status')->default('active');
             $table->integer('created_by')->nullable();
             $table->integer('updated_by')->nullable();
             $table->timestamps();
