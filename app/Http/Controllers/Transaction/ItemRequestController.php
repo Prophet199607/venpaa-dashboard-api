@@ -111,6 +111,39 @@ class ItemRequestController extends Controller
         ];
     }
 
+    private function createDetailVersion($originalDetail, $newData = [], $status = 'updated')
+    {
+        // Create a copy of the original detail with new status
+        $versionData = $originalDetail->toArray();
+        unset($versionData['id'], $versionData['created_at'], $versionData['updated_at']);
+
+        $versionData = array_merge($versionData, $newData, [
+            'status' => $status,
+            'is_current' => false,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        return ItemReqTransDetail::create($versionData);
+    }
+
+    private function getCurrentDetails($doc_no)
+    {
+        return ItemReqTransDetail::where('doc_no', $doc_no)
+            ->where('status', 'active')
+            ->where('is_current', true)
+            ->orderBy('line_no')
+            ->get();
+    }
+
+    private function getDetailHistory($doc_no)
+    {
+        return ItemReqTransDetail::where('doc_no', $doc_no)
+            ->orderBy('line_no')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
     public function getTempIrNumber($loca_code)
     {
         try {
@@ -218,7 +251,7 @@ class ItemRequestController extends Controller
 
     public function updateProduct(TempTransactionDetailRequest $request, $id)
     {
-       try {
+        try {
             $data = $request->validated();
             $data = $this->processLineWiseDiscount($data);
             $productToUpdate = TempTransactionDetail::find($id);
@@ -230,7 +263,7 @@ class ItemRequestController extends Controller
                 ], 404);
             }
 
-           $productToUpdate->update([
+            $productToUpdate->update([
                 'purchase_price' => $data['purchase_price'],
                 'selling_price' => $data['selling_price'],
                 'pack_size' => $data['pack_size'],
@@ -241,7 +274,7 @@ class ItemRequestController extends Controller
                 'line_wise_discount_value' => $data['line_wise_discount_value'],
                 'amount' => $data['amount'],
                 'updated_by' => auth()->user()->id,
-           ]);
+            ]);
 
             $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
 
@@ -476,12 +509,14 @@ class ItemRequestController extends Controller
                 'location',
                 'deliveryLocation',
                 'itemReqTransDetails' => function ($query) {
-                    $query->orderBy('line_no');
+                    $query->where('status', 'active')
+                        ->where('is_current', true)
+                        ->orderBy('line_no');
                 },
                 'itemReqTransDetails.product.unit'
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => $iid])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => $iid])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -499,8 +534,8 @@ class ItemRequestController extends Controller
                 },
                 'tempTransactionDetails.product.unit'
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => $iid])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => $iid])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -570,32 +605,55 @@ class ItemRequestController extends Controller
 
     public function updateItemReqProduct(ItemReqTransDetailRequest $request, $id)
     {
-       try {
+        DB::beginTransaction();
+        try {
             $data = $request->validated();
             $data = $this->processLineWiseDiscount($data);
-            $productToUpdate = ItemReqTransDetail::find($id);
+            $originalProduct = ItemReqTransDetail::find($id);
 
-            if (!$productToUpdate) {
+            if (!$originalProduct) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Product not found.',
                 ], 404);
             }
 
-           $productToUpdate->update([
-                'purchase_price' => $data['purchase_price'],
-                'selling_price' => $data['selling_price'],
-                'pack_size' => $data['pack_size'],
-                'pack_qty' => $data['pack_qty'],
-                'unit_qty' => $data['unit_qty'],
-                'free_qty' => $data['free_qty'],
-                'total_qty' => $data['total_qty'],
-                'line_wise_discount_value' => $data['line_wise_discount_value'],
-                'amount' => $data['amount'],
-                'updated_by' => auth()->user()->id,
-           ]);
+            if ($originalProduct->status === 'active' && $originalProduct->is_current) {
+                $this->createDetailVersion($originalProduct, [], 'previous');
 
-            $response_detail = ItemReqTransDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+                $originalProduct->update([
+                    'purchase_price' => $data['purchase_price'],
+                    'selling_price' => $data['selling_price'],
+                    'pack_size' => $data['pack_size'],
+                    'pack_qty' => $data['pack_qty'],
+                    'unit_qty' => $data['unit_qty'],
+                    'free_qty' => $data['free_qty'],
+                    'total_qty' => $data['total_qty'],
+                    'line_wise_discount_value' => $data['line_wise_discount_value'],
+                    'amount' => $data['amount'],
+                    'status' => 'active',
+                    'is_current' => true,
+                    'updated_by' => auth()->id(),
+                ]);
+            } else {
+                $newProduct = $this->createDetailVersion($originalProduct, [
+                    'purchase_price' => $data['purchase_price'],
+                    'selling_price' => $data['selling_price'],
+                    'pack_size' => $data['pack_size'],
+                    'pack_qty' => $data['pack_qty'],
+                    'unit_qty' => $data['unit_qty'],
+                    'free_qty' => $data['free_qty'],
+                    'total_qty' => $data['total_qty'],
+                    'line_wise_discount_value' => $data['line_wise_discount_value'],
+                    'amount' => $data['amount'],
+                    'status' => 'active',
+                    'is_current' => true,
+                ]);
+            }
+
+            $response_detail = $this->getCurrentDetails($originalProduct->doc_no);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -603,6 +661,7 @@ class ItemRequestController extends Controller
                 'data' => ItemReqTransDetailResource::collection($response_detail),
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update product',
@@ -636,6 +695,84 @@ class ItemRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete product',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function cancelItemReqUpdates($doc_no)
+    {
+        DB::beginTransaction();
+
+        try {
+            // Get all updated records for this document
+            $updatedRecords = ItemReqTransDetail::where('doc_no', $doc_no)
+                ->where('status', 'active')
+                ->where('is_current', true)
+                ->where('updated_by', auth()->id())
+                ->where('updated_at', '>=', now()->subHours(72))
+                ->get();
+
+            foreach ($updatedRecords as $record) {
+                // Find the previous version
+                $previousVersion = ItemReqTransDetail::where('status', 'previous')
+                    ->first();
+
+                if ($previousVersion) {
+                    // Reactivate the previous version
+                    $previousVersion->update([
+                        'status' => 'active',
+                        'is_current' => true,
+                        'updated_by' => auth()->id(),
+                    ]);
+
+                    // Archive the current update
+                    $record->update([
+                        'status' => 'cancelled',
+                        'is_current' => false,
+                        'updated_by' => auth()->id(),
+                    ]);
+                }
+            }
+
+            $itemRequest = ItemReqTransHeader::with([
+                'supplier',
+                'location',
+                'deliveryLocation',
+                'itemReqTransDetails' => fn($q) => $q->where('is_current', true)->orderBy('line_no'),
+                'itemReqTransDetails.product.unit'
+            ])->where('doc_no', $doc_no)->first();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Updates cancelled successfully!',
+                'data' => $itemRequest,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel updates',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getItemReqHistory($doc_no)
+    {
+        try {
+            $history = $this->getDetailHistory($doc_no);
+
+            return response()->json([
+                'success' => true,
+                'data' => ItemReqTransDetailResource::collection($history),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch history',
                 'error' => $e->getMessage(),
             ], 500);
         }
