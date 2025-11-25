@@ -173,6 +173,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/generate-code/{loca_code}', [ItemRequestController::class, 'getTempIrNumber']);
         Route::get('/temp-products/{doc_no}', [ItemRequestController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [ItemRequestController::class, 'getUnsavedSessions']);
+        Route::get('/history/{doc_no}', [ItemRequestController::class, 'getItemReqHistory']);
 
         Route::put('/update-product/{id}', [ItemRequestController::class, 'updateProduct']);
         Route::put('/draft/{doc_no}', [ItemRequestController::class, 'updateDraftItemRequest']);
@@ -184,6 +185,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/save-ir', [ItemRequestController::class, 'store']);
         Route::post('/reject-ir', [ItemRequestController::class, 'rejectIr']);
         Route::post('/store-item-req', [ItemRequestController::class, 'storeItemReq']);
+        Route::post('/cancel-updates/{doc_no}', [ItemRequestController::class, 'cancelItemReqUpdates']);
 
         Route::delete('/delete-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteTempDetail']);
         Route::delete('/delete-item-req-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteItemReqDetail']);
