@@ -15,7 +15,6 @@ class CreatePaidPaymentSummariesTable extends Migration
     {
         Schema::create('paid_payment_summaries', function (Blueprint $table) {
             $table->id();
-            $table->string('industry_code');
             $table->string('temp_doc_no');
             $table->string('org_doc_no');
             $table->string('doc_no');
@@ -25,14 +24,11 @@ class CreatePaidPaymentSummariesTable extends Migration
             $table->string('cheque_date')->nullable();
             $table->string('branch')->nullable();
             $table->decimal('amount', 15, 2)->default(0);
-
             $table->string('location')->nullable();
             $table->string('iid');
             $table->string('acc_code');
             $table->string('document_date')->nullable();
             $table->string('transaction_date')->nullable();
-            $table->integer('created_by')->nullable();
-            $table->integer('updated_by')->nullable();
             $table->timestamps();
         });
     }

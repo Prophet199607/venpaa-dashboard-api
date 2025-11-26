@@ -15,8 +15,6 @@ class CreatePaymentSummariesTable extends Migration
     {
         Schema::create('payment_summaries', function (Blueprint $table) {
             $table->id();
-            $table->id();
-            $table->string('industry_code');
             $table->string('acc_code');
             $table->string('acc_type');
             $table->string('iid');
@@ -27,9 +25,6 @@ class CreatePaymentSummariesTable extends Migration
             $table->string('transaction_date')->nullable();
             $table->string('location')->nullable();
             $table->boolean('month_end');
-            $table->integer('created_by')->nullable();
-            $table->integer('updated_by')->nullable();
-            $table->timestamps();
             $table->timestamps();
         });
     }
