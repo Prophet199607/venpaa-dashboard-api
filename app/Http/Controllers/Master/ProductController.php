@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Master;
 use App\Models\Unit;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Models\Location;
 use App\Models\DocNumber;
+use App\Models\StockMaster;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
 use App\Models\ProductSupplier;
@@ -157,6 +159,24 @@ class ProductController extends Controller
                         'created_by' => auth()->id()
                     ]);
                 }
+            }
+
+            // Create stock master records for all active locations
+            $activeLocations = Location::where('is_active', 1)->get();
+            foreach($activeLocations as $location) {
+                StockMaster::create([
+                    'location' => $location->loca_code,
+                    'transaction_date' => '',
+                    'doc_no' => '',
+                    'prod_code' => $product->prod_code,
+                    'iid' => 'CREATE',
+                    'qty' => 0.000,
+                    'purchase_price' => $data['purchase_price'] ?? 0.00,
+                    'selling_price' => $data['selling_price'] ?? 0.00,
+                    'amount' => 0.00,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
 
             DB::commit();
