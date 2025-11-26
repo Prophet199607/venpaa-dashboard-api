@@ -36,7 +36,7 @@ class TempTransactionHeaderResource extends JsonResource
             'dis_per' => $this->dis_per,
             'tax_per' => $this->tax_per,
             'tax' => $this->tax,
-            'grn_no' => $this->grn_no,
+            'recall_doc_no' => $this->recall_doc_no,
             'payment_mode' => $this->payment_mode,
             'invoice_no' => $this->invoice_no,
             'invoice_date' => $this->invoice_date,
