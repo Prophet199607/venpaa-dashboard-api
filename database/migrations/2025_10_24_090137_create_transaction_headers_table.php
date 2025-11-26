@@ -36,7 +36,7 @@ class CreateTransactionHeadersTable extends Migration
             $table->decimal('dis_per')->default(0);
             $table->decimal('tax_per')->default(0);
             $table->decimal('tax')->default(0);
-            $table->string('grn_no')->nullable();
+            $table->string('recall_doc_no')->nullable();
             $table->string('payment_mode')->nullable();
             $table->string('invoice_no')->nullable();
             $table->date('invoice_date')->nullable();

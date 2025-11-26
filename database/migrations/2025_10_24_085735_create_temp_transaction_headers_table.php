@@ -19,7 +19,7 @@ class CreateTempTransactionHeadersTable extends Migration
             $table->string('doc_no');
             $table->date('document_date')->nullable();
             $table->date('expected_date')->nullable();
-            $table->string('transaction_date')->nullable();
+            $table->date('transaction_date')->nullable();
             $table->date('grn_date')->nullable();
             $table->string('iid');
             $table->string('supplier_code')->default(0);
@@ -35,7 +35,7 @@ class CreateTempTransactionHeadersTable extends Migration
             $table->decimal('dis_per')->default(0);
             $table->decimal('tax_per')->default(0);
             $table->decimal('tax')->default(0);
-            $table->string('grn_no')->nullable();
+            $table->string('recall_doc_no')->nullable();
             $table->string('payment_mode')->nullable();
             $table->string('invoice_no')->nullable();
             $table->date('invoice_date')->nullable();

@@ -126,8 +126,6 @@ class ProductController extends Controller
                 $filename = $data['prod_code'] . '.' . $prodImage->getClientOriginalExtension();
                 $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
                 $data['prod_image'] = $prodImagePath;
-            } else {
-                $data['prod_image'] = $data['prod_code'];
             }
 
             unset($data['supplier']);

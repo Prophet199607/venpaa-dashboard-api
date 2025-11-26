@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
+use App\Models\TransactionDetail;
+use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
@@ -17,6 +19,31 @@ use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class GoodReceiveNoteController extends Controller
 {
+    private function processDiscountAndTax(array $data): array
+    {
+        // Handle discount
+        if (isset($data['discount']) && $data['discount'] > 0) {
+            $data['dis_per'] = 0;
+        } elseif (isset($data['dis_per']) && $data['dis_per'] > 0) {
+            $data['discount'] = 0;
+        } else {
+            $data['discount'] = 0;
+            $data['dis_per'] = 0;
+        }
+
+        // Handle tax
+        if (isset($data['tax']) && $data['tax'] > 0) {
+            $data['tax_per'] = 0;
+        } elseif (isset($data['tax_per']) && $data['tax_per'] > 0) {
+            $data['tax'] = 0;
+        } else {
+            $data['tax'] = 0;
+            $data['tax_per'] = 0;
+        }
+
+        return $data;
+    }
+
     public function getTempGrnNumber($loca_code)
     {
         try {
@@ -113,27 +140,59 @@ class GoodReceiveNoteController extends Controller
         }
     }
 
-    public function getTempProducts($doc_no)
+    public function getAllPOProducts(Request $request)
     {
+        DB::beginTransaction();
         try {
-            $products = TempTransactionDetail::where('doc_no', $doc_no)
-                ->where('temp_transaction_header_id', 0)
-                ->with('product.unit')
+            $poDocNumber = $request->input('doc_number');
+            $grnDocNumber = $request->input('grn_number');
+            $iid = $request->input('iid');
+
+            if (!$poDocNumber || !$grnDocNumber || !$iid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing required parameters: doc_number, grn_number, and iid are required.'
+                ], 400);
+            }
+
+            // Fetch all products from the selected Purchase Order
+            $poProducts = TransactionDetail::where('doc_no', $poDocNumber)
+                ->orderBy('line_no')
                 ->get();
 
-            // Get session details including location and supplier
-            $sessionDetails = $this->getSessionDetails($doc_no);
+            // Create new TempTransactionDetail records for the GRN
+            foreach ($poProducts as $poProduct) {
+                TempTransactionDetail::create([
+                    'temp_transaction_header_id' => 0,
+                    'doc_no' => $grnDocNumber,
+                    'iid' => $iid,
+                    'line_no' => $poProduct->line_no,
+                    'prod_code' => $poProduct->prod_code,
+                    'prod_name' => $poProduct->prod_name,
+                    'purchase_price' => $poProduct->purchase_price,
+                    'selling_price' => $poProduct->selling_price,
+                    'pack_size' => $poProduct->pack_size,
+                    'pack_qty' => $poProduct->pack_qty,
+                    'unit_qty' => $poProduct->unit_qty,
+                    'free_qty' => $poProduct->free_qty,
+                    'total_qty' => $poProduct->total_qty,
+                    'amount' => $poProduct->amount,
+                    'line_wise_discount_value' => $poProduct->line_wise_discount_value,
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'data' => TempTransactionDetailResource::collection($products),
-                'session_details' => $sessionDetails
-            ]);
+                'message' => 'Products from PO have been successfully added to the GRN.',
+            ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch temp products.',
-                'error' => $e->getMessage()
+                'message' => 'Failed to process products: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -176,9 +235,9 @@ class GoodReceiveNoteController extends Controller
         DB::beginTransaction();
 
         try {
-            $purchaseOrder = TempTransactionHeader::where('doc_no', $doc_no)->first();
+            $goodReceiveNote = TempTransactionHeader::where('doc_no', $doc_no)->first();
 
-            if (!$purchaseOrder) {
+            if (!$goodReceiveNote) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Good receive note not found.'
@@ -189,10 +248,10 @@ class GoodReceiveNoteController extends Controller
             $data['updated_by'] = auth()->user()->id;
             $data = $this->processDiscountAndTax($data);
 
-            $purchaseOrder->update($data);
+            $goodReceiveNote->update($data);
 
             TempTransactionDetail::where('doc_no', $doc_no)->update([
-                'temp_transaction_header_id' => $purchaseOrder->id,
+                'temp_transaction_header_id' => $goodReceiveNote->id,
             ]);
 
             DB::commit();
@@ -200,7 +259,7 @@ class GoodReceiveNoteController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Good receive note updated successfully.',
-                'data' => new TempTransactionHeaderResource($purchaseOrder->fresh())
+                'data' => new TempTransactionHeaderResource($goodReceiveNote->fresh())
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -209,6 +268,83 @@ class GoodReceiveNoteController extends Controller
                 'message' => 'Failed to update good receive note.',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function loadAllGoodReceiveNotes(Request $request)
+    {
+        if ($request->status == 'drafted') {
+            $goodReceiveNote = TempTransactionHeader::where('iid', $request->iid)
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            $formattedData = $goodReceiveNote->getCollection()->map(function ($grn) {
+                $data = $grn->toArray();
+                $data['supplier_name'] = $grn->supplier ? $grn->supplier->sup_name : null;
+                return $data;
+            });
+
+            $goodReceiveNote->setCollection($formattedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft good receive note loaded successfully!',
+                'status' => 'drafted',
+                'data' => $goodReceiveNote->items()
+            ]);
+        } else {
+            $goodReceiveNote = TransactionHeader::where('iid', $request->iid)
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            $formattedData = $goodReceiveNote->getCollection()->map(function ($grn) {
+                $data = $grn->toArray();
+                $data['supplier_name'] = $grn->supplier ? $grn->supplier->sup_name : null;
+                return $data;
+            });
+
+            $goodReceiveNote->setCollection($formattedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied good receive note loaded successfully!',
+                'status' => 'applied',
+                'data' => $goodReceiveNote->items()
+            ]);
+        }
+    }
+
+    public function loadGoodReceiveNoteByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionHeader::with(['transactionDetails.product.unit', 'transactionDetails' => function ($query) {
+                $query->orderBy('line_no');
+            }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+            return response()->json([
+                'success' => true,
+                'message' => 'Good receive note loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionHeader::with(['tempTransactionDetails.product.unit', 'tempTransactionDetails' => function ($query) {
+                $query->orderBy('line_no');
+            }])->where(['doc_no' => $doc_number, 'iid' => "$iid"])->first();
+
+            if ($tempTransactionHeaders) {
+                // Ensure location and delivery_location are codes, not objects
+                $tempTransactionHeaders->location = $tempTransactionHeaders->getRawOriginal('location');
+                $tempTransactionHeaders->delivery_location = $tempTransactionHeaders->getRawOriginal('delivery_location');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Good receive note loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
         }
     }
 

@@ -204,7 +204,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
         Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
 
-        Route::post('/add-products-from-po', [PurchaseOrderController::class, 'getAllPOProducts']);
         Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
         Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
         Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
@@ -215,12 +214,14 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // good receive note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
+        Route::get('/load-good-receive-note-by-code/{doc_number}/{status}/{iid}', [GoodReceiveNoteController::class, 'loadGoodReceiveNoteByCode']);
+        Route::get('/load-all-good-receive-notes', [GoodReceiveNoteController::class, 'loadAllGoodReceiveNotes']);
         Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
-        Route::get('/temp-products/{doc_no}', [GoodReceiveNoteController::class, 'getTempProducts']);
 
         Route::put('/draft/{doc_no}', [GoodReceiveNoteController::class, 'updateGoodReceiveNote']);
 
+        Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
         Route::post('/unsave/{doc_no}', [GoodReceiveNoteController::class, 'removeUnsaved']);
         Route::post('/draft', [GoodReceiveNoteController::class, 'draftGoodReceiveNote']);
 
