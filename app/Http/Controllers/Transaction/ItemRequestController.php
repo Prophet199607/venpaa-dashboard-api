@@ -869,7 +869,10 @@ class ItemRequestController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            $itemRequestDetails = ItemReqTransDetail::where('doc_no', $data['doc_no'])->get();
+            $itemRequestDetails = ItemReqTransDetail::where('doc_no', $data['doc_no'])
+                ->where('status', 'active')
+                ->where('is_current', 1)
+                ->get();
             foreach ($itemRequestDetails as $detail) {
                 TransactionDetail::create([
                     'transaction_header_id' => $transactionHeader->id,
