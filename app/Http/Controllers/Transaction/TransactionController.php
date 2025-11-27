@@ -130,6 +130,49 @@ class TransactionController extends Controller
         }
     }
 
+    public function loadTransactionByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionHeader::with([
+                'supplier',
+                'location',
+                'deliveryLocation',
+                'transactionDetails.product.unit',
+                'transactionDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionHeader::with([
+                'supplier',
+                'location',
+                'deliveryLocation',
+                'tempTransactionDetails.product.unit',
+                'tempTransactionDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
+        }
+    }
+
     public function addProduct(TempTransactionDetailRequest $request)
     {
         try {
