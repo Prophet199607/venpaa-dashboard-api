@@ -347,25 +347,4 @@ class GoodReceiveNoteController extends Controller
             ]);
         }
     }
-
-    public function removeUnsaved($doc_no)
-    {
-        try {
-            TempTransactionDetail::where([
-                'doc_no' => $doc_no,
-                'temp_transaction_header_id' => 0
-            ])->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Temporary products cleared successfully.',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to clear products.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
 }
