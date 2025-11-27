@@ -168,6 +168,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // common transactions routes
     Route::group(['prefix' => 'transactions'], function () {
+        Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
 
         Route::put('/update-product/{id}', [TransactionController::class, 'updateProduct']);
@@ -229,12 +230,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // good receive note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
-        Route::get('/load-good-receive-note-by-code/{doc_number}/{status}/{iid}', [GoodReceiveNoteController::class, 'loadGoodReceiveNoteByCode']);
         Route::get('/load-all-good-receive-notes', [GoodReceiveNoteController::class, 'loadAllGoodReceiveNotes']);
         Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
 
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
+        Route::post('/save-grn', [GoodReceiveNoteController::class, 'store']);
     });
 
     // Role and Permission routes
