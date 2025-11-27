@@ -234,11 +234,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
 
-        Route::put('/draft/{doc_no}', [GoodReceiveNoteController::class, 'updateGoodReceiveNote']);
-
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
-        Route::post('/draft', [GoodReceiveNoteController::class, 'draftGoodReceiveNote']);
-
     });
 
     // Role and Permission routes
