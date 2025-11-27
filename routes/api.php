@@ -18,6 +18,7 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 
+use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
@@ -165,6 +166,20 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/{prod_code}', [ProductController::class, 'update']);
     });
 
+    // common transactions routes
+    Route::group(['prefix' => 'transactions'], function () {
+        Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
+
+        Route::put('/update-product/{id}', [TransactionController::class, 'updateProduct']);
+        Route::put('/draft/{doc_no}', [TransactionController::class, 'updateTransaction']);
+
+        Route::post('/add-product', [TransactionController::class, 'addProduct']);
+        Route::post('/draft', [TransactionController::class, 'draftTransaction']);
+        Route::post('/unsave/{doc_no}', [TransactionController::class, 'removeUnsaved']);
+
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [TransactionController::class, 'deleteTempDetail']);
+    });
+
     // item request routes
     Route::group(['prefix' => 'item-requests'], function () {
         Route::get('/load-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'loadItemRequestByCode']);
@@ -222,7 +237,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/draft/{doc_no}', [GoodReceiveNoteController::class, 'updateGoodReceiveNote']);
 
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
-        Route::post('/unsave/{doc_no}', [GoodReceiveNoteController::class, 'removeUnsaved']);
         Route::post('/draft', [GoodReceiveNoteController::class, 'draftGoodReceiveNote']);
 
     });
