@@ -163,239 +163,6 @@ class ItemRequestController extends Controller
         }
     }
 
-    public function getTempProducts($doc_no)
-    {
-        try {
-            $products = TempTransactionDetail::where('doc_no', $doc_no)
-                ->where('temp_transaction_header_id', 0)
-                ->with('product.unit')
-                ->get();
-
-            // Get session details including location and supplier
-            $sessionDetails = $this->getSessionDetails($doc_no);
-
-            return response()->json([
-                'success' => true,
-                'data' => TempTransactionDetailResource::collection($products),
-                'session_details' => $sessionDetails
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch temp products.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function addProduct(TempTransactionDetailRequest $request)
-    {
-        try {
-            $data = $request->validated();
-            $data = $this->processLineWiseDiscount($data);
-            $existingProduct = TempTransactionDetail::where('doc_no', $data['doc_no'])
-                ->where('prod_code', $data['prod_code'])
-                ->first();
-
-            if ($existingProduct) {
-                $existingProduct->update([
-                    'temp_transaction_header_id' => 0,
-                    'purchase_price' => $data['purchase_price'],
-                    'selling_price' => $data['selling_price'],
-                    'created_by' => auth()->id(),
-                ]);
-                $existingProduct->increment('pack_qty', $data['pack_qty']);
-                $existingProduct->increment('unit_qty', $data['unit_qty']);
-                $existingProduct->increment('free_qty', $data['free_qty']);
-                $existingProduct->increment('total_qty', $data['total_qty']);
-                $existingProduct->increment('amount', $data['amount']);
-                $existingProduct->increment('line_wise_discount_value', $data['line_wise_discount_value']);
-            } else {
-                $maxLineNo = TempTransactionDetail::where('doc_no', $data['doc_no'])->max('line_no');
-                $nextLineNo = $maxLineNo ? $maxLineNo + 1 : 1;
-                TempTransactionDetail::create([
-                    'temp_transaction_header_id' => 0,
-                    'doc_no' => $data['doc_no'],
-                    'prod_code' => $data['prod_code'],
-                    'line_no' => $nextLineNo,
-                    'iid' => $data['iid'],
-                    'prod_name' => $data['prod_name'],
-                    'purchase_price' => $data['purchase_price'],
-                    'selling_price' => $data['selling_price'],
-                    'pack_size' => $data['pack_size'],
-                    'pack_qty' => $data['pack_qty'],
-                    'unit_qty' => $data['unit_qty'],
-                    'free_qty' => $data['free_qty'],
-                    'total_qty' => $data['total_qty'],
-                    'amount' => $data['amount'],
-                    'line_wise_discount_value' => $data['line_wise_discount_value'],
-                    'created_by' => auth()->id(),
-                ]);
-            }
-
-            $response_detail = TempTransactionDetail::where('doc_no',  $data['doc_no'])->orderBy('line_no')->get();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Product added successfully!',
-                'data' => TempTransactionDetailResource::collection($response_detail),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to add product',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function updateProduct(TempTransactionDetailRequest $request, $id)
-    {
-        try {
-            $data = $request->validated();
-            $data = $this->processLineWiseDiscount($data);
-            $productToUpdate = TempTransactionDetail::find($id);
-
-            if (!$productToUpdate) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Product not found.',
-                ], 404);
-            }
-
-            $productToUpdate->update([
-                'purchase_price' => $data['purchase_price'],
-                'selling_price' => $data['selling_price'],
-                'pack_size' => $data['pack_size'],
-                'pack_qty' => $data['pack_qty'],
-                'unit_qty' => $data['unit_qty'],
-                'free_qty' => $data['free_qty'],
-                'total_qty' => $data['total_qty'],
-                'line_wise_discount_value' => $data['line_wise_discount_value'],
-                'amount' => $data['amount'],
-                'updated_by' => auth()->user()->id,
-            ]);
-
-            $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Product updated successfully!',
-                'data' => TempTransactionDetailResource::collection($response_detail),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update product',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function deleteTempDetail($doc_no, $line_no)
-    {
-        try {
-            TempTransactionDetail::where(['doc_no' => $doc_no, 'line_no' => $line_no])->delete();
-            $rowsToUpdate = TempTransactionDetail::where('doc_no', $doc_no)
-                ->where('line_no', '>', $line_no)
-                ->orderBy('line_no')
-                ->get();
-
-            foreach ($rowsToUpdate as $row) {
-                $row->line_no = $row->line_no - 1;
-                $row->save();
-            }
-
-            $response_detail = TempTransactionDetail::where('doc_no', $doc_no)->orderBy('line_no')->get();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Product deleted successfully!',
-                'data' => TempTransactionDetailResource::collection($response_detail),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete product',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function draftItemRequest(TempTransactionHeaderRequest $request)
-    {
-        DB::beginTransaction();
-
-        try {
-            $data = $request->validated();
-            $data['created_by'] = auth()->user()->id;
-            $data = $this->processDiscountAndTax($data);
-
-            $tempHeader = TempTransactionHeader::create($data);
-
-            TempTransactionDetail::where('doc_no', $data['doc_no'])
-                ->update([
-                    'temp_transaction_header_id' => $tempHeader->id,
-                ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'IR drafted successfully!',
-                'data'  => new TempTransactionHeaderResource($tempHeader)
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to draft the item request',
-                'error'   => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function updateDraftItemRequest(TempTransactionHeaderRequest $request, $doc_no)
-    {
-        DB::beginTransaction();
-
-        try {
-            $itemRequest = TempTransactionHeader::where('doc_no', $doc_no)->first();
-
-            if (!$itemRequest) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item request not found.'
-                ], 404);
-            }
-
-            $data = $request->validated();
-            $data['updated_by'] = auth()->user()->id;
-            $data = $this->processDiscountAndTax($data);
-
-            $itemRequest->update($data);
-
-            TempTransactionDetail::where('doc_no', $doc_no)->update([
-                'temp_transaction_header_id' => $itemRequest->id,
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Item request updated successfully.',
-                'data' => new TempTransactionHeaderResource($itemRequest->fresh())
-            ], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update item request.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function store(TempTransactionHeaderRequest $request)
     {
         try {
@@ -546,23 +313,37 @@ class ItemRequestController extends Controller
         }
     }
 
-    public function removeUnsaved($doc_no)
+    public function loadAppliedItemRequestsByStatus(Request $request)
     {
         try {
-            TempTransactionDetail::where([
-                'doc_no' => $doc_no,
-                'temp_transaction_header_id' => 0
-            ])->delete();
+            $status = $request->get('approval_status', 'all');
+            $docNo = $request->get('doc_no');
+
+            $query = ItemReqTransHeader::where('iid', 'IR')
+                ->orderBy('id', 'desc');
+
+            if ($status !== 'all') {
+                $query->where('approval_status', $status);
+            }
+
+            if ($docNo) {
+                $query->where('doc_no', 'like', '%' . $docNo . '%');
+            }
+
+            $itemRequests = $query->paginate(10);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Temporary products cleared successfully.',
+                'message' => 'Applied item requests loaded successfully!',
+                'data' => $itemRequests->items(),
+                'total' => $itemRequests->total(),
+                'current_page' => $itemRequests->currentPage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear products.',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to load applied item requests.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -910,41 +691,6 @@ class ItemRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to approve item request.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function loadAppliedItemRequestsByStatus(Request $request)
-    {
-        try {
-            $status = $request->get('approval_status', 'all');
-            $docNo = $request->get('doc_no');
-
-            $query = ItemReqTransHeader::where('iid', 'IR')
-                ->orderBy('id', 'desc');
-
-            if ($status !== 'all') {
-                $query->where('approval_status', $status);
-            }
-
-            if ($docNo) {
-                $query->where('doc_no', 'like', '%' . $docNo . '%');
-            }
-
-            $itemRequests = $query->paginate(10);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Applied item requests loaded successfully!',
-                'data' => $itemRequests->items(),
-                'total' => $itemRequests->total(),
-                'current_page' => $itemRequests->currentPage(),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load applied item requests.',
                 'error' => $e->getMessage()
             ], 500);
         }

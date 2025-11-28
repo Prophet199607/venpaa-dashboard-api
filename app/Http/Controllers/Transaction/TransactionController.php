@@ -130,6 +130,51 @@ class TransactionController extends Controller
         }
     }
 
+    public function loadAllTransactions(Request $request)
+    {
+        if ($request->status == 'drafted') {
+            $purchaseOrders = TempTransactionHeader::where('iid', $request->iid)
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+                $data = $po->toArray();
+                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+                return $data;
+            });
+
+            $purchaseOrders->setCollection($formattedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft transactions loaded successfully!',
+                'status' => 'drafted',
+                'data' => $purchaseOrders->items()
+            ]);
+        } else {
+            $purchaseOrders = TransactionHeader::where('iid', $request->iid)
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->paginate(10);
+
+            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+                $data = $po->toArray();
+                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+                return $data;
+            });
+
+            $purchaseOrders->setCollection($formattedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied transactions loaded successfully!',
+                'status' => 'applied',
+                'data' => $purchaseOrders->items()
+            ]);
+        }
+    }
+
     public function loadTransactionByCode($doc_number, $status, $iid)
     {
         if ($status == 'applied') {

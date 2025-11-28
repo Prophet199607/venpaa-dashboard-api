@@ -198,51 +198,6 @@ class GoodReceiveNoteController extends Controller
         }
     }
 
-    public function loadAllGoodReceiveNotes(Request $request)
-    {
-        if ($request->status == 'drafted') {
-            $goodReceiveNote = TempTransactionHeader::where('iid', $request->iid)
-                ->with('supplier')
-                ->orderBy('id', 'desc')
-                ->paginate(10);
-
-            $formattedData = $goodReceiveNote->getCollection()->map(function ($grn) {
-                $data = $grn->toArray();
-                $data['supplier_name'] = $grn->supplier ? $grn->supplier->sup_name : null;
-                return $data;
-            });
-
-            $goodReceiveNote->setCollection($formattedData);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Draft good receive note loaded successfully!',
-                'status' => 'drafted',
-                'data' => $goodReceiveNote->items()
-            ]);
-        } else {
-            $goodReceiveNote = TransactionHeader::where('iid', $request->iid)
-                ->with('supplier')
-                ->orderBy('id', 'desc')
-                ->paginate(10);
-
-            $formattedData = $goodReceiveNote->getCollection()->map(function ($grn) {
-                $data = $grn->toArray();
-                $data['supplier_name'] = $grn->supplier ? $grn->supplier->sup_name : null;
-                return $data;
-            });
-
-            $goodReceiveNote->setCollection($formattedData);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Applied good receive note loaded successfully!',
-                'status' => 'applied',
-                'data' => $goodReceiveNote->items()
-            ]);
-        }
-    }
-
     public function store(TempTransactionHeaderRequest $request)
     {
         try {

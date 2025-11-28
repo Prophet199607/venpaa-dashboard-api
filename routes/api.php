@@ -169,6 +169,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // common transactions routes
     Route::group(['prefix' => 'transactions'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
+        Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
 
         Route::put('/update-product/{id}', [TransactionController::class, 'updateProduct']);
@@ -187,50 +188,30 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-applied-by-status', [ItemRequestController::class, 'loadAppliedItemRequestsByStatus']);
         Route::get('/load-all-item-requests', [ItemRequestController::class, 'loadAllItemRequests']);
         Route::get('/generate-code/{loca_code}', [ItemRequestController::class, 'getTempIrNumber']);
-        Route::get('/temp-products/{doc_no}', [ItemRequestController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [ItemRequestController::class, 'getUnsavedSessions']);
         Route::get('/history/{doc_no}', [ItemRequestController::class, 'getItemReqHistory']);
 
-        Route::put('/update-product/{id}', [ItemRequestController::class, 'updateProduct']);
-        Route::put('/draft/{doc_no}', [ItemRequestController::class, 'updateDraftItemRequest']);
         Route::put('/update-item-req-product/{id}', [ItemRequestController::class, 'updateItemReqProduct']);
 
-        Route::post('/unsave/{doc_no}', [ItemRequestController::class, 'removeUnsaved']);
-        Route::post('/draft', [ItemRequestController::class, 'draftItemRequest']);
-        Route::post('/add-product', [ItemRequestController::class, 'addProduct']);
         Route::post('/save-ir', [ItemRequestController::class, 'store']);
         Route::post('/reject-ir', [ItemRequestController::class, 'rejectIr']);
         Route::post('/store-item-req', [ItemRequestController::class, 'storeItemReq']);
         Route::post('/cancel-updates/{doc_no}', [ItemRequestController::class, 'cancelItemReqUpdates']);
 
-        Route::delete('/delete-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteTempDetail']);
         Route::delete('/delete-item-req-detail/{doc_no}/{line_no}', [ItemRequestController::class, 'deleteItemReqDetail']);
     });
 
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
-        Route::get('/load-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'loadPurchaseOrderByCode']);
-        Route::get('/view-purchase-order-by-code/{doc_number}/{status}/{iid}', [PurchaseOrderController::class, 'viewPurchaseOrderByCode']);
-        Route::get('/load-all-purchase-orders', [PurchaseOrderController::class, 'loadAllPurchaseOrders']);
         Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
-        Route::get('/temp-products/{doc_no}', [PurchaseOrderController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
         Route::get('/applied', [PurchaseOrderController::class, 'getAppliedPurchaseOrders']);
 
-        Route::put('/update-product/{id}', [PurchaseOrderController::class, 'updateProduct']);
-        Route::put('/draft/{doc_no}', [PurchaseOrderController::class, 'updateDraftPurchaseOrder']);
-
-        Route::post('/unsave/{doc_no}', [PurchaseOrderController::class, 'removeUnsaved']);
-        Route::post('/draft', [PurchaseOrderController::class, 'draftPurchaseOrder']);
-        Route::post('/add-product', [PurchaseOrderController::class, 'addProduct']);
         Route::post('/save-po', [PurchaseOrderController::class, 'store']);
-
-        Route::delete('/delete-detail/{doc_no}/{line_no}', [PurchaseOrderController::class, 'deleteTempDetail']);
     });
 
     // good receive note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
-        Route::get('/load-all-good-receive-notes', [GoodReceiveNoteController::class, 'loadAllGoodReceiveNotes']);
         Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
 
