@@ -30,6 +30,8 @@ class DocNumberSeeder extends Seeder
             ['type' => 'IR', 'prefix' => 'IR', 'last_id' => 0, 'length' => 8],
             ['type' => 'TempGRN', 'prefix' => 'GRN', 'last_id' => 0, 'length' => 8],
             ['type' => 'GRN', 'prefix' => 'GRN', 'last_id' => 0, 'length' => 8],
+            ['type' => 'TempSRN', 'prefix' => 'SRN', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SRN', 'prefix' => 'SRN', 'last_id' => 0, 'length' => 8],
         ];
 
         foreach ($default as $key => $value) {
