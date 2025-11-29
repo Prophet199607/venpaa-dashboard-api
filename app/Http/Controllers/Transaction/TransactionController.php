@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Transaction;
 
 use App\Models\Product;
 use App\Models\Location;
+use App\Models\DocNumber;
 use Illuminate\Http\Request;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
@@ -105,6 +106,40 @@ class TransactionController extends Controller
         ];
     }
 
+    public function getTempTransactionNumber($type, $loca_code)
+    {
+        try {
+            $doc = DocNumber::where('type', $type)->first();
+
+            if (!$doc) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Invalid document type: $type"
+                ], 404);
+            }
+
+            $generatedCode = DocNumber::generate(
+                $doc->type,
+                $doc->prefix,
+                $doc->length,
+                $loca_code
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Code generated successfully',
+                'code' => $generatedCode,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate code',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getTempProducts($doc_no)
     {
         try {
@@ -125,6 +160,52 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch temp products.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getAppliedTransactions(Request $request)
+    {
+        try {
+            $iid = $request->input('iid');
+            $location = $request->input('location');
+            $supplier = $request->input('supplier');
+
+            if (!$iid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction type (iid) is required'
+                ], 400);
+            }
+
+            $query = TransactionHeader::where('iid', $iid);
+
+            if ($location) $query->where('location', $location);
+            if ($supplier) $query->where('supplier_code', $supplier);
+
+            $transactions = $query
+                ->with('supplier')
+                ->orderBy('id', 'desc')
+                ->get(['doc_no', 'supplier_code']);
+
+            $formatted = $transactions->map(function ($item) {
+                return [
+                    'doc_no' => $item->doc_no,
+                    'sup_name' => $item->supplier?->sup_name ?? 'N/A',
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Applied transactions loaded successfully!',
+                'data' => $formatted
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch applied transactions',
                 'error' => $e->getMessage()
             ], 500);
         }

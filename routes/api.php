@@ -22,6 +22,8 @@ use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
+use App\Http\Controllers\Transaction\SupplierReturnNoteController;
+
 
 
 
@@ -167,10 +169,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // common transactions routes
+    //TODO: Implement getTempTransactionNumber & getAppliedTransactions other item-requests, purchase-orders, & good-receive-notes transactions
     Route::group(['prefix' => 'transactions'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
+        Route::get('/generate-temp-number/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
         Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
+        Route::get('/applied', [TransactionController::class, 'getAppliedTransactions']);
 
         Route::put('/update-product/{id}', [TransactionController::class, 'updateProduct']);
         Route::put('/draft/{doc_no}', [TransactionController::class, 'updateTransaction']);
@@ -217,6 +222,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
         Route::post('/save-grn', [GoodReceiveNoteController::class, 'store']);
+    });
+
+    // supplier return note routes
+    Route::group(['prefix' => 'good-receive-notes'], function () {
+        Route::get('/generate-code/{loca_code}', [SupplierReturnNoteController::class, 'getTempSrnNumber']);
+        Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
+
+        Route::post('/add-products-from-po', [SupplierReturnNoteController::class, 'getAllPOProducts']);
+        Route::post('/save-grn', [SupplierReturnNoteController::class, 'store']);
     });
 
     // Role and Permission routes
