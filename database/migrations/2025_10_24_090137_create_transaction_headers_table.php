@@ -20,7 +20,7 @@ class CreateTransactionHeadersTable extends Migration
             $table->string('temp_doc_no')->nullable();
             $table->date('document_date')->nullable();
             $table->date('expected_date')->nullable();
-            $table->string('transaction_date')->nullable();
+            $table->date('transaction_date')->nullable();
             $table->string('grn_date')->nullable();
             $table->string('iid');
             $table->string('supplier_code')->default(0);
