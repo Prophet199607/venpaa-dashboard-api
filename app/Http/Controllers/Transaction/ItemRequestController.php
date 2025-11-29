@@ -17,10 +17,7 @@ use App\Models\TempTransactionHeader;
 use App\Http\Requests\Transaction\ItemReqTransDetailRequest;
 use App\Http\Requests\Transaction\ItemReqTransHeaderRequest;
 use App\Http\Resources\Transaction\ItemReqTransDetailResource;
-use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
-use App\Http\Resources\Transaction\TempTransactionDetailResource;
-use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class ItemRequestController extends Controller
 {
@@ -142,25 +139,6 @@ class ItemRequestController extends Controller
             ->orderBy('line_no')
             ->orderBy('created_at', 'desc')
             ->get();
-    }
-
-    public function getTempIrNumber($loca_code)
-    {
-        try {
-            $docCode = DocNumber::generate('TempIR', 'IR', 8, $loca_code);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Code generated successfully',
-                'code' => $docCode
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate code',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 
     public function store(TempTransactionHeaderRequest $request)

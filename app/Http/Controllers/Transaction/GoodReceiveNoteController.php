@@ -45,25 +45,6 @@ class GoodReceiveNoteController extends Controller
         return $data;
     }
 
-    public function getTempGrnNumber($loca_code)
-    {
-        try {
-            $docCode = DocNumber::generate('TempGRN', 'GRN', 8, $loca_code);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Code generated successfully',
-                'code' => $docCode
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate code',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     private function getSessionDetails($docNo)
     {
         // Extract location from doc_no

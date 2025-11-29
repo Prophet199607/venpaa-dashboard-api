@@ -12,10 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
-use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
-use App\Http\Resources\Transaction\TempTransactionDetailResource;
-use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class PurchaseOrderController extends Controller
 {
@@ -41,27 +38,6 @@ class PurchaseOrderController extends Controller
             $data['tax_per'] = 0;
         }
 
-        return $data;
-    }
-
-    private function processLineWiseDiscount(array $data): array
-    {
-        if (isset($data['line_wise_discount_value'])) {
-            $discountStr = $data['line_wise_discount_value'];
-            if (is_string($discountStr) && str_ends_with($discountStr, '%')) {
-                $percentage = (float) rtrim($discountStr, '%');
-                $packQty = (float) ($data['pack_qty'] ?? 0);
-                $packSize = (float) ($data['pack_size'] ?? 0);
-                $uniQty = (float) ($data['unit_qty'] ?? 0);
-                $totalQty = ($packQty * $packSize) + $uniQty;
-                $amountBeforeDiscount = $data['purchase_price'] * $totalQty;
-                $data['line_wise_discount_value'] = ($amountBeforeDiscount * $percentage) / 100;
-            } else {
-                $data['line_wise_discount_value'] = (float) $discountStr;
-            }
-        } else {
-            $data['line_wise_discount_value'] = 0;
-        }
         return $data;
     }
 
@@ -104,25 +80,6 @@ class PurchaseOrderController extends Controller
                 ->count(),
             'created_at' => $firstProduct ? $firstProduct->created_at : null,
         ];
-    }
-
-    public function getTempPoNumber($loca_code)
-    {
-        try {
-            $docCode = DocNumber::generate('TempPO', 'PO', 8, $loca_code);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Code generated successfully',
-                'code' => $docCode
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate code',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 
     public function store(TempTransactionHeaderRequest $request)
@@ -179,40 +136,6 @@ class PurchaseOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to store purchase order.',
                 'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function getAppliedPurchaseOrders(Request $request)
-    {
-        try {
-            $location = $request->input('location');
-            $supplier = $request->input('supplier');
-
-            $query = TransactionHeader::where('iid', 'PO');
-
-            if ($location) $query->where('location', $location);
-            if ($supplier) $query->where('supplier_code', $supplier);
-
-            $purchaseOrders = $query
-                ->with('supplier')
-                ->orderBy('id', 'desc')
-                ->get(['doc_no', 'supplier_code']);
-            $formattedData = $purchaseOrders->map(function ($po) {
-                return [
-                    'doc_no' => $po->doc_no,
-                    'sup_name' => $po->supplier ? $po->supplier->sup_name : 'N/A',
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Applied purchase orders loaded successfully!',
-                'data' => $formattedData
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false, 'message' => 'Failed to fetch applied purchase orders', 'error' => $e->getMessage()
             ], 500);
         }
     }

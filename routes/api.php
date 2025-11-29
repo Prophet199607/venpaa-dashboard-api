@@ -169,10 +169,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // common transactions routes
-    //TODO: Implement getTempTransactionNumber & getAppliedTransactions other item-requests, purchase-orders, & good-receive-notes transactions
+    //TODO: Try getUnsavedSessions function handle reusable
     Route::group(['prefix' => 'transactions'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
-        Route::get('/generate-temp-number/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
+        Route::get('/generate-code/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
         Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
         Route::get('/applied', [TransactionController::class, 'getAppliedTransactions']);
@@ -192,7 +192,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-item-request-by-code/{doc_number}/{status}/{iid}', [ItemRequestController::class, 'loadItemRequestByCode']);
         Route::get('/load-applied-by-status', [ItemRequestController::class, 'loadAppliedItemRequestsByStatus']);
         Route::get('/load-all-item-requests', [ItemRequestController::class, 'loadAllItemRequests']);
-        Route::get('/generate-code/{loca_code}', [ItemRequestController::class, 'getTempIrNumber']);
         Route::get('/unsaved-sessions', [ItemRequestController::class, 'getUnsavedSessions']);
         Route::get('/history/{doc_no}', [ItemRequestController::class, 'getItemReqHistory']);
 
@@ -208,16 +207,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
-        Route::get('/generate-code/{loca_code}', [PurchaseOrderController::class, 'getTempPoNumber']);
         Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
-        Route::get('/applied', [PurchaseOrderController::class, 'getAppliedPurchaseOrders']);
 
         Route::post('/save-po', [PurchaseOrderController::class, 'store']);
     });
 
     // good receive note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
-        Route::get('/generate-code/{loca_code}', [GoodReceiveNoteController::class, 'getTempGrnNumber']);
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
 
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
@@ -226,11 +222,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // supplier return note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
-        Route::get('/generate-code/{loca_code}', [SupplierReturnNoteController::class, 'getTempSrnNumber']);
-        Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
+        // Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
 
-        Route::post('/add-products-from-po', [SupplierReturnNoteController::class, 'getAllPOProducts']);
-        Route::post('/save-grn', [SupplierReturnNoteController::class, 'store']);
+        // Route::post('/add-products-from-po', [SupplierReturnNoteController::class, 'getAllPOProducts']);
+        // Route::post('/save-grn', [SupplierReturnNoteController::class, 'store']);
     });
 
     // Role and Permission routes
