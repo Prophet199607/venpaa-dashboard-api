@@ -218,10 +218,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
         Route::post('/save-grn', [GoodReceiveNoteController::class, 'store']);
+
+        Route::delete('/cleanup-grn/{grnNumber}', [GoodReceiveNoteController::class, 'cleanupGRNSession']);
     });
 
     // supplier return note routes
-    Route::group(['prefix' => 'good-receive-notes'], function () {
+    Route::group(['prefix' => 'good-return-notes'], function () {
         // Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
 
         // Route::post('/add-products-from-po', [SupplierReturnNoteController::class, 'getAllPOProducts']);

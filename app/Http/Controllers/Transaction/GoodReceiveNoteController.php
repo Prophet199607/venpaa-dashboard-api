@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Transaction;
 
+use Carbon\Carbon;
 use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
+use Illuminate\Support\Facades\Cache;
 use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
 use App\Http\Resources\Transaction\TempTransactionDetailResource;
@@ -103,9 +105,29 @@ class GoodReceiveNoteController extends Controller
                 ]);
             }
 
-            // Get session details including location and supplier
-            $sessionDetails = [];
+            $filteredSessions = [];
             foreach ($unsavedSessions as $doc_no) {
+                $cacheKey = 'po_loaded_grn_' . $doc_no;
+
+                $poMetadata = Cache::get($cacheKey);
+
+                if (!$poMetadata) {
+                    $filteredSessions[] = $doc_no;
+                } else {
+                    // This is a PO-loaded session, clean it up if it's old (more than 10 minutes)
+                    $loadedTime = Carbon::parse($poMetadata['loaded_at']);
+                    if ($loadedTime->diffInMinutes(now()) > 10) {
+                        TempTransactionDetail::where('doc_no', $doc_no)
+                            ->where('temp_transaction_header_id', 0)
+                            ->delete();
+                        TempTransactionHeader::where('doc_no', $doc_no)->delete();
+                        Cache::forget($cacheKey);
+                    }
+                }
+            }
+
+            $sessionDetails = [];
+            foreach ($filteredSessions as $doc_no) {
                 $sessionDetails[] = $this->getSessionDetails($doc_no);
             }
 
@@ -117,6 +139,31 @@ class GoodReceiveNoteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch unsaved sessions.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function cleanupGRNSession($grnNumber)
+    {
+        try {
+            // Delete all temp products for this GRN
+            $deletedCount = TempTransactionDetail::where('doc_no', $grnNumber)
+                ->where('temp_transaction_header_id', 0)
+                ->delete();
+
+            // Also delete temp header if exists
+            TempTransactionHeader::where('doc_no', $grnNumber)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'GRN session cleaned up successfully.',
+                'deleted_count' => $deletedCount
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cleanup GRN session.',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -137,12 +184,30 @@ class GoodReceiveNoteController extends Controller
                 ], 400);
             }
 
-            // Fetch all products from the selected Purchase Order
+            $existingTempProducts = TempTransactionDetail::where('doc_no', $grnDocNumber)
+                ->where('temp_transaction_header_id', 0)
+                ->get();
+
+            if ($existingTempProducts->isNotEmpty()) {
+                TempTransactionDetail::where('doc_no', $grnDocNumber)
+                    ->where('temp_transaction_header_id', 0)
+                    ->delete();
+            }
+
+            $metadata = [
+                'po_doc_no' => $poDocNumber,
+                'grn_doc_no' => $grnDocNumber,
+                'loaded_at' => now()->toISOString(),
+                'user_id' => auth()->id()
+            ];
+
+            $cacheKey = 'po_loaded_grn_' . $grnDocNumber;
+            Cache::put($cacheKey, $metadata, now()->addHours(72));
+
             $poProducts = TransactionDetail::where('doc_no', $poDocNumber)
                 ->orderBy('line_no')
                 ->get();
 
-            // Create new TempTransactionDetail records for the GRN
             foreach ($poProducts as $poProduct) {
                 TempTransactionDetail::create([
                     'temp_transaction_header_id' => 0,
