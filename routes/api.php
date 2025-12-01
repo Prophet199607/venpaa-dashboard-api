@@ -169,7 +169,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // common transactions routes
-    //TODO: Try getUnsavedSessions function handle reusable
     Route::group(['prefix' => 'transactions'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
         Route::get('/generate-code/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
