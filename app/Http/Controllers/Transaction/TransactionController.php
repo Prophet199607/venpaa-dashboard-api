@@ -181,6 +181,11 @@ class TransactionController extends Controller
 
             $query = TransactionHeader::where('iid', $iid);
 
+            $query->where(function($q) {
+                $q->whereNull('recall_doc_no')
+                  ->orWhere('recall_doc_no', '');
+            });
+
             if ($location) $query->where('location', $location);
             if ($supplier) $query->where('supplier_code', $supplier);
 
