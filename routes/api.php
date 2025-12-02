@@ -207,26 +207,21 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // purchase order routes
     Route::group(['prefix' => 'purchase-orders'], function () {
         Route::get('/unsaved-sessions', [PurchaseOrderController::class, 'getUnsavedSessions']);
-
         Route::post('/save-po', [PurchaseOrderController::class, 'store']);
     });
 
     // good receive note routes
     Route::group(['prefix' => 'good-receive-notes'], function () {
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
-
-        Route::post('/add-products-from-po', [GoodReceiveNoteController::class, 'getAllPOProducts']);
         Route::post('/save-grn', [GoodReceiveNoteController::class, 'store']);
-
         Route::delete('/cleanup-grn/{grnNumber}', [GoodReceiveNoteController::class, 'cleanupGRNSession']);
     });
 
     // supplier return note routes
-    Route::group(['prefix' => 'good-return-notes'], function () {
-        // Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
-
-        // Route::post('/add-products-from-po', [SupplierReturnNoteController::class, 'getAllPOProducts']);
-        // Route::post('/save-grn', [SupplierReturnNoteController::class, 'store']);
+    Route::group(['prefix' => 'supplier-return-notes'], function () {
+        Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
+        Route::post('/save-srn', [SupplierReturnNoteController::class, 'store']);
+        Route::delete('/cleanup-srn/{srnNumber}', [SupplierReturnNoteController::class, 'cleanupSRNSession']);
     });
 
     // Role and Permission routes
