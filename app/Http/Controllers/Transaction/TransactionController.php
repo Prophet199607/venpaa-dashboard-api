@@ -168,44 +168,38 @@ class TransactionController extends Controller
     public function getAppliedTransactions(Request $request)
     {
         try {
+
             $iid = $request->input('iid');
             $location = $request->input('location');
             $supplier = $request->input('supplier');
+            $recall_iid = $request->input('recall_iid');
 
-            if (!$iid) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Transaction type (iid) is required'
-                ], 400);
-            }
+            $appliedTransaction = TransactionHeader::where([
+                'iid' => $iid,
+                'location' => $location,
+                'supplier_code' => $supplier,
+            ])->pluck('recall_doc_no');
 
-            $query = TransactionHeader::where('iid', $iid);
+            $recallTransactions = TransactionHeader::where([
+                'iid' => $recall_iid,
+                'location' => $location,
+                'supplier_code' => $supplier,
+            ])->where(function ($query) use ($appliedTransaction) {
+                $query->whereNotIn('doc_no', $appliedTransaction);
+            })->get();
 
-            $query->where(function($q) {
-                $q->whereNull('recall_doc_no')
-                  ->orWhere('recall_doc_no', '');
-            });
-
-            if ($location) $query->where('location', $location);
-            if ($supplier) $query->where('supplier_code', $supplier);
-
-            $transactions = $query
-                ->with('supplier')
-                ->orderBy('id', 'desc')
-                ->get(['doc_no', 'supplier_code']);
-
-            $formatted = $transactions->map(function ($item) {
-                return [
-                    'doc_no' => $item->doc_no,
-                    'sup_name' => $item->supplier?->sup_name ?? 'N/A',
-                ];
-            });
+            $formatted = $recallTransactions->map(function ($item) {
+                    return [
+                        'doc_no' => $item->doc_no,
+                        'sup_name' => $item->supplier?->sup_name ?? 'N/A',
+                    ];
+                });
 
             return response()->json([
-                'success' => true,
-                'message' => 'Applied transactions loaded successfully!',
-                'data' => $formatted
-            ]);
+                    'success' => true,
+                    'message' => 'Applied transactions loaded successfully!',
+                    'data' => $formatted
+                ]);
 
         } catch (\Exception $e) {
             return response()->json([
