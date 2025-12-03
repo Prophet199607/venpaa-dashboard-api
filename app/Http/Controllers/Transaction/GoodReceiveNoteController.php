@@ -182,6 +182,7 @@ class GoodReceiveNoteController extends Controller
                     ...$headerData,
                     'doc_no'      => $grnNumber,
                     'temp_doc_no' => $data['doc_no'],
+                    'created_by'  => auth()->id(),
                 ]);
 
                 // Load temp products for this temp doc

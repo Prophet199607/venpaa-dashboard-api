@@ -95,6 +95,7 @@ class PurchaseOrderController extends Controller
                     ...$headerData,
                     'doc_no'      => $poNumber,
                     'temp_doc_no' => $data['doc_no'],
+                    'created_by'  => auth()->id(),
                 ]);
 
                 // Load temp products for this temp doc
