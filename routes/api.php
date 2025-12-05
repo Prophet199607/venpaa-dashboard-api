@@ -22,6 +22,7 @@ use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
+use App\Http\Controllers\Transaction\TransferGoodNoteController;
 use App\Http\Controllers\Transaction\SupplierReturnNoteController;
 
 
@@ -224,6 +225,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/save-srn', [SupplierReturnNoteController::class, 'store']);
         Route::delete('/cleanup-srn/{srnNumber}', [SupplierReturnNoteController::class, 'cleanupSRNSession']);
     });
+
+    // transfer good note routes
+    Route::group(['prefix' => 'transfer-good-notes'], function () {
+        Route::get('/applied', [TransferGoodNoteController::class, 'getAppliedTransactions']);
+
+        Route::post('/add-product', [TransferGoodNoteController::class, 'addProduct']);
+
+    });
+
 
     // Role and Permission routes
     // Route::post('/role', [RolePermissionController::class, 'createRole']);
