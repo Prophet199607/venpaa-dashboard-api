@@ -353,6 +353,44 @@ class ProductController extends Controller
         }
     }
 
+    public function searchBasic (Request $request)
+    {
+        try {
+            $searchTerm = $request->search;
+
+            if (empty($searchTerm)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Products fetched successfully',
+                    'data' => [],
+                ], 200);
+            }
+
+            $query = Product::where('status', 1)->with('unit');
+
+            $products = $query->where(function ($query) use ($searchTerm) {
+                $query->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
+            })
+            ->limit(100)
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Products fetched successfully',
+                'data' => ProductResource::collection($products)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch products',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function unitTypes()
     {
         try {
