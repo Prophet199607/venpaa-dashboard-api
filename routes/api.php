@@ -216,14 +216,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'good-receive-notes'], function () {
         Route::get('/unsaved-sessions', [GoodReceiveNoteController::class, 'getUnsavedSessions']);
         Route::post('/save-grn', [GoodReceiveNoteController::class, 'store']);
-        Route::delete('/cleanup-grn/{grnNumber}', [GoodReceiveNoteController::class, 'cleanupGRNSession']);
     });
 
     // supplier return note routes
     Route::group(['prefix' => 'supplier-return-notes'], function () {
         Route::get('/unsaved-sessions', [SupplierReturnNoteController::class, 'getUnsavedSessions']);
         Route::post('/save-srn', [SupplierReturnNoteController::class, 'store']);
-        Route::delete('/cleanup-srn/{srnNumber}', [SupplierReturnNoteController::class, 'cleanupSRNSession']);
     });
 
     // transfer good note routes

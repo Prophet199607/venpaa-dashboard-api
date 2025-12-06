@@ -141,31 +141,6 @@ class SupplierReturnNoteController extends Controller
         }
     }
 
-    public function cleanupSRNSession($srnNumber)
-    {
-        try {
-            // Delete all temp products for this GRN
-            $deletedCount = TempTransactionDetail::where('doc_no', $srnNumber)
-                ->where('temp_transaction_header_id', 0)
-                ->delete();
-
-            // Also delete temp header if exists
-            TempTransactionHeader::where('doc_no', $srnNumber)->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'SRN session cleaned up successfully.',
-                'deleted_count' => $deletedCount
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to cleanup SRN session.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function store(TempTransactionHeaderRequest $request)
     {
         try {
