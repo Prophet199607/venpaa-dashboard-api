@@ -228,6 +228,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // transfer good note routes
     Route::group(['prefix' => 'transfer-good-notes'], function () {
+        Route::get('/unsaved-sessions', [TransferGoodNoteController::class, 'getUnsavedSessions']);
         Route::get('/applied', [TransferGoodNoteController::class, 'getAppliedTransactions']);
 
         Route::put('/update-product/{id}', [TransferGoodNoteController::class, 'updateProduct']);
