@@ -118,4 +118,44 @@ class TransferGoodNoteController extends Controller
             ], 500);
         }
     }
+
+    public function updateProduct(TempTransactionDetailRequest $request, $id)
+    {
+        try {
+            $data = $request->validated();
+            $productToUpdate = TempTransactionDetail::find($id);
+
+            if (!$productToUpdate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found.',
+                ], 404);
+            }
+
+            $productToUpdate->update([
+                'purchase_price' => $data['purchase_price'],
+                'selling_price' => $data['selling_price'],
+                'pack_size' => $data['pack_size'],
+                'pack_qty' => $data['pack_qty'],
+                'unit_qty' => $data['unit_qty'],
+                'total_qty' => $data['total_qty'],
+                'amount' => $data['amount'],
+                'updated_by' => auth()->user()->id,
+           ]);
+
+           $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+
+           return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully!',
+                'data' => TempTransactionDetailResource::collection($response_detail),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update product',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
