@@ -440,14 +440,16 @@ class TransactionController extends Controller
                 'temp_transaction_header_id' => 0
             ])->delete();
 
+            TempTransactionHeader::where('doc_no', $doc_no)->delete();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Temporary products cleared successfully.',
+                'message' => 'Temporary data cleared successfully.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear products.',
+                'message' => 'Failed to clear data.',
                 'error' => $e->getMessage(),
             ], 500);
         }
