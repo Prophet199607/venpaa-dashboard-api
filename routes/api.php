@@ -21,6 +21,7 @@ use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
+use App\Http\Controllers\Transaction\AcceptGoodNoteController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
 use App\Http\Controllers\Transaction\TransferGoodNoteController;
 use App\Http\Controllers\Transaction\SupplierReturnNoteController;
@@ -233,6 +234,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-product', [TransferGoodNoteController::class, 'addProduct']);
         Route::post('/save-tgn', [TransferGoodNoteController::class, 'store']);
+    });
+
+    // accept good note routes
+    Route::group(['prefix' => 'accept-good-notes'], function () {
+        Route::get('/load-agn-by-code/{doc_number}/{status}/{iid}', [AcceptGoodNoteController::class, 'loadAgnByCode']);
+        Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns']);
     });
 
 
