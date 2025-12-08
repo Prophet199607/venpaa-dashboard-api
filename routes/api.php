@@ -232,7 +232,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/update-product/{id}', [TransferGoodNoteController::class, 'updateProduct']);
 
         Route::post('/add-product', [TransferGoodNoteController::class, 'addProduct']);
-
+        Route::post('/save-tgn', [TransferGoodNoteController::class, 'store']);
     });
 
 
