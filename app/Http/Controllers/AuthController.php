@@ -26,9 +26,18 @@ class AuthController extends Controller
             return response()->json(['message'=>'Invalid credentials'], 401);
         }
 
+        if ($request->has('location')) {
+            $user->location = $request->location;
+            $user->save();
+        }
+
         $token = $user->createToken('api_token')->plainTextToken;
 
-        return response()->json(['user'=>$user, 'token'=>$token]);
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+            'location_updated' => $request->has('location')
+        ]);
     }
 
     public function logout(Request $request) {
