@@ -9,8 +9,11 @@ use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Models\TempTransactionDetail;
+use App\Models\TempTransactionHeader;
 use App\Http\Requests\Transaction\TransactionHeaderRequest;
-
+use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
+use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class AcceptGoodNoteController extends Controller
 {
@@ -108,6 +111,58 @@ class AcceptGoodNoteController extends Controller
                 'status' => 'pending',
                 'data' => $transactionHeaders
             ]);
+        }
+    }
+
+    public function draftAgn(TempTransactionHeaderRequest $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->validated();
+            $existingTempHeaders = TempTransactionHeader::where('recall_doc_no', $data['recall_doc_no'])
+                ->where('iid', 'AGN')
+                ->where('created_by', auth()->id())
+                ->get();
+
+            foreach ($existingTempHeaders as $header) {
+                TempTransactionDetail::where('temp_transaction_header_id', $header->id)->delete();
+                $header->delete();
+            }
+
+            $data['created_by'] = auth()->user()->id;
+            $tempHeader = TempTransactionHeader::create($data);
+
+            $sourceProducts = TransactionDetail::where('doc_no', $data['recall_doc_no'])
+                ->orderBy('line_no')
+                ->get();
+
+            foreach ($sourceProducts as $sourceProduct) {
+                $detailData = $sourceProduct->toArray();
+                unset($detailData['id'], $detailData['transaction_header_id'], $detailData['created_at'], $detailData['updated_at']);
+
+                $detailData['temp_transaction_header_id'] = $tempHeader->id;
+                $detailData['doc_no'] = $data['doc_no'];
+                $detailData['iid'] = $data['iid'];
+                $detailData['created_by'] = auth()->id();
+
+                TempTransactionDetail::create($detailData);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Drafted AGN successfully!',
+                'data'  => new TempTransactionHeaderResource($tempHeader)
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to draft the transaction',
+                'error'   => $e->getMessage()
+            ], 500);
         }
     }
 
