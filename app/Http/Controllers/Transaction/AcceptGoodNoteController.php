@@ -31,8 +31,14 @@ class AcceptGoodNoteController extends Controller
         $userLocation = $user->location;
 
         if ($request->status == 'pending') {
+            $usedDocNos = TransactionHeader::where('iid', 'AGN')
+                ->whereNotNull('recall_doc_no')
+                ->pluck('recall_doc_no')
+                ->toArray();
+
             $pendingAgn = TransactionHeader::where('iid', $request->iid)
                 ->where('delivery_location', $userLocation)
+                ->whereNotIn('doc_no', $usedDocNos)
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
