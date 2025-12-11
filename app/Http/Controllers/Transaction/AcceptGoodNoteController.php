@@ -166,7 +166,7 @@ class AcceptGoodNoteController extends Controller
         }
     }
 
-    public function store(TransactionHeaderRequest $request)
+    public function store(TempTransactionHeaderRequest $request)
     {
         try {
             return DB::transaction(function () use ($request) {
@@ -183,19 +183,18 @@ class AcceptGoodNoteController extends Controller
                 ]);
 
                 // Load temp products for this temp doc
-                $sourceProducts = TransactionDetail::where('doc_no', $data['recall_doc_no'])
+                $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
                     ->orderBy('line_no')
                     ->get();
 
                 $transactionDetails = [];
-                foreach ($sourceProducts as $sourceProduct) {
-                    $sourceProductData = $sourceProduct->toArray();
-                    unset($sourceProductData['transaction_header_id'], $sourceProductData['id'], $sourceProductData['iid']);
+                foreach ($tempProducts as $temp) {
+                    $tempData = $temp->toArray();
+                    unset($tempData['temp_transaction_header_id'], $tempData['id']);
                     $transactionDetail = TransactionDetail::create([
-                        ...$sourceProductData,
+                        ...$tempData,
                         'transaction_header_id' => $transactionHeader->id,
                         'doc_no'                => $agnNumber,
-                        'iid'                   => $data['iid'],
                     ]);
                     $transactionDetails[] = $transactionDetail;
                 }
@@ -208,13 +207,23 @@ class AcceptGoodNoteController extends Controller
                         'doc_no' => $agnNumber,
                         'prod_code' => $detail->prod_code,
                         'iid' => $data['iid'] ?? 'AGN',
-                        'qty' => ($detail->total_qty ?? 0.000),
+                        'qty' => $detail->total_qty ?? 0.000,
                         'purchase_price' => $detail->purchase_price ?? 0.00,
                         'selling_price' => $detail->selling_price ?? 0.00,
-                        'amount' => ($detail->amount ?? 0.00),
+                        'amount' => $detail->amount ?? 0.00,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                }
+
+                // Clean up temp details for this doc
+                if (TempTransactionDetail::where('doc_no', $data['doc_no'])->exists()) {
+                    TempTransactionDetail::where('doc_no', $data['doc_no'])->delete();
+                }
+
+                // Clean up temp header for this doc
+                if (TempTransactionHeader::where('doc_no', $data['doc_no'])->exists()) {
+                    TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
                 }
 
                 DB::commit();
