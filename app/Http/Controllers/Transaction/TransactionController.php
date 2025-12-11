@@ -212,8 +212,20 @@ class TransactionController extends Controller
 
     public function loadAllTransactions(Request $request)
     {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $userLocation = $user->location;
+
         if ($request->status == 'drafted') {
             $purchaseOrders = TempTransactionHeader::where('iid', $request->iid)
+                ->where('location', $userLocation)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
@@ -234,6 +246,7 @@ class TransactionController extends Controller
             ]);
         } else {
             $purchaseOrders = TransactionHeader::where('iid', $request->iid)
+                ->where('location', $userLocation)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
