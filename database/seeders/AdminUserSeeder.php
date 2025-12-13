@@ -22,6 +22,7 @@ class AdminUserSeeder extends Seeder
                 // email may be nullable in controller usage; set a default safe value if column exists
                 'email' => 'admin@example.com',
                 'password' => Hash::make('2025'),
+                'location' => null
             ]
         );
     }
