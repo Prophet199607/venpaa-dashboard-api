@@ -23,6 +23,7 @@ use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
 use App\Http\Controllers\Transaction\AcceptGoodNoteController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
+use App\Http\Controllers\Transaction\StockAdjustmentController;
 use App\Http\Controllers\Transaction\TransferGoodNoteController;
 use App\Http\Controllers\Transaction\SupplierReturnNoteController;
 
@@ -242,6 +243,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns']);
         Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn']);
         Route::post('/save-agn', [AcceptGoodNoteController::class, 'store']);
+    });
+
+    // stock adjustments routes
+    Route::group(['prefix' => 'stock-adjustments'], function () {
+        Route::get('/unsaved-sessions', [StockAdjustmentController::class, 'getUnsavedSessions']);
+        Route::get('/stock', [StockAdjustmentController::class, 'getProductStock']);
+        Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
     });
 
 
