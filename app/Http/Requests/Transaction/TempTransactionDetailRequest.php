@@ -52,7 +52,7 @@ class TempTransactionDetailRequest extends FormRequest
         if ($unitType === 'WHOLE') {
             $quantityRules = 'nullable|integer';
         } elseif ($unitType === 'DEC') {
-            $quantityRules = 'nullable|numeric|regex:/^\d+(\.\d{1,3})?$/';
+            $quantityRules = 'nullable|numeric|regex:/^-?\d+(\.\d{1,3})?$/';
         } else {
             $quantityRules = 'nullable|numeric';
         }
