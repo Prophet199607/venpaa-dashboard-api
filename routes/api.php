@@ -251,6 +251,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/unsaved-sessions', [StockAdjustmentController::class, 'getUnsavedSessions']);
         Route::get('/stock', [StockAdjustmentController::class, 'getProductStock']);
 
+        Route::put('/update-product/{id}', [StockAdjustmentController::class, 'updateProduct']);
+
         Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
     });
