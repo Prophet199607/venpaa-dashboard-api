@@ -241,6 +241,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'accept-good-notes'], function () {
         Route::get('/load-agn-by-code/{doc_number}/{status}/{iid}', [AcceptGoodNoteController::class, 'loadAgnByCode']);
         Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns']);
+
         Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn']);
         Route::post('/save-agn', [AcceptGoodNoteController::class, 'store']);
     });
@@ -249,6 +250,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'stock-adjustments'], function () {
         Route::get('/unsaved-sessions', [StockAdjustmentController::class, 'getUnsavedSessions']);
         Route::get('/stock', [StockAdjustmentController::class, 'getProductStock']);
+
+        Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
     });
 
