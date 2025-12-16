@@ -22,7 +22,7 @@ class StockAdjustmentController extends Controller
     private function getSessionDetails($docNo)
     {
         // Extract location from doc_no
-        $prefixLength = 2;
+        $prefixLength = 3;
         $locaCodeLength = 3;
         $locaCode = substr($docNo, $prefixLength, $locaCodeLength);
 
