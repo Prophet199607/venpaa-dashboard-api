@@ -242,6 +242,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-agn-by-code/{doc_number}/{status}/{iid}', [AcceptGoodNoteController::class, 'loadAgnByCode']);
         Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns']);
 
+        Route::put('/update-product/{id}', [AcceptGoodNoteController::class, 'updateProduct']);
+
         Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn']);
         Route::post('/save-agn', [AcceptGoodNoteController::class, 'store']);
     });
