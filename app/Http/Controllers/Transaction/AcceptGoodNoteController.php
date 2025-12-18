@@ -143,14 +143,19 @@ class AcceptGoodNoteController extends Controller
                 'total_qty' => $data['total_qty'],
                 'amount' => $data['amount'],
                 'updated_by' => auth()->user()->id,
-           ]);
+            ]);
 
-           $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+            $response_details = TempTransactionDetail::with('product.unit')
+                ->where('doc_no', $productToUpdate->doc_no)
+                ->orderBy('line_no')
+                ->get();
 
-           return response()->json([
+
+            return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully!',
-                'data' => TempTransactionDetailResource::collection($response_detail),
+                'data' => TempTransactionDetailResource::collection($response_details),
+
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -196,12 +201,16 @@ class AcceptGoodNoteController extends Controller
                 TempTransactionDetail::create($detailData);
             }
 
+            $tempDetails = TempTransactionDetail::with('product.unit')->where('temp_transaction_header_id', $tempHeader->id)->orderBy('line_no')->get();
+            $tempHeader->setRelation('transactionDetails', $tempDetails);
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Drafted AGN successfully!',
-                'data'  => new TempTransactionHeaderResource($tempHeader)
+                'data'  => new TempTransactionHeaderResource($tempHeader),
+                'transaction_details' => TempTransactionDetailResource::collection($tempDetails),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
