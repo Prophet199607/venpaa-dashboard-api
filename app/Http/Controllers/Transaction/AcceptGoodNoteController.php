@@ -229,6 +229,64 @@ class AcceptGoodNoteController extends Controller
                 $data = $request->validated();
                 $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['delivery_location']);
 
+                if ($request->boolean('is_return')) {
+                    $tgrNumber = DocNumber::generate('TempTGR', 'TGR', 8, $data['location']);
+
+                    $tempHeader = TempTransactionHeader::create([
+                        'doc_no'            => $tgrNumber,
+                        'document_date'     => $data['document_date'],
+                        'location'          => $data['location'],
+                        'delivery_location' => $data['delivery_location'],
+                        'remarks_ref'       => $data['remarks_ref'],
+                        'recall_doc_no'     => $agnNumber,
+                        'iid'               => 'TGR',
+                        'created_by'        => auth()->id(),
+                        'subtotal'          => 0,
+                        'net_total'         => 0,
+                    ]);
+
+                    $products = $request->input('products', []);
+                    $totalAmount = 0;
+
+                    foreach ($products as $product) {
+                        $varPack = (float) ($product['variance_pack_qty'] ?? 0);
+                        $varUnit = (float) ($product['variance_unit_qty'] ?? 0);
+
+                        // Store only available product records (with variance)
+                        if ($varPack == 0 && $varUnit == 0) continue;
+
+                        $packSize = (float) ($product['pack_size'] ?? 1);
+                        $totalQty = ($varPack * $packSize) + $varUnit;
+                        $purchasePrice = (float) ($product['purchase_price'] ?? 0);
+                        $amount = $totalQty * $purchasePrice;
+                        $totalAmount += $amount;
+
+                        TempTransactionDetail::create([
+                            'temp_transaction_header_id' => $tempHeader->id,
+                            'doc_no'                     => $tgrNumber,
+                            'line_no'                    => $product['line_no'] ?? 0,
+                            'prod_code'                  => $product['prod_code'],
+                            'prod_name'                  => $product['prod_name'],
+                            'pack_size'                  => $packSize,
+                            'pack_qty'                   => $varPack,
+                            'unit_qty'                   => $varUnit,
+                            'total_qty'                  => $totalQty,
+                            'purchase_price'             => $purchasePrice,
+                            'selling_price'              => $product['selling_price'] ?? 0,
+                            'amount'                     => $amount,
+                            'iid'                        => 'TGR',
+                            'created_by'                 => auth()->id(),
+                        ]);
+                    }
+
+                    $tempHeader->update(['subtotal' => $totalAmount, 'net_total' => $totalAmount]);
+
+                    TempTransactionDetail::where('doc_no', $data['doc_no'])->delete();
+                    TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
+
+                    return response()->json(['success' => true, 'message' => 'Return Note drafted successfully.', 'data' => $tempHeader]);
+                }
+
                 $headerData = $data;
                 unset($headerData['id']);
                 $transactionHeader = TransactionHeader::create([
