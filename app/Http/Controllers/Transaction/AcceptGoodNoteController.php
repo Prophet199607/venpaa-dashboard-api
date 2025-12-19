@@ -229,14 +229,63 @@ class AcceptGoodNoteController extends Controller
                 $data = $request->validated();
                 $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['delivery_location']);
 
+                $headerData = $data;
+                unset($headerData['id']);
+                $transactionHeader = TransactionHeader::create([
+                    ...$headerData,
+                    'doc_no'      => $agnNumber,
+                    'temp_doc_no' => $data['doc_no'],
+                    'created_by'  => auth()->id(),
+                ]);
+
+                $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
+                    ->orderBy('line_no')
+                    ->get();
+
+                $transactionDetails = [];
+                foreach ($tempProducts as $temp) {
+                    $tempData = $temp->toArray();
+                    unset($tempData['temp_transaction_header_id'], $tempData['id']);
+                    $transactionDetail = TransactionDetail::create([
+                        ...$tempData,
+                        'transaction_header_id' => $transactionHeader->id,
+                        'doc_no'                => $agnNumber,
+                    ]);
+                    $transactionDetails[] = $transactionDetail;
+                }
+
+                foreach ($transactionDetails as $detail) {
+                    StockMaster::create([
+                        'location' => $data['delivery_location'],
+                        'transaction_date' => $data['document_date'],
+                        'doc_no' => $agnNumber,
+                        'prod_code' => $detail->prod_code,
+                        'iid' => $data['iid'] ?? 'AGN',
+                        'qty' => $detail->total_qty ?? 0.000,
+                        'purchase_price' => $detail->purchase_price ?? 0.00,
+                        'selling_price' => $detail->selling_price ?? 0.00,
+                        'amount' => $detail->amount ?? 0.00,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $response = [
+                    'success' => true,
+                    'message' => 'Accept good note stored successfully.',
+                    'data'    => $transactionHeader->fresh(),
+                ];
+
                 if ($request->boolean('is_return')) {
-                    $tgrNumber = DocNumber::generate('TempTGR', 'TGR', 8, $data['location']);
+                    $deliveryLocation = $data['location'];
+                    $location = $data['delivery_location'];
+                    $tgrNumber = DocNumber::generate('TempTGR', 'TGR', 8, $location);
 
                     $tempHeader = TempTransactionHeader::create([
                         'doc_no'            => $tgrNumber,
                         'document_date'     => $data['document_date'],
-                        'location'          => $data['location'],
-                        'delivery_location' => $data['delivery_location'],
+                        'location'          => $location, // TGN Location
+                        'delivery_location' => $deliveryLocation, // AGN Location
                         'remarks_ref'       => $data['remarks_ref'],
                         'recall_doc_no'     => $agnNumber,
                         'iid'               => 'TGR',
@@ -281,72 +330,23 @@ class AcceptGoodNoteController extends Controller
 
                     $tempHeader->update(['subtotal' => $totalAmount, 'net_total' => $totalAmount]);
 
-                    TempTransactionDetail::where('doc_no', $data['doc_no'])->delete();
-                    TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
-
-                    return response()->json(['success' => true, 'message' => 'Return Note drafted successfully.', 'data' => $tempHeader]);
+                    $response = [
+                        'success' => true,
+                        'message' => 'Return Note drafted successfully.',
+                        'data' => $tempHeader
+                    ];
                 }
 
-                $headerData = $data;
-                unset($headerData['id']);
-                $transactionHeader = TransactionHeader::create([
-                    ...$headerData,
-                    'doc_no'      => $agnNumber,
-                    'temp_doc_no' => $data['doc_no'],
-                    'created_by'  => auth()->id(),
-                ]);
-
-                // Load temp products for this temp doc
-                $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
-                    ->orderBy('line_no')
-                    ->get();
-
-                $transactionDetails = [];
-                foreach ($tempProducts as $temp) {
-                    $tempData = $temp->toArray();
-                    unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    $transactionDetail = TransactionDetail::create([
-                        ...$tempData,
-                        'transaction_header_id' => $transactionHeader->id,
-                        'doc_no'                => $agnNumber,
-                    ]);
-                    $transactionDetails[] = $transactionDetail;
-                }
-
-                // Create StockMaster records for each product
-                foreach ($transactionDetails as $detail) {
-                    StockMaster::create([
-                        'location' => $data['delivery_location'],
-                        'transaction_date' => $data['document_date'],
-                        'doc_no' => $agnNumber,
-                        'prod_code' => $detail->prod_code,
-                        'iid' => $data['iid'] ?? 'AGN',
-                        'qty' => $detail->total_qty ?? 0.000,
-                        'purchase_price' => $detail->purchase_price ?? 0.00,
-                        'selling_price' => $detail->selling_price ?? 0.00,
-                        'amount' => $detail->amount ?? 0.00,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-
-                // Clean up temp details for this doc
                 if (TempTransactionDetail::where('doc_no', $data['doc_no'])->exists()) {
                     TempTransactionDetail::where('doc_no', $data['doc_no'])->delete();
                 }
 
-                // Clean up temp header for this doc
                 if (TempTransactionHeader::where('doc_no', $data['doc_no'])->exists()) {
                     TempTransactionHeader::where('doc_no', $data['doc_no'])->delete();
                 }
 
                 DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Accept good note stored successfully.',
-                    'data'    => $transactionHeader->fresh(),
-                ]);
+                return response()->json($response);
             });
         } catch (\Exception $e) {
             DB::rollBack();
