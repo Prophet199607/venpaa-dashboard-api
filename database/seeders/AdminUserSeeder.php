@@ -15,16 +15,31 @@ class AdminUserSeeder extends Seeder
      */
     public function run()
     {
-        // Create or update an admin user with a known username
-        User::updateOrCreate(
-            [ 'name' => 'admin' ],
+        $admins = [
             [
-                // email may be nullable in controller usage; set a default safe value if column exists
-                'email' => 'admin@example.com',
-                'password' => Hash::make('2025'),
-                'location' => '001'
-            ]
-        );
+                'name' => 'admin1',
+                'email' => 'admin1@example.com',
+                'password' => '2025',
+                'location' => '001',
+            ],
+            [
+                'name' => 'admin2',
+                'email' => 'admin2@example.com',
+                'password' => '2025',
+                'location' => '001',
+            ],
+        ];
+
+        foreach ($admins as $admin) {
+            User::updateOrCreate(
+                ['name' => $admin['name']],
+                [
+                    'email' => $admin['email'],
+                    'password' => Hash::make($admin['password']),
+                    'location' => $admin['location'],
+                ]
+            );
+        }
     }
 }
 
