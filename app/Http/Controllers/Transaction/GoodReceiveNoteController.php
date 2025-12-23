@@ -147,6 +147,7 @@ class GoodReceiveNoteController extends Controller
     public function store(TempTransactionHeaderRequest $request)
     {
         try {
+            return $request;
             return DB::transaction(function () use ($request) {
                 $data = $this->processDiscountAndTax($request->validated());
                 $grnNumber = DocNumber::generate('GRN', 'GRN', 8, $data['location']);
@@ -193,6 +194,53 @@ class GoodReceiveNoteController extends Controller
                         'updated_at' => now(),
                     ]);
                 }
+
+            
+                PaymentSummary::create([
+                    'acc_code' => $req->supplier_code,
+                    'acc_type' => 'supplier',
+                    'iid' => $req->net_total < 0 ? 'SRN' : $req->iid,
+                    'doc_no' => $req->doc_no,
+                    'transaction_amount' => abs($req->net_total),
+                    'transaction_date' => $req->transaction_date,
+                    'document_date' => $req->document_date,
+                    'location' => $req->location,
+                    'month_end' => 0,
+                    'balance_amount' => $req->payment_mode == 'Credit' ? $req->net_total : 0
+                ]);
+    
+                    // ONLY CREATE PAYMENT DETAILS WHEN NOT CREDIT
+                if ($req->net_total >= 0 && strtolower($req->payment_mode) != 'credit') {
+
+                    PaidPaymentDetail::create([
+                        'org_doc_no' => $pmt_no,
+                        'doc_no' => $req->doc_no,
+                        'transaction_amount' => abs($req->net_total),
+                        'transaction_date' => $req->transaction_date,
+                        'balance_amount' => 0,
+                        'paid_amount' => $req->net_total,
+                        'temp_doc_no' => $req->doc_no,
+                        'location' => $req->location,
+                        'iid' => $req->net_total < 0 ? 'SRN' : 'PMT',
+                        'acc_code' => $req->supplier_code,
+                        'document_date' => $req->document_date,
+                        'setoff_sr_doc' => 0,
+                    ]);
+    
+                    PaidPaymentSummary::create([
+                        'temp_doc_no' => $req->doc_no,
+                        'org_doc_no' => $pmt_no,
+                        'doc_no' => $req->doc_no,
+                        'payment_mode' => $req->payment_mode,
+                        'amount' => abs($req->net_total),
+                        'location' => $req->location,
+                        'iid' => $req->net_total < 0 ? 'SRN' : 'PMT',
+                        'acc_code' => $req->supplier_code,
+                        'transaction_date' => $req->transaction_date,
+                        'document_date' => $req->document_date,
+                    ]);
+                }
+                
 
                 // Clean up temp details for this doc
                 if (TempTransactionDetail::where('doc_no', $data['doc_no'])->exists()) {
