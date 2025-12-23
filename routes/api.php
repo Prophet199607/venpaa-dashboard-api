@@ -26,9 +26,7 @@ use App\Http\Controllers\Transaction\GoodReceiveNoteController;
 use App\Http\Controllers\Transaction\StockAdjustmentController;
 use App\Http\Controllers\Transaction\TransferGoodNoteController;
 use App\Http\Controllers\Transaction\SupplierReturnNoteController;
-
-
-
+use App\Http\Controllers\Transaction\TransferGoodReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -246,6 +244,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn']);
         Route::post('/save-agn', [AcceptGoodNoteController::class, 'store']);
+    });
+
+    // transfer good return routes
+    Route::group(['prefix' => 'transfer-good-returns'], function () {
+        Route::post('/save-tgr', [TransferGoodReturnController::class, 'store']);
     });
 
     // stock adjustments routes
