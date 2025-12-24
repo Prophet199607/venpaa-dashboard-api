@@ -201,26 +201,26 @@ class GoodReceiveNoteController extends Controller
                 $netTotal = $data['net_total'] ?? 0;
                 $paymentMode = strtolower($data['payment_mode'] ?? '');
                 $iid = $netTotal < 0 ? 'SRN' : ($data['iid'] ?? 'GRN');
-                $paymentDocNo = $grnNumber; // use GRN number as reference for payment entries
+                $paymentDocNo = DocNumber::generate('Payment', 'PMT', 8, $data['location']);
 
                 PaymentSummary::create([
                     'acc_code' => $data['supplier_code'] ?? null,
                     'acc_type' => 'supplier',
                     'iid' => $iid,
-                    'doc_no' => $paymentDocNo,
+                    'doc_no' => $grnNumber,
                     'transaction_amount' => abs($netTotal),
                     'transaction_date' => $data['transaction_date'] ?? null,
                     'document_date' => $data['document_date'] ?? null,
                     'location' => $data['location'] ?? null,
                     'month_end' => 0,
-                    'balance_amount' => $paymentMode === 'credit' ? $netTotal : 0,
+                    'balance_amount' => $netTotal < 0 ? abs($netTotal) : ($paymentMode === 'credit' ? $netTotal : 0),
                 ]);
 
                 // Only create immediate payment records when not credit
                 if ($netTotal >= 0 && $paymentMode !== 'credit') {
                     PaidPaymentDetail::create([
                         'org_doc_no' => $paymentDocNo,
-                        'doc_no' => $paymentDocNo,
+                        'doc_no' => $grnNumber,
                         'transaction_amount' => abs($netTotal),
                         'transaction_date' => $data['transaction_date'] ?? null,
                         'balance_amount' => 0,
@@ -236,7 +236,7 @@ class GoodReceiveNoteController extends Controller
                     PaidPaymentSummary::create([
                         'temp_doc_no' => $data['doc_no'] ?? null,
                         'org_doc_no' => $paymentDocNo,
-                        'doc_no' => $paymentDocNo,
+                        'doc_no' => $grnNumber,
                         'payment_mode' => $data['payment_mode'] ?? null,
                         'amount' => abs($netTotal),
                         'location' => $data['location'] ?? null,
