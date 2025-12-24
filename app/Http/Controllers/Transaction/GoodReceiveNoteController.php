@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
+use App\Models\PaidPaymentDetail;
+use App\Models\PaidPaymentSummary;
+use App\Models\PaymentSummary;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
@@ -191,6 +194,56 @@ class GoodReceiveNoteController extends Controller
                         'amount' => $detail->amount ?? 0.00,
                         'created_at' => now(),
                         'updated_at' => now(),
+                    ]);
+                }
+
+                // Persist payment information in summary/detail tables
+                $netTotal = $data['net_total'] ?? 0;
+                $paymentMode = strtolower($data['payment_mode'] ?? '');
+                $iid = $netTotal < 0 ? 'SRN' : ($data['iid'] ?? 'GRN');
+                $paymentDocNo = $grnNumber; // use GRN number as reference for payment entries
+
+                PaymentSummary::create([
+                    'acc_code' => $data['supplier_code'] ?? null,
+                    'acc_type' => 'supplier',
+                    'iid' => $iid,
+                    'doc_no' => $paymentDocNo,
+                    'transaction_amount' => abs($netTotal),
+                    'transaction_date' => $data['transaction_date'] ?? null,
+                    'document_date' => $data['document_date'] ?? null,
+                    'location' => $data['location'] ?? null,
+                    'month_end' => 0,
+                    'balance_amount' => $paymentMode === 'credit' ? $netTotal : 0,
+                ]);
+
+                // Only create immediate payment records when not credit
+                if ($netTotal >= 0 && $paymentMode !== 'credit') {
+                    PaidPaymentDetail::create([
+                        'org_doc_no' => $paymentDocNo,
+                        'doc_no' => $paymentDocNo,
+                        'transaction_amount' => abs($netTotal),
+                        'transaction_date' => $data['transaction_date'] ?? null,
+                        'balance_amount' => 0,
+                        'paid_amount' => $netTotal,
+                        'temp_doc_no' => $data['doc_no'] ?? null,
+                        'location' => $data['location'] ?? null,
+                        'iid' => $iid === 'SRN' ? 'SRN' : 'PMT',
+                        'acc_code' => $data['supplier_code'] ?? null,
+                        'document_date' => $data['document_date'] ?? null,
+                        'setoff_sr_doc' => 0,
+                    ]);
+
+                    PaidPaymentSummary::create([
+                        'temp_doc_no' => $data['doc_no'] ?? null,
+                        'org_doc_no' => $paymentDocNo,
+                        'doc_no' => $paymentDocNo,
+                        'payment_mode' => $data['payment_mode'] ?? null,
+                        'amount' => abs($netTotal),
+                        'location' => $data['location'] ?? null,
+                        'iid' => $iid === 'SRN' ? 'SRN' : 'PMT',
+                        'acc_code' => $data['supplier_code'] ?? null,
+                        'transaction_date' => $data['transaction_date'] ?? null,
+                        'document_date' => $data['document_date'] ?? null,
                     ]);
                 }
 
