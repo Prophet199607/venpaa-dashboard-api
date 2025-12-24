@@ -8,4 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentSummary extends Model
 {
     use HasFactory;
+
+    /**
+     * Allow mass assignment for dynamic payloads built in controllers.
+     */
+    protected $guarded = [];
 }
