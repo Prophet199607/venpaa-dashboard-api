@@ -28,6 +28,10 @@ use App\Http\Controllers\Transaction\TransferGoodNoteController;
 use App\Http\Controllers\Transaction\SupplierReturnNoteController;
 use App\Http\Controllers\Transaction\TransferGoodReturnController;
 
+use App\Http\Controllers\Payment\PaymentVoucherController;
+
+/*
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -260,6 +264,14 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
+    });
+
+    // payment voucher routes
+    Route::group(['prefix' => 'payment-vouchers'], function () {
+        Route::get('/pending-payments/{supplier_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingPaymentsVoucher']);
+        
+        Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
+        Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
     });
 
 
