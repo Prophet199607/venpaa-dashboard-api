@@ -24,6 +24,7 @@ class DocNumberSeeder extends Seeder
             ['type' => 'Supplier', 'prefix' => 'SUP', 'last_id' => 0, 'length' => 3],
             ['type' => 'Product', 'prefix' => 'P', 'last_id' => 0, 'length' => 8],
             ['type' => 'Author', 'prefix' => 'AUT', 'last_id' => 0, 'length' => 3],
+            ['type' => 'Customer', 'prefix' => 'C', 'last_id' => 0, 'length' => 5],
             ['type' => 'TempPO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
             ['type' => 'PO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
             ['type' => 'TempIR', 'prefix' => 'IR', 'last_id' => 0, 'length' => 8],
