@@ -9,6 +9,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
 use App\Http\Controllers\Master\ProductController;
+use App\Http\Controllers\Master\CustomerController;
 use App\Http\Controllers\Master\BookTypeController;
 use App\Http\Controllers\Master\CategoryController;
 use App\Http\Controllers\Master\LocationController;
@@ -151,6 +152,16 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{auth_code}', [AuthorController::class, 'show']);
         Route::post('/', [AuthorController::class, 'store']);
         Route::put('/{auth_code}', [AuthorController::class, 'update']);
+    });
+
+    // customer routes
+    Route::group(['prefix' => 'customers'], function () {
+        Route::get('/generate-code', [CustomerController::class, 'generateCustomerCode']);
+        Route::get('/', [CustomerController::class, 'index']);
+        Route::get('/search', [CustomerController::class, 'search']);
+        Route::get('/{customer_code}', [CustomerController::class, 'show']);
+        Route::post('/', [CustomerController::class, 'store']);
+        Route::put('/{customer_code}', [CustomerController::class, 'update']);
     });
 
     // books routes
