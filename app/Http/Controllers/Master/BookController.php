@@ -8,10 +8,13 @@ use App\Models\Supplier;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Imports\BookImport;
+use Illuminate\Http\Request;
 use App\Models\ProductImage;
 use App\Models\ProductAuthor;
 use App\Models\ProductSupplier;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\BookRequest;
@@ -371,6 +374,28 @@ class BookController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update product',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+            ]);
+
+            Excel::import(new BookImport, $request->file('file'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Books imported successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import books',
                 'error' => $e->getMessage()
             ], 500);
         }
