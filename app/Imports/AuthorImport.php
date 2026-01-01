@@ -17,11 +17,10 @@ class AuthorImport implements ToModel, WithHeadingRow
 
         $docNumber = DocNumber::where('type', 'Author')->first();
         
-        $auth_code = 'AUTH-' . time(); // Fallback
+        $auth_code = 'AUTH-' . time();
         if ($docNumber) {
             $codeData = $docNumber->getDocCode();
             $auth_code = $codeData['code'];
-            // Do NOT increment here as Author::created event handles it
         }
 
         return new Author([
