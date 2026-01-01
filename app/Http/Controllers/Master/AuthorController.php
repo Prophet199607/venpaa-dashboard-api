@@ -9,6 +9,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\AuthorRequest;
 use App\Http\Resources\Master\AuthorResource;
+use App\Imports\AuthorImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AuthorController extends Controller
 {
@@ -167,6 +169,28 @@ class AuthorController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update author',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+            ]);
+
+            Excel::import(new AuthorImport, $request->file('file'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Authors imported successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import authors',
                 'error' => $e->getMessage()
             ], 500);
         }
