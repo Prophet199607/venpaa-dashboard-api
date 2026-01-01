@@ -10,6 +10,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\PublisherRequest;
 use App\Http\Resources\Master\PublisherResource;
+use App\Imports\PublisherImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PublisherController extends Controller
 {
@@ -181,6 +183,27 @@ class PublisherController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch publishers',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+            ]);
+
+            Excel::import(new PublisherImport, $request->file('file'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Publishers imported successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import publishers',
                 'error' => $e->getMessage()
             ], 500);
         }
