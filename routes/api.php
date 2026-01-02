@@ -201,6 +201,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-product', [TransactionController::class, 'addProduct']);
         Route::post('/draft', [TransactionController::class, 'draftTransaction']);
+        Route::post('/save-advance', [TransactionController::class, 'AdvanceStore']);
         Route::post('/unsave/{doc_no}', [TransactionController::class, 'removeUnsaved']);
 
         Route::delete('/delete-detail/{doc_no}/{line_no}', [TransactionController::class, 'deleteTempDetail']);

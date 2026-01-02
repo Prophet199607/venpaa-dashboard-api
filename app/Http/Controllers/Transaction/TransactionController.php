@@ -6,7 +6,7 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
-use App\Models\TransactionDetail;
+use App\Models\PaymentSummary;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -224,46 +224,46 @@ class TransactionController extends Controller
         $userLocation = $user->location;
 
         if ($request->status == 'drafted') {
-            $purchaseOrders = TempTransactionHeader::where('iid', $request->iid)
+            $tempTransactionData = TempTransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+            $formattedData = $tempTransactionData->getCollection()->map(function ($po) {
                 $data = $po->toArray();
                 $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
                 return $data;
             });
 
-            $purchaseOrders->setCollection($formattedData);
+            $tempTransactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Draft transactions loaded successfully!',
                 'status' => 'drafted',
-                'data' => $purchaseOrders->items()
+                'data' => $tempTransactionData->items()
             ]);
         } else {
-            $purchaseOrders = TransactionHeader::where('iid', $request->iid)
+            $transactionData = TransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $purchaseOrders->getCollection()->map(function ($po) {
+            $formattedData = $transactionData->getCollection()->map(function ($po) {
                 $data = $po->toArray();
                 $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
                 return $data;
             });
 
-            $purchaseOrders->setCollection($formattedData);
+            $transactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied transactions loaded successfully!',
                 'status' => 'applied',
-                'data' => $purchaseOrders->items()
+                'data' => $transactionData->items()
             ]);
         }
     }
@@ -537,6 +537,67 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update transaction.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function AdvanceStore(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $advance = $request->input('advance');
+
+            if (!empty($advance['customer'])) {
+                $acc_code =  $advance['customer'];
+                $acc_type = 'customer';
+                $iid = 'CADV';
+            } elseif (!empty($advance['supplier'])) {
+                $acc_code = $advance['supplier'];
+                $acc_type = 'supplier';
+                $iid = 'SADV';
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer or Supplier selection is required.'
+                ], 400);
+            }
+
+            $location_code = $advance['location'] ?? '';
+
+            $docRecord = DocNumber::where('type', $iid)->first();
+            if ($docRecord && $docRecord->length !== 8) {
+                $docRecord->update(['length' => 8]);
+            }
+
+            $doc_number = DocNumber::generate($iid, $iid, 8, $location_code, false);
+
+            // Save PaymentSummary
+            PaymentSummary::create([
+                'acc_code'          => $acc_code,
+                'acc_type'          => $acc_type,
+                'iid'               => $iid,
+                'doc_no'            => $doc_number,
+                'transaction_amount' => abs($advance['amount']),
+                'transaction_date'  => $advance['paymentDate'] ?? now(),
+                'document_date'     => $advance['documentDate'] ?? now(),
+                'location'          => $location_code,
+                'month_end'         => 0,
+                'balance_amount'    => abs($advance['amount']),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance stored successfully',
+                'doc_no'  => $doc_number
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store advance payment',
                 'error' => $e->getMessage()
             ], 500);
         }
