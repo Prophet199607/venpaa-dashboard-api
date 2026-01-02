@@ -55,4 +55,19 @@ class PaymentVoucherController extends Controller
             'data' => $payments
         ]);
     }
+
+    public function getTotalOutstandingAdvances($supplier_code, $loca_code)
+    {
+        $total = PaymentSummary::where('iid', 'SADV')
+            ->where('acc_type', 'supplier')
+            ->where('acc_code', $supplier_code)
+            ->where('location', $loca_code)
+            ->where('balance_amount', '>', 0)
+            ->sum('balance_amount');
+
+        return response()->json([
+            'success' => true,
+            'total' => $total
+        ]);
+    }
 }
