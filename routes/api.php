@@ -284,7 +284,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // payment voucher routes
     Route::group(['prefix' => 'payment-vouchers'], function () {
         Route::get('/pending-payments/{supplier_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingPaymentsVoucher']);
-        Route::get('/outstanding-advances/{supplier_code}/{loca_code}', [PaymentVoucherController::class, 'getTotalOutstandingAdvances']);
+        Route::get('/available-set-offs/{supplier_code}/{loca_code}', [PaymentVoucherController::class, 'getAvailableSetOffs']);
         
         Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
