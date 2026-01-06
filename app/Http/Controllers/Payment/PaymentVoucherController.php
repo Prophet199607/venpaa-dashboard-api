@@ -9,7 +9,9 @@ use App\Models\PaidPaymentDetail;
 use App\Models\PaidPaymentSummary;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Payment\PaymentVoucherRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Http\Resources\Payment\PaidPaymentSummaryResource;
 
 class PaymentVoucherController extends Controller
 {
@@ -28,13 +30,14 @@ class PaymentVoucherController extends Controller
             ['type' => 'Payment'],
             [
                 'prefix' => 'PMT',
+                'length' => 8,
                 'last_id' => 0,
             ]
         );
 
         $number = $doc->prefix
             . $loca
-            . str_pad($doc->last_id + 1, 8, '0', STR_PAD_LEFT);
+            . str_pad($doc->last_id + 1, $doc->length, '0', STR_PAD_LEFT);
 
         return response()->json([
             'success' => true,
@@ -63,7 +66,7 @@ class PaymentVoucherController extends Controller
         $data = PaymentSummary::where('acc_type', 'supplier')
             ->where('acc_code', $supplier_code)
             ->where('location', $loca_code)
-            ->whereIn('iid', ['SADV', 'SRN'])
+            ->whereIn('iid', ['SADV', 'SRN', 'OVPMT'])
             ->where('balance_amount', '>', 0)
             ->get();
 
@@ -73,252 +76,171 @@ class PaymentVoucherController extends Controller
         ]);
     }
 
-    public function storeVoucher(Request $request)
+    public function store(PaymentVoucherRequest $request)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($request) {
+            $validated = $request->validated();
+            
+            $receipt = $validated['receipt'];
+            $supplier = $validated['supplier'];
+            $payments = $validated['payments'];
+            $allocations = $validated['allocations'];
+            $setOffDocs = $validated['setoff']['selectedDocs'] ?? [];
+            
+            $orgDocNo = $receipt['doc_no'];
+            $location = $receipt['location'];
+            $date = $receipt['date'];
+            $overPayment = (float) $receipt['over_payment'];
+            $supplierCode = $supplier['supplier_code'];
 
-            $org_doc_num = $request->receipt['doc_no'];
-            $over_payment = $request->receipt['over_payment'];
-
-            $payments = $request->input('payments', []);
-
-            // Check if it's multiple payments (array of arrays) or single payment (single array)
-            if (isset($payments[0]) && is_array($payments[0])) {
-                // Multiple payments - get mode from first payment
-                $set_off = $payments[0]['mode'] ?? '';
-            } else {
-                // Single payment - get mode directly
-                $set_off = $payments['mode'] ?? '';
+            // 1. Ensure Unique Document Number
+            while (
+                PaidPaymentSummary::where('org_doc_no', $orgDocNo)->exists() ||
+                PaidPaymentDetail::where('org_doc_no', $orgDocNo)->exists()
+            ) {
+                $prefix = substr($orgDocNo, 0, -8);
+                $lastPart = substr($orgDocNo, -8);
+                $newNumber = (int) $lastPart + 1;
+                $lastPart = str_pad($newNumber, 8, '0', STR_PAD_LEFT);
+                $orgDocNo = $prefix . $lastPart;
             }
 
-            // Get setoff documents
-            $set_offs = $request->input('setoff.selectedDocs', []);
-
-            // Validation: If payment mode is "PAYMENT SETOFF", setoff documents must exist
-            if ($set_off == "PAYMENT SETOFF" && empty($set_offs)) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Payment setoff mode requires at least one setoff document to be selected.',
-                ], 422);
-            }
-
-
-            do {
-                // Check if doc_no exists in either table
-                $existsInSummary = PaidPaymentSummary::where('org_doc_no', $org_doc_num)->exists();
-                $existsInDetail  = PaidPaymentDetail::where('org_doc_no', $org_doc_num)->exists();
-
-                if ($existsInSummary || $existsInDetail) {
-                    // Split last 8 digits and prefix
-                    $prefix = substr($org_doc_num, 0, -8);
-                    $lastPart = substr($org_doc_num, -8);
-
-                    // Increment numeric part
-                    $newNumber = (int)$lastPart + 1;
-
-                    // Re-pad to 8 digits
-                    $lastPart = str_pad($newNumber, 8, '0', STR_PAD_LEFT);
-
-                    // Rebuild new org_doc_no
-                    $org_doc_num = $prefix . $lastPart;
-                }
-            } while ($existsInSummary || $existsInDetail);
-
-            // Update last_id in DocNumber table (type: Receipt, prefix: REC) to match the last 8 digits of $org_doc_num
-            $last8Digits = (int)substr($org_doc_num, -8);
+            // 2. Update Payment Doc Number Sequence
+            $last8Digits = (int) substr($orgDocNo, -8);
             DocNumber::where('type', 'Payment')
                 ->where('prefix', 'PMT')
                 ->update(['last_id' => $last8Digits]);
 
-            $allocations = $request->input('allocations', []);
-            //Generate setoff number if needed
+            // 3. Handle Payment Set-Off
             $setoffNumber = "";
-            if ($set_off == "PAYMENT SETOFF") {
-                $doc = DocNumber::where('type', 'SupplierSetOff')->first();
+            $hasSetOffPayment = collect($payments)->contains('mode', 'PAYMENT SETOFF');
 
-                if (!$doc) {
-                    $doc = DocNumber::create([
-                        'type' => 'SupplierSetOff',
-                        'prefix' => 'SSOF',
-                        'last_id' => 1
-                    ]);
-                } else {
-                    $doc->last_id += 1;
-                    $doc->save();
+            if ($hasSetOffPayment) {
+                if (empty($setOffDocs)) {
+                    throw new \Exception('Payment setoff mode requires at least one setoff document.');
                 }
 
-                $setoffNumber = $doc->prefix . $request->receipt['location'] . str_pad($doc->last_id, 8, '0', STR_PAD_LEFT);
+                $setoffNumber = DocNumber::generate('SupplierSetOff', 'SSOF', 8, $location);
 
-                // update into PaymentSummary for setoff
-                foreach ($set_offs as $set_off) {
-                    PaymentSummary::where('doc_no', $set_off['doc_no'])->update(['balance_amount' => $set_off['balance_amount'] - $set_off['paid_amount']]);
+                foreach ($setOffDocs as $doc) {
+                    $paidAmount = (float) $doc['paid_amount'];
+                    
+                    // Decrement balance in PaymentSummary
+                    PaymentSummary::where('doc_no', $doc['doc_no'])
+                        ->decrement('balance_amount', $paidAmount);
 
-                    PaidPaymentDetail::insert([
-                        'industry_code' => auth()->user()->industry_code,
+                    // Record in PaidPaymentDetail
+                    PaidPaymentDetail::create([
                         'org_doc_no' => $setoffNumber,
-                        'doc_no' => $set_off['doc_no'],
-                        'location' => $request->receipt['location'],
-                        'transaction_amount' => $set_off['transaction_amount'],
-                        'transaction_date' => $request->receipt['date'],
-                        'balance_amount' => $set_off['balance_amount'],
-                        'paid_amount' => $set_off['paid_amount'],
+                        'doc_no' => $doc['doc_no'],
+                        'location' => $location,
+                        'transaction_amount' => $doc['transaction_amount'],
+                        'transaction_date' => $date,
+                        'balance_amount' => $doc['balance_amount'],
+                        'paid_amount' => $paidAmount,
                         'iid' => "SSOF",
-                        'acc_code' => $request->supplier['supplier_code'],
-                        'document_date' => $request->receipt['date'],
+                        'acc_code' => $supplierCode,
+                        'document_date' => $date,
                         'temp_doc_no' => "",
-                        'setoff_sr_doc' => $org_doc_num,
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'setoff_sr_doc' => $orgDocNo,
                     ]);
                 }
             }
 
-            // Update each PaymentSummary record instead of insert
+            // 4. Process Bill Allocations
             foreach ($allocations as $allocation) {
-                // Fetch the current PaymentSummary
-                $paymentSummary = PaymentSummary::where('doc_no', $allocation['doc_no'])->first();
+                $paid = (float) $allocation['paid_amount'];
 
-                // Check if balance_amount is not zero before updating
-                if ($paymentSummary && $paymentSummary->balance_amount != 0) {
-                    $paid = isset($allocation['paid_amount']) ? $allocation['paid_amount'] : 0;
-                    $paymentSummary->update([
-                        'balance_amount' => $allocation['balance_amount'] - $paid,
-                    ]);
-                }
-            }
+                // Update original bill balance
+                PaymentSummary::where('doc_no', $allocation['doc_no'])
+                    ->where('balance_amount', '!=', 0)
+                    ->decrement('balance_amount', $paid);
 
-            // Iterate over allocations and receipt using array_map to pair corresponding elements.
-            foreach ($allocations as $allocation) {
-                PaidPaymentDetail::insert([
-                    'industry_code' => auth()->user()->industry_code,
-                    'org_doc_no' => $org_doc_num,
+                // Record detail of what bill was paid
+                PaidPaymentDetail::create([
+                    'org_doc_no' => $orgDocNo,
                     'doc_no' => $allocation['doc_no'],
-                    'location' => $request->receipt['location'],
+                    'location' => $location,
                     'transaction_amount' => $allocation['transaction_amount'],
-                    'transaction_date' => $request->receipt['date'],
+                    'transaction_date' => $date,
                     'balance_amount' => $allocation['balance_amount'],
-                    'paid_amount' => isset($allocation['paid_amount']) ? $allocation['paid_amount'] : 0,
+                    'paid_amount' => $paid,
                     'iid' => "PMT",
-                    'acc_code' => $request->supplier['supplier_code'],
-                    'document_date' => $request->receipt['date'],
+                    'acc_code' => $supplierCode,
+                    'document_date' => $date,
                     'temp_doc_no' => "",
                     'setoff_sr_doc' => $setoffNumber,
-                    'created_at' => now(),
-                    'updated_at' => now(),
                 ]);
-            }
 
-            // Handle multiple payments - each allocation paired with each payment creates a record
-            if (isset($payments[0]) && is_array($payments[0])) {
-                // Multiple payments case
-                foreach ($allocations as $allocation) {
-                    foreach ($payments as $payment) {
-                        PaidPaymentSummary::insert([
-                            'industry_code' => auth()->user()->industry_code,
-                            'temp_doc_no' => "",
-                            'org_doc_no' => $org_doc_num,
-                            'doc_no' => $allocation['doc_no'],
-                            'location' => $request->receipt['location'],
-                            'payment_mode' => $payment['mode'],
-                            'bank_name' => $payment['bank'],
-                            'cheque_no' => $payment['chequeNo'],
-                            'cheque_date' => $payment['chequeDate'],
-                            'branch' => $payment['branch'],
-                            'amount' => isset($payment['amount']) ? $payment['amount'] : (isset($payment['paid_amount']) ? $payment['paid_amount'] : 0),
-                            'iid' => "PMT",
-                            'acc_code' => $request->supplier['supplier_code'],
-                            'transaction_date' => $request->receipt['date'],
-                            'document_date' => $request->receipt['date'],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-            } else {
-                // Single payment case (your existing logic)
-                foreach ($allocations as $allocation) {
-                    PaidPaymentSummary::insert([
-                        'industry_code' => auth()->user()->industry_code,
+                // Record payment mode breakdown for each allocation
+                foreach ($payments as $payment) {
+                    PaidPaymentSummary::create([
                         'temp_doc_no' => "",
-                        'org_doc_no' => $org_doc_num,
+                        'org_doc_no' => $orgDocNo,
                         'doc_no' => $allocation['doc_no'],
-                        'location' => $request->receipt['location'],
-                        'payment_mode' => $payments['mode'],
-                        'bank_name' => $payments['bank'],
-                        'cheque_no' => $payments['chequeNo'],
-                        'cheque_date' => $payments['chequeDate'],
-                        'branch' => $payments['branch'],
-                        'amount' => isset($payments['amount']) ? $payments['amount'] : (isset($payments['paid_amount']) ? $payments['paid_amount'] : 0),
+                        'location' => $location,
+                        'payment_mode' => $payment['mode'],
+                        'bank_name' => $payment['bank'] ?? null,
+                        'cheque_no' => $payment['chequeNo'] ?? null,
+                        'cheque_date' => $payment['chequeDate'] ?? null,
+                        'branch' => $payment['branch'] ?? null,
+                        'amount' => (float) ($payment['amount'] ?? 0),
                         'iid' => "PMT",
-                        'acc_code' => $request->supplier['supplier_code'],
-                        'transaction_date' => $request->receipt['date'],
-                        'document_date' => $request->receipt['date'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'acc_code' => $supplierCode,
+                        'transaction_date' => $date,
+                        'document_date' => $date,
                     ]);
                 }
             }
 
-            // Handle over payment: if $over_payment < 0, record in PaidPaymentSummary and PaymentSummary as described
-            if ($over_payment < 0) {
-                // Prepare values
-                $op_amount = abs($over_payment);
+            // 5. Handle Over-Payment (Unallocated Cash/Credit)
+            if ($overPayment < 0) {
+                $opAmount = abs($overPayment);
 
-                // Save a new PaymentSummary
-                PaymentSummary::insert([
-                    'industry_code' => auth()->user()->industry_code,
-                    'doc_no' => $org_doc_num,
-                    'transaction_amount' => $op_amount,
-                    'acc_code' => $request->supplier['supplier_code'],
+                // Create a new credit record for the supplier (Advance/Overpayment)
+                PaymentSummary::create([
+                    'doc_no' => $orgDocNo,
+                    'transaction_amount' => $opAmount,
+                    'acc_code' => $supplierCode,
                     'acc_type' => 'supplier',
                     'month_end' => 0,
                     'iid' => "OVPMT",
-                    'balance_amount' => $op_amount,
-                    'transaction_date' => $request->receipt['date'],
-                    'document_date' => $request->receipt['date'],
-                    'location' => $request->receipt['location'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'balance_amount' => $opAmount,
+                    'transaction_date' => $date,
+                    'document_date' => $date,
+                    'location' => $location,
                 ]);
 
-                // Save a new PaidPaymentSummary
-                PaidPaymentSummary::insert([
-                    'industry_code' => auth()->user()->industry_code,
+                // Record the payment that caused the overpayment
+                $primaryPayment = $payments[0];
+                PaidPaymentSummary::create([
                     'temp_doc_no' => "",
-                    'org_doc_no' => $org_doc_num,
-                    'doc_no' => $org_doc_num,
-                    'location' => $request->receipt['location'],
-                    'payment_mode' => $payment['mode'],
-                    'bank_name' => $payment['bank'],
-                    'cheque_no' => $payment['chequeNo'],
-                    'cheque_date' => $payment['chequeDate'],
-                    'branch' => $payment['branch'],
-                    'amount' => $op_amount,
+                    'org_doc_no' => $orgDocNo,
+                    'doc_no' => $orgDocNo,
+                    'location' => $location,
+                    'payment_mode' => $primaryPayment['mode'],
+                    'bank_name' => $primaryPayment['bank'] ?? null,
+                    'cheque_no' => $primaryPayment['chequeNo'] ?? null,
+                    'cheque_date' => $primaryPayment['chequeDate'] ?? null,
+                    'branch' => $primaryPayment['branch'] ?? null,
+                    'amount' => $opAmount,
                     'iid' => "PMT",
-                    'acc_code' => $request->supplier['supplier_code'],
-                    'transaction_date' => $request->receipt['date'],
-                    'document_date' => $request->receipt['date'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'acc_code' => $supplierCode,
+                    'transaction_date' => $date,
+                    'document_date' => $date,
                 ]);
             }
 
-            DB::commit();
+            $createdPayments = PaidPaymentSummary::where('org_doc_no', $orgDocNo)->get();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Payment summary balance amount updated successfully.',
-                'org_doc_no' => $org_doc_num,
-                'setoff_number' => $setoffNumber ?: null,
+                'message' => 'Payment voucher created successfully.',
+                'org_doc_no' => $orgDocNo,
+                'setoff_number' => $setoffNumber,
                 'has_setoff' => !empty($setoffNumber),
+                'data' => PaidPaymentSummaryResource::collection($createdPayments),
             ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error : ' . $e->getMessage(),
-            ], 500);
-        }
+        });
     }
 }
