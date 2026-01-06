@@ -44,6 +44,7 @@ class DocNumberSeeder extends Seeder
             ['type' => 'TempPD', 'prefix' => 'PD', 'last_id' => 0, 'length' => 8],
             ['type' => 'PD', 'prefix' => 'PD', 'last_id' => 0, 'length' => 8],
             ['type' => 'Payment', 'prefix' => 'PMT', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],
         ];
 
         foreach ($default as $key => $value) {
