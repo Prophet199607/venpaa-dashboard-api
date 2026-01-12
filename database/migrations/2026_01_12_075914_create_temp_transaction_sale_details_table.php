@@ -22,13 +22,13 @@ class CreateTempTransactionSaleDetailsTable extends Migration
             $table->string('type');
             $table->string('prod_code');
             $table->string('prod_name');
-            $table->decimal('qty',8,3)->default(0)->nullable();
             $table->decimal('purchase_price')->default(0);
             $table->decimal('marked_price')->default(0);
             $table->decimal('selling_price')->default(0);
             $table->decimal('whole_sale')->default(0);
-            $table->decimal('free_qty',8,3)->default(0)->nullable();
             $table->decimal('pack_qty',8,3)->default(0)->nullable();
+            $table->decimal('unit_qty',8,3)->default(0)->nullable();
+            $table->decimal('free_qty',8,3)->default(0)->nullable();
             $table->decimal('total_qty',8,3)->default(0);
             $table->decimal('pack_size')->default(0);
             $table->decimal('discount')->default(0);

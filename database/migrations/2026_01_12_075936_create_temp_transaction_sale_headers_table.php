@@ -42,7 +42,7 @@ class CreateTempTransactionSaleHeadersTable extends Migration
             $table->string('invoice_no')->nullable();
             $table->date('invoice_date')->nullable();
             $table->decimal('invoice_amount')->nullable();
-            $table->decimal('balance_amount', 20, 2)->default(0);
+            $table->decimal('balance_amount')->default(0);
             $table->boolean('is_approved')->default(0);
             $table->string('approved_by')->nullable();
             $table->integer('created_by')->nullable();
