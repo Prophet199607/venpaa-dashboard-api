@@ -7,21 +7,17 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
-use Illuminate\Http\Request;
+use App\Models\PaymentSummary;
+use App\Models\PaidPaymentDetail;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
+use App\Models\PaidPaymentSummary;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
-use App\Models\PaidPaymentDetail;
-use App\Models\PaidPaymentSummary;
-use App\Models\PaymentSummary;
 use Illuminate\Support\Facades\Cache;
-use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
-use App\Http\Resources\Transaction\TempTransactionDetailResource;
-use App\Http\Resources\Transaction\TempTransactionHeaderResource;
 
 class GoodReceiveNoteController extends Controller
 {
