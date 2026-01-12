@@ -7,7 +7,6 @@ use Database\Seeders\UnitSeeder;
 use Database\Seeders\StatusSeeder;
 use Database\Seeders\LocationSeeder;
 use Database\Seeders\BookTypeSeeder;
-use Database\Seeders\SupplierSeeder;
 use Database\Seeders\LanguageSeeder;
 use Database\Seeders\AdminUserSeeder;
 use Database\Seeders\DocNumberSeeder;
@@ -29,7 +28,6 @@ class DatabaseSeeder extends Seeder
             DocNumberSeeder::class,
             BookTypeSeeder::class,
             LanguageSeeder::class,
-            SupplierSeeder::class,
             StatusSeeder::class,
             RolePermissionSeeder::class,
         ]);
