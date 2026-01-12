@@ -1,0 +1,53 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateTransactionSaleDetailsTable extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('transaction_sale_details', function (Blueprint $table) {
+            $table->id();
+            $table->bigInteger('transaction_sale_header_id');
+            $table->string('doc_no');
+            $table->integer('line_no');
+            $table->string('iid');
+            $table->string('prod_code');
+            $table->string('prod_name');
+            $table->decimal('qty', 20, 2)->default(0)->nullable();
+            $table->decimal('purchase_price', 20, 2)->default(0);
+
+            $table->decimal('marked_price', 20, 2)->default(0);
+            $table->decimal('selling_price', 20, 2)->default(0);
+            $table->decimal('whole_sale', 20, 2)->default(0);
+            $table->decimal('free_qty', 20, 2)->default(0)->nullable();
+            $table->string('type');
+            $table->decimal('total_qty', 20, 2)->default(0);
+            $table->decimal('pack_qty', 20, 2)->default(0);
+            $table->decimal('discount', 20, 2)->default(0);
+            $table->string('line_wise_discount_value')->default(0);
+            $table->decimal('dis_per')->default(0);
+            $table->decimal('amount')->default(0);
+            $table->integer('created_by')->nullable();
+            $table->integer('updated_by')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::dropIfExists('transaction_sale_details');
+    }
+}
