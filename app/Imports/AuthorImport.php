@@ -17,7 +17,7 @@ class AuthorImport implements ToModel, WithHeadingRow
 
         $docNumber = DocNumber::where('type', 'Author')->first();
         
-        $auth_code = 'AUTH-' . time();
+        $auth_code = 'AUT-' . time();
         if ($docNumber) {
             $codeData = $docNumber->getDocCode();
             $auth_code = $codeData['code'];
