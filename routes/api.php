@@ -19,6 +19,7 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 
+use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
@@ -285,9 +286,22 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'payment-vouchers'], function () {
         Route::get('/pending-payments/{supplier_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingPaymentsVoucher']);
         Route::get('/available-set-offs/{supplier_code}/{loca_code}', [PaymentVoucherController::class, 'getAvailableSetOffs']);
-        
+
         Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
+    });
+
+    // stock adjustments routes
+    Route::group(['prefix' => 'invoices'], function () {
+        Route::get('/load-inv-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadInvByCode']);
+        Route::get('/unsaved-sessions', [InvoiceController::class, 'getUnsavedSessions']);
+        Route::get('/load-all-inv', [InvoiceController::class, 'loadAllInvs']);
+
+        Route::put('/update-product/{id}', [InvoiceController::class, 'updateProduct']);
+
+        Route::post('/add-product', [InvoiceController::class, 'addProduct']);
+        Route::post('/draft-inv', [InvoiceController::class, 'draftInv']);
+        Route::post('/save-inv', [InvoiceController::class, 'store']);
     });
 
 
