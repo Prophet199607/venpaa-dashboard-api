@@ -128,6 +128,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'publishers'], function () {
         Route::get('/generate-code', [PublisherController::class, 'generatePublisherCode']);
         Route::post('/import', [PublisherController::class, 'import']);
+        Route::get('/export', [PublisherController::class, 'export']);
         Route::get('/', [PublisherController::class, 'index']);
         Route::get('/search', [PublisherController::class, 'search']);
         Route::get('/{pub_code}', [PublisherController::class, 'show']);
@@ -138,6 +139,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // supplier routes
     Route::group(['prefix' => 'suppliers'], function () {
         Route::get('/generate-code', [SupplierController::class, 'generateSupplierCode']);
+        Route::post('/import', [SupplierController::class, 'import']);
+        Route::get('/export', [SupplierController::class, 'export']);
         Route::get('/', [SupplierController::class, 'index']);
         Route::get('/search', [SupplierController::class, 'search']);
         Route::get('/{sup_code}', [SupplierController::class, 'show']);
@@ -150,6 +153,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'authors'], function () {
         Route::get('/generate-code', [AuthorController::class, 'generateAuthorCode']);
         Route::post('/import', [AuthorController::class, 'import']);
+        Route::get('/export', [AuthorController::class, 'export']);
         Route::get('/', [AuthorController::class, 'index']);
         Route::get('/search', [AuthorController::class, 'search']);
         Route::get('/{auth_code}', [AuthorController::class, 'show']);

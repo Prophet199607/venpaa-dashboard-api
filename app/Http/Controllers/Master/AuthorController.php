@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Master;
 use App\Models\Author;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
+use App\Imports\AuthorImport;
+use App\Exports\AuthorExport;
 use App\Http\Controllers\Controller;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\AuthorRequest;
 use App\Http\Resources\Master\AuthorResource;
-use App\Imports\AuthorImport;
-use Maatwebsite\Excel\Facades\Excel;
 
 class AuthorController extends Controller
 {
@@ -191,6 +192,19 @@ class AuthorController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to import authors',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function export()
+    {
+        try {
+            return Excel::download(new AuthorExport, 'authors.xlsx');
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export authors',
                 'error' => $e->getMessage()
             ], 500);
         }

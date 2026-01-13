@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Master;
 use App\Models\Supplier;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
+use App\Imports\SupplierImport;
+use App\Exports\SupplierExport;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\SupplierRequest;
@@ -212,6 +215,52 @@ class SupplierController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update Supplier',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+            ]);
+
+            Excel::import(new SupplierImport, $request->file('file'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Suppliers imported successfully',
+            ], 200);
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessages = [];
+            foreach ($failures as $failure) {
+                $errorMessages[] = "Row " . $failure->row() . ": " . implode(', ', $failure->errors());
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed during import',
+                'error' => implode(' | ', array_slice($errorMessages, 0, 5)) . (count($errorMessages) > 5 ? ' ... and more' : '')
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import suppliers',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function export()
+    {
+        try {
+            return Excel::download(new SupplierExport, 'suppliers.xlsx');
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export suppliers',
                 'error' => $e->getMessage()
             ], 500);
         }

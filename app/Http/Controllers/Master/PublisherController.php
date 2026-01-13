@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\PublisherRequest;
 use App\Http\Resources\Master\PublisherResource;
 use App\Imports\PublisherImport;
+use App\Exports\PublisherExport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PublisherController extends Controller
@@ -200,10 +201,34 @@ class PublisherController extends Controller
                 'success' => true,
                 'message' => 'Publishers imported successfully',
             ], 200);
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessages = [];
+            foreach ($failures as $failure) {
+                $errorMessages[] = "Row " . $failure->row() . ": " . implode(', ', $failure->errors());
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed during import',
+                'error' => implode(' | ', array_slice($errorMessages, 0, 5)) . (count($errorMessages) > 5 ? ' ... and more' : '')
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to import publishers',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function export()
+    {
+        try {
+            return Excel::download(new PublisherExport, 'publishers.xlsx');
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export publishers',
                 'error' => $e->getMessage()
             ], 500);
         }
