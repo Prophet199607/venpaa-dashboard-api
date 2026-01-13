@@ -295,9 +295,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
     });
 
-    // stock adjustments routes
+    // invoice routes
     Route::group(['prefix' => 'invoices'], function () {
         Route::get('/load-inv-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadInvByCode']);
+        Route::get('/temp-products/{doc_no}', [InvoiceController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [InvoiceController::class, 'getUnsavedSessions']);
         Route::get('/load-all-inv', [InvoiceController::class, 'loadAllInvs']);
 
