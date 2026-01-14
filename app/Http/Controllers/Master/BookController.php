@@ -8,6 +8,7 @@ use App\Models\Supplier;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Exports\BookExport;
 use App\Imports\BookImport;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
@@ -399,5 +400,10 @@ class BookController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function export()
+    {
+        return Excel::download(new BookExport, 'books.xlsx');
     }
 }

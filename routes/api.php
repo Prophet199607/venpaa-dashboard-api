@@ -175,6 +175,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
         Route::post('/import', [BookController::class, 'import']);
+        Route::get('/export', [BookController::class, 'export']);
         Route::get('/', [BookController::class, 'index']);
         Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/', [BookController::class, 'store']);
