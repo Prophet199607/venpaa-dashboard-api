@@ -119,9 +119,13 @@ class InvoiceController extends Controller
 
     public function addProduct(TempTransactionSaleDetailRequest $request)
     {
-        return $request;
+<<<<<<< HEAD
+    
         $data = $request->validated();
+=======
+>>>>>>> 698725ff5db422599ed3605d086f60cba0e5cf44
         try {
+            $data = $request->validated();
             $existingProduct = TempTransactionSaleDetail::where('doc_no', $data['doc_no'])
                 ->where('prod_code', $data['prod_code'])
                 ->first();
@@ -180,8 +184,8 @@ class InvoiceController extends Controller
 
     public function updateProduct(TempTransactionSaleDetailRequest $request, $id)
     {
-        $data = $request->validated();
         try {
+            $data = $request->validated();
             $productToUpdate = TempTransactionSaleDetail::find($id);
 
             if (!$productToUpdate) {
@@ -199,7 +203,7 @@ class InvoiceController extends Controller
                 'unit_qty' => $data['unit_qty'] ?? 0,
                 'free_qty' => $data['free_qty'] ?? 0,
                 'total_qty' => $data['total_qty'] ?? 0,
-                'line_wise_discount_value' => $data['line_wise_discount_value'] ?? null,
+                'line_wise_discount_value' => $data['line_wise_discount_value'],
                 'amount' => $data['amount'] ?? 0,
                 'updated_by' => auth()->id(),
             ]);
