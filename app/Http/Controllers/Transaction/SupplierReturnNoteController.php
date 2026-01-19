@@ -65,7 +65,7 @@ class SupplierReturnNoteController extends Controller
         $supplier = null;
         if ($firstProduct) {
             $product = Product::with('suppliers')->where('prod_code', $firstProduct->prod_code)->first();
-            $supplier = $product?->suppliers->first();
+            $supplier = ($product && $product->suppliers) ? $product->suppliers->first() : null;
         }
 
         return [

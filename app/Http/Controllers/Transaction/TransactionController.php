@@ -86,7 +86,7 @@ class TransactionController extends Controller
         $supplier = null;
         if ($firstProduct) {
             $product = Product::with('suppliers')->where('prod_code', $firstProduct->prod_code)->first();
-            $supplier = $product?->suppliers->first();
+            $supplier = ($product && $product->suppliers) ? $product->suppliers->first() : null;
         }
 
         return [
@@ -191,7 +191,7 @@ class TransactionController extends Controller
             $formatted = $recallTransactions->map(function ($item) {
                     return [
                         'doc_no' => $item->doc_no,
-                        'sup_name' => $item->supplier?->sup_name ?? 'N/A',
+                        'sup_name' => isset($item->supplier) ? $item->supplier->sup_name : 'N/A',
                     ];
                 });
 

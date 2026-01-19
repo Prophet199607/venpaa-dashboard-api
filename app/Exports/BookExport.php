@@ -34,7 +34,7 @@ class BookExport implements FromCollection, WithHeadings, WithMapping
         return [
             $book->prod_code,
             $book->prod_name,
-            $book->bookType?->bkt_name,
+            isset($book->bookType) ? $book->bookType->bkt_name : null,
             $book->purchase_price,
             $book->selling_price,
             $book->alert_qty,
