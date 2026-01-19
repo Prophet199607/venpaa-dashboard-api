@@ -119,11 +119,7 @@ class InvoiceController extends Controller
 
     public function addProduct(TempTransactionSaleDetailRequest $request)
     {
-<<<<<<< HEAD
-    
         $data = $request->validated();
-=======
->>>>>>> 698725ff5db422599ed3605d086f60cba0e5cf44
         try {
             $data = $request->validated();
             $existingProduct = TempTransactionSaleDetail::where('doc_no', $data['doc_no'])

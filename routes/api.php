@@ -18,6 +18,7 @@ use App\Http\Controllers\Master\SupplierController;
 use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
+use App\Http\Controllers\Master\PaymentTypeController;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -122,6 +123,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // language routes
     Route::group(['prefix' => 'languages'], function () {
         Route::get('/', [LanguageController::class, 'index']);
+    });
+
+    // payment type routes
+    Route::group(['prefix' => 'payment-types'], function () {
+        Route::get('/', [PaymentTypeController::class, 'index']);
     });
 
     // publisher routes

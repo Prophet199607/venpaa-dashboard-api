@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
             StatusSeeder::class,
             RolePermissionSeeder::class,
+            PaymentTypeSeeder::class,
         ]);
     }
 }
