@@ -44,9 +44,15 @@ class DocNumberSeeder extends Seeder
             ['type' => 'TempPD', 'prefix' => 'PD', 'last_id' => 0, 'length' => 8],
             ['type' => 'PD', 'prefix' => 'PD', 'last_id' => 0, 'length' => 8],
             ['type' => 'Payment', 'prefix' => 'PMT', 'last_id' => 0, 'length' => 8],
-            ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],
             ['type' => 'TempINV', 'prefix' => 'INV', 'last_id' => 0, 'length' => 8],
             ['type' => 'INV', 'prefix' => 'INV', 'last_id' => 0, 'length' => 8],
+            ['type' => 'Receipt', 'prefix' => 'REC', 'last_id' => 0, 'length' => 8],
+            ['type' => 'CustomerReturn', 'prefix' => 'CUR', 'last_id' => 0, 'length' => 8],
+            ['type' => 'CusAdavance', 'prefix' => 'CADV', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SupAdavance', 'prefix' => 'SADV', 'last_id' => 0, 'length' => 8],
+            ['type' => 'CashRefund', 'prefix' => 'CAR', 'last_id' => 0, 'length' => 8],
+            ['type' => 'CustomerSetOff', 'prefix' => 'CSOF', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],
         ];
 
         foreach ($default as $key => $value) {
