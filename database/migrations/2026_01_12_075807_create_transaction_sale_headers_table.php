@@ -30,7 +30,6 @@ class CreateTransactionSaleHeadersTable extends Migration
             $table->string('customer_name')->nullable();
             $table->string('sales_assistant_code')->nullable();
             $table->string('sale_type')->nullable();
-            $table->string('payment_Method')->nullable();
             $table->string('type')->default('N/A');
             $table->string('comments')->nullable()->default('N/A');
             $table->string('invoice_no')->default('N/A');

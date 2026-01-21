@@ -29,7 +29,6 @@ class TempTransactionSaleHeaderResource extends JsonResource
             'customer_name' => $this->customer_name,
             'sales_assistant_code' => $this->sales_assistant_code,
             'sale_type' => $this->sale_type,
-            'payment_Method' => $this->payment_Method,
             'type' => $this->type,
             'subtotal' => $this->subtotal,
             'net_total' => $this->net_total,

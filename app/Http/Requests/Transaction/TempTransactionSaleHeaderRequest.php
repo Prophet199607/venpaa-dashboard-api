@@ -37,7 +37,6 @@ class TempTransactionSaleHeaderRequest extends FormRequest
             'customer_name' => 'nullable|string|max:255',
             'sales_assistant_code' => 'nullable|string|max:255',
             'sale_type' => 'nullable|string|max:255',
-            'payment_Method' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255',
             'subtotal' => 'nullable|numeric',
             'net_total' => 'nullable|numeric',
