@@ -3,8 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SalesController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
@@ -33,6 +35,7 @@ use App\Http\Controllers\Transaction\TransferGoodReturnController;
 
 use App\Http\Controllers\Payment\PaymentVoucherController;
 
+
 /*
 
 /*
@@ -60,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 });
+
 
 
 // Middleware doesn't work here
@@ -321,6 +325,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::delete('/delete-detail/{doc_no}/{line_no}', [InvoiceController::class, 'deleteTempDetail']);
     });
 
+    // Report routes
+    Route::group(['prefix' => 'reports'], function () {
+        Route::get('/stock-summary', [ReportController::class, 'getStockSummary']);
+    });
+
+
 
     // Role and Permission routes
     // Route::post('/role', [RolePermissionController::class, 'createRole']);
@@ -377,6 +387,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])
             Route::delete('/{id}', [UserController::class, 'destroy']);
         });
     });
+
 
 
 // Route::group(['prefix' => 'v'], function () {
