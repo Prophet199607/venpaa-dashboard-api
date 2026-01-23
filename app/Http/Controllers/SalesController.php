@@ -11,9 +11,7 @@ use Exception;
 class SalesController extends Controller
 {
     /**
-     * Insert POS Sales transactions in bulk.
-     * 
-     * Structure: { "details": [ { ... }, { ... } ] }
+     * Insert POS Sales transactions
      */
     public function InsertPosSales(Request $request)
     {
@@ -33,22 +31,22 @@ class SalesController extends Controller
         $details = $request->input('details');
 
         try {
-            // Check for duplicates within the request batch
-            $rNos = collect($details)->pluck('r_No');
-            if ($rNos->count() !== $rNos->unique()->count()) {
-                throw new Exception('Duplicate r_No found within the request batch.');
-            }
-
-            // Check if any r_No already exists in the database
-            $existing = PosTransactionApi::whereIn('R_No', $rNos)->first();
-            if ($existing) {
-                throw new Exception("The reference number '{$existing->R_No}' already exists in our records.");
-            }
+            $rNos = collect($details)->pluck('r_No')->unique()->toArray();
+            $existingRNos = PosTransactionApi::whereIn('R_No', $rNos)
+                ->pluck('R_No')
+                ->toArray();
 
             DB::beginTransaction();
 
             $records = [];
             foreach ($details as $item) {
+                if (in_array($item['r_No'], $existingRNos)) {
+                    continue;
+                }
+                if (collect($records)->pluck('R_No')->contains($item['r_No'])) {
+                    continue;
+                }
+
                 $records[] = $this->storeRecord($item);
             }
 
@@ -57,16 +55,18 @@ class SalesController extends Controller
             return response()->json([
                 'status' => 200,
                 'success' => true,
-                'message' => 'POS transactions summary saved successfully',
-                'data' => $records
+                'message' => 'POS transactions processed successfully',
+                'data' => $records,
+                'saved_count' => count($records)
             ], 200);
 
         } catch (Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+                'message' => 'Failed to process transactions',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
