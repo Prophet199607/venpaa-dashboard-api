@@ -64,6 +64,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+// POS Sales routes
+Route::group(['prefix' => 'Sales'], function () {
+    Route::post('/InsertPosSales', [SalesController::class, 'InsertPosSales']);
+});
+
 
 
 // Middleware doesn't work here
