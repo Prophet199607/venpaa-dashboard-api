@@ -304,16 +304,21 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // invoice routes
     Route::group(['prefix' => 'invoices'], function () {
-        Route::get('/load-inv-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadInvByCode']);
+        Route::get('/load-invoice-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadInvoiceByCode']);
         Route::get('/temp-products/{doc_no}', [InvoiceController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [InvoiceController::class, 'getUnsavedSessions']);
-        Route::get('/load-all-inv', [InvoiceController::class, 'loadAllInvs']);
+        Route::get('/load-all-invoices', [InvoiceController::class, 'loadAllInvoices']);
+        Route::get('/applied', [InvoiceController::class, 'getAppliedInv']);
 
+        Route::put('/draft-inv/{doc_no}', [InvoiceController::class, 'updateInvoice']);
         Route::put('/update-product/{id}', [InvoiceController::class, 'updateProduct']);
 
+        Route::post('/unsave/{doc_no}', [InvoiceController::class, 'removeUnsaved']);
         Route::post('/add-product', [InvoiceController::class, 'addProduct']);
-        Route::post('/draft-inv', [InvoiceController::class, 'draftInv']);
+        Route::post('/draft-inv', [InvoiceController::class, 'draftInvoice']);
         Route::post('/save-inv', [InvoiceController::class, 'store']);
+
+        Route::delete('/delete-detail/{doc_no}/{line_no}', [InvoiceController::class, 'deleteTempDetail']);
     });
 
 
