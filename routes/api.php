@@ -21,6 +21,8 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
+use App\Http\Controllers\Master\PriceLevelController;
+
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -207,6 +209,16 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [ProductController::class, 'store']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // price level routes
+    Route::group(['prefix' => 'price-levels'], function () {
+        Route::get('/', [PriceLevelController::class, 'index']);
+        Route::post('/', [PriceLevelController::class, 'store']);
+        Route::post('/batch', [PriceLevelController::class, 'batchStore']);
+        Route::delete('/expired', [PriceLevelController::class, 'deleteExpired']);
+        Route::delete('/product/{prod_code}', [PriceLevelController::class, 'deleteByProduct']);
+        Route::delete('/{id}', [PriceLevelController::class, 'destroy']);
     });
 
     // common transactions routes
