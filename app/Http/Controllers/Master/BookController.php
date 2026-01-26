@@ -154,6 +154,8 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+
+            $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
 
             // Handle authors data
