@@ -18,11 +18,11 @@ use App\Http\Controllers\Master\LocationController;
 use App\Http\Controllers\Master\LanguageController;
 use App\Http\Controllers\Master\SupplierController;
 use App\Http\Controllers\Master\PublisherController;
+use App\Http\Controllers\Master\PriceLevelController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
-use App\Http\Controllers\Master\PriceLevelController;
-
+use App\Http\Controllers\Master\BarcodePrintController;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -219,6 +219,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::delete('/expired', [PriceLevelController::class, 'deleteExpired']);
         Route::delete('/product/{prod_code}', [PriceLevelController::class, 'deleteByProduct']);
         Route::delete('/{id}', [PriceLevelController::class, 'destroy']);
+    });
+
+    // barcode print routes
+    Route::group(['prefix' => 'barcodes'], function () {
+        Route::post('/print', [BarcodePrintController::class, 'print']);
     });
 
     // common transactions routes
