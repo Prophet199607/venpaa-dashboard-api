@@ -21,6 +21,7 @@ use App\Http\Controllers\Master\PublisherController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
+use App\Http\Controllers\Master\BarcodePrintController;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -207,6 +208,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [ProductController::class, 'store']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // barcode print routes
+    Route::group(['prefix' => 'barcodes'], function () {
+        Route::post('/print', [BarcodePrintController::class, 'print']);
     });
 
     // common transactions routes
