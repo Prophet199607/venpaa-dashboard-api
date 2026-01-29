@@ -16,9 +16,9 @@ class CreatePriceLevelsTable extends Migration
         Schema::create('price_levels', function (Blueprint $table) {
             $table->id();
             $table->string('prod_code')->index();
-            $table->decimal('purchase_price', 15, 4);
-            $table->decimal('selling_price', 15, 4);
-            $table->decimal('wholesale_price', 15, 4);
+            $table->decimal('purchase_price', 15, 2);
+            $table->decimal('selling_price', 15, 2);
+            $table->decimal('wholesale_price', 15, 2);
             $table->boolean('has_expiry')->default(false);
             $table->date('expiry_date')->nullable();
             $table->timestamps();
