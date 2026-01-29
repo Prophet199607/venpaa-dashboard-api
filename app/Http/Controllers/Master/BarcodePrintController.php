@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Master;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
+use Illuminate\Http\Request;  
 use Illuminate\Support\Facades\Log;
-use App\Utils\BaminiConverter;
-use App\Models\Product;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\File;
+use App\Models\ClientBarcodeSetting;
 
 class BarcodePrintController extends Controller
 {
@@ -20,8 +19,19 @@ class BarcodePrintController extends Controller
     private function startDetachedProcess(string $commandLine): bool
     {
         /**
-         * Launch BarTender on Windows in a detached way using cmd.exe
+         * Launch BarTender. Note: This only works if PHP is running on the same Windows machine
+         * or if a remote execution bridge is configured.
          */
+        if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
+            Log::warning('Linux server detected. Cannot launch local Windows commands directly.', [
+                'command' => $commandLine,
+                'note' => 'Ensure client Windows PCs are monitoring the shared barcode folder for new data files.'
+            ]);
+            // If on Linux, we return true if we reached this point, assuming the file write was the goal
+            // In a real production setup, you would trigger a client-side print agent here.
+            return true;
+        }
+
         if (!function_exists('exec')) {
             Log::error('PHP exec() is disabled. Cannot launch BarTender.', [
                 'command' => $commandLine,
@@ -37,14 +47,45 @@ class BarcodePrintController extends Controller
 
         @exec($fullCommand, $output, $returnVar);
 
-        Log::info('BarTender process launched', [
+        Log::info('BarTender process launched on Windows', [
             'exec_command' => $fullCommand,
             'return_code'  => $returnVar,
-            'output'       => $output,
-            'exec_enabled' => function_exists('exec'),
         ]);
 
         return $returnVar === 0;
+    }
+
+    private function getMacAddress($ip)
+    {
+        // For localhost, return a placeholder
+        if ($ip === '127.0.0.1' || $ip === '::1') {
+            return 'LOCAL_HOST';
+        }
+
+        $output = [];
+        $mac = null;
+
+        if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
+            // Linux server: Use arp -an to find MAC of the client IP
+            @exec("arp -an " . escapeshellarg($ip), $output);
+            foreach ($output as $line) {
+                if (preg_match('/([a-fA-F0-9]{2}[:\-]){5}[a-fA-F0-9]{2}/', $line, $matches)) {
+                    $mac = strtoupper($matches[0]);
+                    break;
+                }
+            }
+        } else {
+            // Windows server (local dev): Use arp -a
+            @exec("arp -a " . escapeshellarg($ip), $output);
+            foreach ($output as $line) {
+                if (preg_match('/([a-fA-F0-9]{2}[:\-]){5}[a-fA-F0-9]{2}/', $line, $matches)) {
+                    $mac = strtoupper(str_replace('-', ':', $matches[0]));
+                    break;
+                }
+            }
+        }
+
+        return $mac ?: $ip; // Fallback to IP if MAC lookup fails
     }
 
     /*
@@ -52,6 +93,25 @@ class BarcodePrintController extends Controller
      */
     public function print(Request $request)
     {
+        $clientIp = $request->ip();
+        $physicalAddress = $this->getMacAddress($clientIp);
+        
+        Log::info("Barcode print request", [
+            'ip' => $clientIp,
+            'mac' => $physicalAddress
+        ]);
+
+        // Auto-register or fetch settings using Physical Address (stored in ip_address column)
+        $clientSettings = ClientBarcodeSetting::firstOrCreate(
+            ['ip_address' => $physicalAddress],
+            [
+                'template_path' => env('BARCODE_BTW_TEMPLATE') ?: 'C:\\barcode\\STIC33X21.btw',
+                'output_dir' => env('BARCODE_OUTPUT_DIR', 'C:\\barcode'),
+                'data_file_name' => env('BARCODE_OUTPUT_FILE') ?: 'venpaa_barcode.txt',
+                'is_active' => true
+            ]
+        );
+
         $data = $request->validate([
             'items' => ['required', 'array'],
             'items.*.prod_code' => ['required', 'string', 'max:50'],
@@ -62,14 +122,17 @@ class BarcodePrintController extends Controller
             'items.*.type' => ['nullable', 'string', 'max:50'],
         ]);
 
-        // BTW template path is mandatory for BarTender-based printing
-        $btwTemplatePath = env('BARCODE_BTW_TEMPLATE')
-            ?: env('BARTENDER_TEMPLATE_PATH', 'C:\\barcode\\STIC33X21.btw');
+        // BTW template path - specific to this machine
+        $btwTemplatePath = $clientSettings->template_path;
 
-        // Data file location (used by the BTW template)
-        $outputDir = env('BARCODE_OUTPUT_DIR', 'C:\\barcode');
-        $dataFileName = env('BARCODE_OUTPUT_FILE') ?: env('BARCODE_DATA_FILE', 'venpaa_barcode.txt');
-        $dataFilePath = rtrim($outputDir, "\\/") . DIRECTORY_SEPARATOR . $dataFileName;
+        // Data file location
+        $outputDir = $clientSettings->output_dir;
+        $dataFileName = $clientSettings->data_file_name;
+        
+        // If we are on Linux, we might need to dynamically inject the IP into the path 
+        // if the output_dir uses a template like \\{IP}\C$\barcode
+        $finalOutputDir = str_replace('{IP}', $clientIp, $outputDir);
+        $dataFilePath = rtrim($finalOutputDir, "\\/") . DIRECTORY_SEPARATOR . $dataFileName;
 
         $useBartender = filter_var(env('USE_BARTENDER', true), FILTER_VALIDATE_BOOL);
 
