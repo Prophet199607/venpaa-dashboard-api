@@ -7,6 +7,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\Sales\SalesmanController;
 
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
@@ -210,6 +211,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [ProductController::class, 'store']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // salesman routes
+    Route::group(['prefix' => 'salesmen'], function () {
+        Route::get('/generate-code', [SalesmanController::class, 'generateSalesmanCode']);
+        Route::get('/', [SalesmanController::class, 'index']);
+        Route::get('/{sales_code}', [SalesmanController::class, 'show']);
+        Route::post('/', [SalesmanController::class, 'store']);
+        Route::put('/{id}', [SalesmanController::class, 'update']);
     });
 
     // price level routes
