@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'https://venpaa.onimtaitsl.com','http://192.168.1.9:9000'],
+    'allowed_origins' => ['http://localhost:3000', 'https://venpaa.onimtaitsl.com'],
 
     'allowed_origins_patterns' => [],
 
