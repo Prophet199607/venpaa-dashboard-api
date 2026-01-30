@@ -12,8 +12,20 @@ class SalesmanController extends Controller
 {
     public function index()
     {
-        $salesmen = PosSalesman::all();
-        return response()->json($salesmen);
+        try {
+            $salesmen = PosSalesman::all();
+            return response()->json([
+                'success' => true,
+                'message' => 'Salesmen fetched successfully',
+                'data' => $salesmen
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch salesmens',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function generateSalesmanCode()
