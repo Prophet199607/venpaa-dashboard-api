@@ -53,6 +53,7 @@ class DocNumberSeeder extends Seeder
             ['type' => 'CashRefund', 'prefix' => 'CAR', 'last_id' => 0, 'length' => 8],
             ['type' => 'CustomerSetOff', 'prefix' => 'CSOF', 'last_id' => 0, 'length' => 8],
             ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],
+            ['type' => 'Salesman', 'prefix' => 'S', 'last_id' => 0, 'length' => 4],
         ];
 
         foreach ($default as $key => $value) {
