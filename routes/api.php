@@ -74,6 +74,10 @@ Route::group(['prefix' => 'Sales'], function () {
     Route::post('/InsertPosSales', [SalesController::class, 'InsertPosSales']);
 });
 
+Route::group(['prefix' => 'products'], function () {
+    Route::get('/basic-search', [ProductController::class, 'searchBasic']);
+});
+
 
 
 // Middleware doesn't work here
