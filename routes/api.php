@@ -6,8 +6,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\Sales\CashierController;
 use App\Http\Controllers\Sales\SalesmanController;
+use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
@@ -220,6 +221,16 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{sales_code}', [SalesmanController::class, 'show']);
         Route::post('/', [SalesmanController::class, 'store']);
         Route::put('/{id}', [SalesmanController::class, 'update']);
+    });
+
+    // cashier routes
+    Route::group(['prefix' => 'cashiers'], function () {
+        Route::get('/generate-code', [CashierController::class, 'generateCashierCode']);
+        Route::get('/form-data', [CashierController::class, 'getFormData']);
+        Route::get('/', [CashierController::class, 'index']);
+        Route::get('/{id}', [CashierController::class, 'show']);
+        Route::post('/', [CashierController::class, 'store']);
+        Route::put('/{id}', [CashierController::class, 'update']);
     });
 
     // price level routes
