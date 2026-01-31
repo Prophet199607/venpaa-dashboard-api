@@ -14,7 +14,7 @@ class SecLevelSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('sec_level')->insert([
+        DB::table('sec_levels')->insert([
             [
                 'member' => 'Admin',
                 'sec_level' => '21',
