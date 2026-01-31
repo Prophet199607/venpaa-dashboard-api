@@ -21,7 +21,7 @@ class CreateCashiersTable extends Migration
             $table->string('password', 50);
             $table->string('mobile_number', 20)->nullable();
             $table->string('cashier_loca');
-            $table->string('last_mod_user', 50);
+            $table->string('last_mod_user');
             $table->dateTime('last_mod_date');
             $table->dateTime('tr_date');
             $table->integer('idx')->nullable();
