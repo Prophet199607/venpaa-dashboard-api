@@ -74,7 +74,7 @@ class CustomerController extends Controller
             $customers = Customer::where('is_active', 1)
                 ->where(function ($q) use ($query) {
                     $q->where('customer_name', 'LIKE', "%{$query}%")
-                    ->orWhere('customer_code', 'LIKE', "%{$query}%");
+                        ->orWhere('customer_code', 'LIKE', "%{$query}%");
                 })
                 ->limit(100)
                 ->get();
@@ -84,7 +84,6 @@ class CustomerController extends Controller
                 'message' => 'Customers search results',
                 'data' => CustomerResource::collection($customers),
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -96,6 +95,7 @@ class CustomerController extends Controller
 
     public function store(CustomerRequest $request)
     {
+
         try {
             $data = $request->validated();
 

@@ -38,6 +38,10 @@ class CustomerRequest extends FormRequest
             'nic'           => 'nullable|string|max:50',
             'dob'           => 'nullable|date',
             'is_active'     => 'nullable|boolean',
+            'is_credit'     => 'nullable|boolean',
+            'credit_limit'  => 'nullable|numeric|min:0',
+            'credit_period' => 'nullable|integer|min:0',
+            'address'       => 'nullable|string',
         ];
     }
 }
