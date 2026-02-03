@@ -18,6 +18,8 @@ class AddCreditToCustomersTable extends Migration
             $table->boolean('is_credit')->nullable()->after('address');
             $table->decimal('credit_limit', 15, 2)->nullable()->after('is_credit');
             $table->integer('credit_period')->nullable()->after('credit_limit');
+            $table->boolean('is_vat')->default(false)->after('credit_period');
+            $table->string('vat_number')->nullable()->after('is_vat');
         });
     }
 
@@ -33,6 +35,8 @@ class AddCreditToCustomersTable extends Migration
             $table->dropColumn('credit_limit');
             $table->dropColumn('credit_period');
             $table->dropColumn('address');
+            $table->dropColumn('is_vat');
+            $table->dropColumn('vat_number');
         });
     }
 }
