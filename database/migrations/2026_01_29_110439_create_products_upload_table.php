@@ -13,44 +13,50 @@ class CreateProductsUploadTable extends Migration
      */
     public function up()
     {
-        Schema::create('products_upload', function (Blueprint $table) {
-            $table->id();
+        Schema::create('Product_Upload', function (Blueprint $table) {
+            $table->bigIncrements('Id_No');
 
-            $table->string('prod_code');
-            $table->string('prod_name');
-            $table->string('short_description')->nullable();
-            $table->string('department')->index('department');
-            $table->string('category')->index('category');
-            $table->string('sub_category')->index('sub_category');
+            $table->string('Prod_Code', 50);
+            $table->string('Prod_Name', 100);
+            $table->string('Barcode', 30);
 
-            $table->string('pack_size')->nullable();
-            $table->decimal('purchase_price')->default(0.0);
-            $table->decimal('selling_price')->default(0.0);
-            $table->decimal('marked_price')->default(0.0)->nullable();
-            $table->decimal('wholesale_price')->default(0.0)->nullable();
+            $table->string('Department_Id', 15);
+            $table->string('Category_Id', 50);
+            $table->string('Supplier_Id', 15);
 
-            $table->string('title_in_other_language')->nullable();
-            $table->string('book_type')->index('book_type')->nullable();
-            $table->string('publisher')->index('publisher')->nullable();
+            $table->decimal('Purchase_price', 19, 4);
+            $table->decimal('Selling_Price', 19, 4);
+            $table->decimal('Disc_Price', 19, 4);
 
-            $table->string('isbn')->nullable();
-            $table->year('publish_year')->nullable();
-            $table->integer('alert_qty')->nullable();
-            $table->decimal('width', 8, 2)->nullable();
-            $table->decimal('height', 8, 2)->nullable();
-            $table->decimal('depth', 8, 2)->nullable();
-            $table->decimal('weight', 8, 2)->nullable();
-            $table->integer('pages')->nullable();
-            $table->string('barcode')->nullable();
-            $table->string('language')->nullable();
-            $table->string('prod_image')->nullable();
-            $table->text('description')->nullable();
-            $table->integer('status')->default(1);
-            $table->string('unit_name')->default("NOS");
+            $table->integer('Reorder_Level');
 
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
+            $table->dateTime('Purchased_Date');
+
+            $table->string('Unit', 10);
+
+            $table->string('Created_User', 50)->nullable();
+            $table->string('Modified_User', 50)->nullable();
+
+            $table->dateTime('Created_Date')->nullable();
+            $table->dateTime('Modified_Date')->nullable();
+
+            $table->string('LockedItem', 1);
+
+            $table->string('Short_Description', 50);
+
+            $table->decimal('Whole_Price', 19, 4);
+            $table->decimal('Disc_Str', 18, 2);
+
+            $table->string('Cost_Code', 20)->nullable();
+            $table->string('Margine', 10);
+            $table->string('Brand_Code', 15);
+
+            $table->integer('Pack_Size');
+
+            $table->char('U_ID', 36);
+            $table->string('M_id', 50);
+
+            $table->primary(['Id_No', 'M_id']);
         });
     }
 
@@ -61,6 +67,6 @@ class CreateProductsUploadTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('products_upload');
+        Schema::dropIfExists('Product_Upload');
     }
 }
