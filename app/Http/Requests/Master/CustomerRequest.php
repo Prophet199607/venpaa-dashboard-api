@@ -42,6 +42,8 @@ class CustomerRequest extends FormRequest
             'credit_limit'  => 'nullable|numeric|min:0',
             'credit_period' => 'nullable|integer|min:0',
             'address'       => 'nullable|string',
+            'is_vat'        => 'nullable|boolean',
+            'vat_number'    => 'nullable|string|max:50',
         ];
     }
 }

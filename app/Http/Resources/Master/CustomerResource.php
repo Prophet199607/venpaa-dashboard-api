@@ -25,6 +25,8 @@ class CustomerResource extends JsonResource
             'credit_limit'    => $this->credit_limit,
             'credit_period'   => $this->credit_period,
             'address'         => $this->address,
+            'is_vat'          => $this->is_vat,
+            'vat_number'      => $this->vat_number,
         ];
     }
 }
