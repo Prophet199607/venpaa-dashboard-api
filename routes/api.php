@@ -6,6 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Sales\CashierController;
+use App\Http\Controllers\Sales\SalesmanController;
 use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
 use App\Http\Controllers\Master\BarcodePrintController;
+use App\Http\Controllers\Master\ClientBarcodeSettingController;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -215,6 +218,25 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::put('/{prod_code}', [ProductController::class, 'update']);
     });
 
+    // salesman routes
+    Route::group(['prefix' => 'salesmen'], function () {
+        Route::get('/generate-code', [SalesmanController::class, 'generateSalesmanCode']);
+        Route::get('/', [SalesmanController::class, 'index']);
+        Route::get('/{sales_code}', [SalesmanController::class, 'show']);
+        Route::post('/', [SalesmanController::class, 'store']);
+        Route::put('/{id}', [SalesmanController::class, 'update']);
+    });
+
+    // cashier routes
+    Route::group(['prefix' => 'cashiers'], function () {
+        Route::get('/generate-code', [CashierController::class, 'generateCashierCode']);
+        Route::get('/form-data', [CashierController::class, 'getFormData']);
+        Route::get('/', [CashierController::class, 'index']);
+        Route::get('/{id}', [CashierController::class, 'show']);
+        Route::post('/', [CashierController::class, 'store']);
+        Route::put('/{id}', [CashierController::class, 'update']);
+    });
+
     // price level routes
     Route::group(['prefix' => 'price-levels'], function () {
         Route::get('/', [PriceLevelController::class, 'index']);
@@ -228,6 +250,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // barcode print routes
     Route::group(['prefix' => 'barcodes'], function () {
         Route::post('/print', [BarcodePrintController::class, 'print']);
+        Route::apiResource('/settings', ClientBarcodeSettingController::class);
     });
 
     // common transactions routes
