@@ -349,8 +349,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // product discards routes
     Route::group(['prefix' => 'product-discards'], function () {
+        Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [ProductDiscardController::class, 'loadTransactionByCode']);
+        Route::get('/load-all-transactions', [ProductDiscardController::class, 'loadAllTransactions']);
         Route::get('/unsaved-sessions', [ProductDiscardController::class, 'getUnsavedSessions']);
         Route::get('/discard-types', [ProductDiscardController::class, 'getDiscardTypes']);
+        
+        Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct']);
+
+        Route::post('/add-product', [ProductDiscardController::class, 'addProduct']);
+        Route::post('/save-pd', [ProductDiscardController::class, 'store']);
     });
 
     // payment voucher routes
