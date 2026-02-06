@@ -94,6 +94,7 @@ class BookImport implements ToCollection, WithHeadingRow
             'category'       => null,
             'sub_category'   => null,
             'alert_qty'      => null,
+            'pack_size'      => '1',
         ];
 
         // 3. Create or Update Product
