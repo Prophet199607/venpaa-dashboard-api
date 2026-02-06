@@ -35,6 +35,8 @@ class BookImport implements ToCollection, WithHeadingRow
 
         $bookCode      = $row['book_code'] ?? null;
         $bookName      = $row['book_name'];
+        $tamilDesc     = $row['tamil_description'] ?? null;
+        $otherLang     = $row['title_in_other_language'] ?? null;
         $publisherCode = $row['publisher_code'] ?? null;
         $supplierCode  = $row['supplier_code'] ?? null;
         $authorCode    = $row['authors_code'] ?? null;
@@ -89,11 +91,14 @@ class BookImport implements ToCollection, WithHeadingRow
             'department'     => '10',
             'book_type'      => $bookTypeCode,
             'publisher'      => $publisherCode,
+            'tamil_description' => $tamilDesc,
+            'title_in_other_language' => $otherLang,
             'unit_name'      => 'NOS',
             'barcode'        => $bookCode,
             'category'       => null,
             'sub_category'   => null,
             'alert_qty'      => null,
+            'pack_size'      => '1',
         ];
 
         // 3. Create or Update Product

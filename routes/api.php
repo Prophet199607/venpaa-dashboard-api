@@ -31,6 +31,7 @@ use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
+use App\Http\Controllers\Transaction\ProductDiscardController;
 use App\Http\Controllers\Transaction\AcceptGoodNoteController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
 use App\Http\Controllers\Transaction\StockAdjustmentController;
@@ -344,6 +345,19 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
+    });
+
+    // product discards routes
+    Route::group(['prefix' => 'product-discards'], function () {
+        Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [ProductDiscardController::class, 'loadTransactionByCode']);
+        Route::get('/load-all-transactions', [ProductDiscardController::class, 'loadAllTransactions']);
+        Route::get('/unsaved-sessions', [ProductDiscardController::class, 'getUnsavedSessions']);
+        Route::get('/discard-types', [ProductDiscardController::class, 'getDiscardTypes']);
+        
+        Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct']);
+
+        Route::post('/add-product', [ProductDiscardController::class, 'addProduct']);
+        Route::post('/save-pd', [ProductDiscardController::class, 'store']);
     });
 
     // payment voucher routes

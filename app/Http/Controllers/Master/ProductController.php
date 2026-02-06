@@ -336,6 +336,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+             ->orderByRaw("CASE 
+                WHEN prod_code = ? THEN 1 
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3 
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 
@@ -374,6 +381,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+            ->orderByRaw("CASE 
+                WHEN prod_code = ? THEN 1 
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3 
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 

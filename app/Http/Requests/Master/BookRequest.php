@@ -45,6 +45,7 @@ class BookRequest extends FormRequest
             'wholesale_price' => 'nullable|numeric',
 
             'title_in_other_language' => 'nullable|string',
+            'tamil_description' => 'nullable|string',
             'book_type' => 'nullable|exists:book_types,bkt_code',
             'publisher' => 'nullable|exists:publishers,pub_code',
             'supplier' => 'nullable|string',
