@@ -12,7 +12,7 @@ class PaymentTypeController extends Controller
     public function index()
     {
         try {
-            $paymentTypes = PaymentType::where('status', 1)->get();
+            $paymentTypes = PaymentType::where('status', 1)->where('mandatory', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Payment types fetched successfully',
