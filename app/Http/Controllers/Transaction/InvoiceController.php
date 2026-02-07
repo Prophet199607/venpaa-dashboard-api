@@ -214,41 +214,41 @@ class InvoiceController extends Controller
 
     public function loadInvoiceByCode($doc_number, $status, $iid)
     {
-            if ($status == 'applied') {
-                $transactionSaleHeaders = TransactionSaleHeader::with([
-                    'location',
-                    'transactionSaleDetails.product.unit',
-                    'transactionSaleDetails' => function ($query) {
-                        $query->orderBy('line_no');
-                    }
-                ])
+        if ($status == 'applied') {
+            $transactionSaleHeaders = TransactionSaleHeader::with([
+                'location',
+                'transactionSaleDetails.product.unit',
+                'transactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
                 ->where(['doc_no' => $doc_number, 'iid' => $iid])
                 ->first();
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Invoice loaded successfully!',
-                    'status' => 'applied',
-                    'data' => $transactionSaleHeaders
-                ]);
-            } elseif ($status == 'pending') {
-                $tempTransactionSaleHeaders = TempTransactionSaleHeader::with([
-                    'location',
-                    'tempTransactionSaleDetails.product.unit',
-                    'tempTransactionSaleDetails' => function ($query) {
-                        $query->orderBy('line_no');
-                    }
-                ])
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionSaleHeaders
+            ]);
+        } elseif ($status == 'pending') {
+            $tempTransactionSaleHeaders = TempTransactionSaleHeader::with([
+                'location',
+                'tempTransactionSaleDetails.product.unit',
+                'tempTransactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
                 ->where(['doc_no' => $doc_number, 'iid' => $iid])
                 ->first();
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Invoice loaded successfully!',
-                    'status' => 'pending',
-                    'data' => $tempTransactionSaleHeaders
-                ]);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice loaded successfully!',
+                'status' => 'pending',
+                'data' => $tempTransactionSaleHeaders
+            ]);
+        }
     }
 
     public function addProduct(TempTransactionSaleDetailRequest $request)
@@ -505,13 +505,25 @@ class InvoiceController extends Controller
             $headerData = $data;
             unset($headerData['id']); // Remove ID if present from request/validated data
 
-            $transactionSaleHeader = TransactionSaleHeader::create([
-                ...$headerData,
-                'doc_no'      => $invNumber,
-                'temp_doc_no' => $data['doc_no'],
-                'created_by'  => auth()->id(),
-                'iid'         => 'INV'
-            ]);
+            // $transactionSaleHeader = TransactionSaleHeader::create([
+            //     ...$headerData,
+            //     'doc_no'      => $invNumber,
+            //     'temp_doc_no' => $data['doc_no'],
+            //     'created_by'  => auth()->id(),
+            //     'iid'         => 'INV'
+            // ]);
+
+            $transactionSaleHeader = TransactionSaleHeader::create(
+                array_merge(
+                    $headerData,
+                    [
+                        'doc_no'      => $invNumber,
+                        'temp_doc_no' => $data['doc_no'],
+                        'created_by'  => auth()->id(),
+                        'iid'         => 'INV',
+                    ]
+                )
+            );
 
             // ---------------------------------------------------------
             // 3. Handle Payments & Receipts
@@ -534,7 +546,7 @@ class InvoiceController extends Controller
                     $totalPaid += $amount;
 
                     PaidPaymentSummary::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
+
                         'location'      => $data['location'],
                         'temp_doc_no'   => $data['doc_no'],
                         'org_doc_no'    => $org_pmt_doc_no,
@@ -575,7 +587,6 @@ class InvoiceController extends Controller
             // If there's a transaction amount, record it against the customer
             if ($netAmount != 0) {
                 PaymentSummary::create([
-                    'industry_code' => auth()->user()->industry_code ?? 1,
                     'acc_code'      => $data['customer_code'],
                     'location'      => $data['location'],
                     'acc_type'      => 'customer',
@@ -597,7 +608,6 @@ class InvoiceController extends Controller
                 foreach ($products as $product) {
                     // 4.1 Create Transaction Detail
                     TransactionSaleDetail::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'transaction_sale_header_id' => $transactionSaleHeader->id,
                         'doc_no'        => $invNumber,
                         'line_no'       => $product->line_no,
@@ -606,7 +616,6 @@ class InvoiceController extends Controller
                         'prod_code'     => $product->prod_code,
                         'prod_name'     => $product->prod_name,
                         'type'          => $product->type ?? 'Sales',
-                        'qty'           => $product->qty ?? $product->total_qty,
                         'purchase_price' => $product->purchase_price,
                         'marked_price'  => $product->marked_price ?? 0,
                         'selling_price' => $product->selling_price,
@@ -627,7 +636,6 @@ class InvoiceController extends Controller
                     }
 
                     StockMaster::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'location'      => $data['location'],
                         'transaction_date' => $data['document_date'] ?? now(),
                         'doc_no'        => $invNumber,
@@ -641,7 +649,6 @@ class InvoiceController extends Controller
 
                     // 4.3 Product Sale Summary
                     ProductSaleSummary::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'location'      => $data['location'],
                         'doc_no'        => $invNumber,
                         'iid'           => 'INV',
@@ -652,7 +659,6 @@ class InvoiceController extends Controller
                         'selling_price' => $product->selling_price,
                         'purchase_price' => $product->purchase_price,
                         'sale_date'     => $data['document_date'] ?? now(),
-                        'qty'           => $product->total_qty,
                         'amount'        => $product->amount,
                     ]);
                 }
@@ -674,7 +680,6 @@ class InvoiceController extends Controller
                     'header_id' => $transactionSaleHeader->id
                 ]
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
