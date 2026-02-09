@@ -6,6 +6,7 @@ use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\DiscardType;
 use App\Models\StockMaster;
+use Illuminate\Http\Request;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,95 @@ use App\Http\Resources\Transaction\TempTransactionDetailResource;
 
 class ProductDiscardController extends Controller
 {
+    public function loadAllTransactions(Request $request)
+    {
+        try {
+            $iid = $request->input('iid', 'PD');
+            $status = $request->input('status', 'drafted');
+            $location = $request->input('location');
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+
+            $query = ($status === 'drafted') 
+                ? TempTransactionHeader::query() 
+                : TransactionHeader::query();
+
+            $query->where('iid', $iid)->with('location');
+
+            if ($location) {
+                $query->where('location', $location);
+            }
+
+            if ($startDate && $endDate) {
+                $query->whereBetween('document_date', [$startDate, $endDate]);
+            }
+
+            $transactions = $query->orderBy('id', 'desc')->paginate(10);
+
+            // Format data to include location name
+            $formattedData = collect($transactions->items())->map(function ($pd) {
+                $pdArray = $pd->toArray();
+                $locationRelation = $pd->getRelation('location');
+                $pdArray['location_name'] = $locationRelation ? $locationRelation->loca_name : null;
+                return $pdArray;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedData,
+                'meta' => [
+                    'current_page' => $transactions->currentPage(),
+                    'last_page' => $transactions->lastPage(),
+                    'total' => $transactions->total(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load transactions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function loadTransactionByCode($doc_number, $status, $iid)
+    {
+        try {
+            if ($status == 'applied') {
+                $transaction = TransactionHeader::with([
+                    'location',
+                    'transactionDetails.product.unit',
+                    'transactionDetails' => function ($query) {
+                        $query->orderBy('line_no');
+                    }
+                ])
+                ->where(['doc_no' => $doc_number, 'iid' => $iid])
+                ->first();
+            } else {
+                $transaction = TempTransactionHeader::with([
+                    'location',
+                    'tempTransactionDetails.product.unit',
+                    'tempTransactionDetails' => function ($query) {
+                        $query->orderBy('line_no');
+                    }
+                ])
+                ->where(['doc_no' => $doc_number, 'iid' => $iid])
+                ->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $transaction
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load transaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     private function getSessionDetails($docNo)
     {
         // Extract location from doc_no
