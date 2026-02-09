@@ -377,7 +377,7 @@ class BookController extends Controller
 
             // Refresh Product Upload in external table (if applicable)
             try {
-                DB::statement("CALL RefreshProductUpload(?, ?)", ['UPDATE', $product->prod_code]);
+                DB::statement("CALL RefreshProductUpload(?, ?)", ['Product', $product->prod_code]);
             } catch (\Exception $e) {
                 // Log error but don't fail the request if SP fails
                 Log::error("Failed to refresh product upload: " . $e->getMessage());
