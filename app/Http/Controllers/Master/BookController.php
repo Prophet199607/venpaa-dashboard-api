@@ -15,6 +15,7 @@ use App\Models\ProductImage;
 use App\Models\ProductAuthor;
 use App\Models\ProductSupplier;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -223,6 +224,14 @@ class BookController extends Controller
             // Load relationships for the resource
             $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'authors', 'images']);
 
+            // Refresh Product Upload in external table (if applicable)
+            try {
+                DB::statement("CALL RefreshProductUpload(?, ?)", ['Product', $product->prod_code]);
+            } catch (\Exception $e) {
+                // Log error but don't fail the request if SP fails
+                Log::error("Failed to refresh product upload: " . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Book created successfully',
@@ -365,6 +374,14 @@ class BookController extends Controller
 
             // Load relationships for the resource
             $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'suppliers', 'images']);
+
+            // Refresh Product Upload in external table (if applicable)
+            try {
+                DB::statement("CALL RefreshProductUpload(?, ?)", ['UPDATE', $product->prod_code]);
+            } catch (\Exception $e) {
+                // Log error but don't fail the request if SP fails
+                Log::error("Failed to refresh product upload: " . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
