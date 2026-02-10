@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Sales;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
 
 class DiscountController extends Controller
 {
@@ -59,10 +60,21 @@ class DiscountController extends Controller
                 'dis_per' => 'required|numeric|min:0|max:100',
             ]);
 
-            Product::whereIn('prod_code', $request->prod_codes)->update([
-                'discount' => $request->discount,
-                'dis_per' => $request->dis_per
-            ]);
+            DB::transaction(function () use ($request) {
+                // Update discounts on products
+                Product::whereIn('prod_code', $request->prod_codes)->update([
+                    'discount' => $request->discount,
+                    'dis_per' => $request->dis_per
+                ]);
+
+                // For each affected product, refresh the corresponding Product_Upload
+                foreach ($request->prod_codes as $prodCode) {
+                    DB::statement('CALL RefreshProductUpload(?, ?)', [
+                        'Product', // p_iid
+                        $prodCode, // p_prod_code
+                    ]);
+                }
+            });
 
             return response()->json([
                 'success' => true,
