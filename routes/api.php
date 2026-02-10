@@ -8,6 +8,7 @@ use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Sales\CashierController;
 use App\Http\Controllers\Sales\SalesmanController;
+use App\Http\Controllers\Sales\DiscountController;
 use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
@@ -215,6 +216,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [ProductController::class, 'store']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // product discounts routes
+    Route::group(['prefix' => 'products/discounts'], function () {
+        Route::post('/filter', [DiscountController::class, 'filter']);
+        Route::post('/update', [DiscountController::class, 'update']);
+        Route::get('/list', [DiscountController::class, 'list']);
     });
 
     // salesman routes
