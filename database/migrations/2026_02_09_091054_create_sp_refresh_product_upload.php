@@ -26,7 +26,6 @@ class CreateSpRefreshProductUpload extends Migration
             -- Then Insert the new/updated record into Product_Upload
             INSERT INTO venpaa_new.Product_Upload
             (
-                Id_No,
                 Prod_Code,
                 Prod_Name,
                 Barcode,
@@ -56,7 +55,6 @@ class CreateSpRefreshProductUpload extends Migration
                 TamilDesc
             )
             SELECT
-                id,                        -- Id_No
                 prod_code,                 -- Prod_Code
                 ifnull(title_in_other_language,left(replace(prod_name,'''',' '),100)), -- Prod_Name
                 ifnull(barcode,''),        -- Barcode
