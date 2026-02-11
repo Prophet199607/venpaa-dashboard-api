@@ -66,14 +66,6 @@ class DiscountController extends Controller
                     'discount' => $request->discount,
                     'dis_per' => $request->dis_per
                 ]);
-
-                // For each affected product, refresh the corresponding Product_Upload
-                // foreach ($request->prod_codes as $prodCode) {
-                //     DB::statement('CALL RefreshProductUpload(?, ?)', [
-                //         'Product', // p_iid
-                //         $prodCode, // p_prod_code
-                //     ]);
-                // }
             });
 
             return response()->json([
