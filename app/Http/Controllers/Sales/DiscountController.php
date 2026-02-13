@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Sales;
 
+use Carbon\Carbon;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class DiscountController extends Controller
             }
 
             $perPage = $request->input('per_page', 10);
-            $products = $query->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per')
+            $products = $query->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per', 'dis_start_date', 'dis_end_date')
                               ->orderBy('prod_code')
                               ->paginate($perPage);
 
@@ -58,14 +59,39 @@ class DiscountController extends Controller
                 'prod_codes' => 'required|array',
                 'discount' => 'required|numeric|min:0',
                 'dis_per' => 'required|numeric|min:0|max:100',
+                'dis_start_date' => 'nullable|string',
+                'dis_end_date' => 'nullable|string',
             ]);
 
-            DB::transaction(function () use ($request) {
-                // Update discounts on products
-                Product::whereIn('prod_code', $request->prod_codes)->update([
+            $startDate = null;
+            $endDate = null;
+
+            if ($request->filled('dis_start_date')) {
+                try {
+                    $startDate = Carbon::createFromFormat('d/m/y', $request->dis_start_date)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $startDate = Carbon::parse($request->dis_start_date)->format('Y-m-d');
+                }
+            }
+
+            if ($request->filled('dis_end_date')) {
+                try {
+                    $endDate = Carbon::createFromFormat('d/m/y', $request->dis_end_date)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $endDate = Carbon::parse($request->dis_end_date)->format('Y-m-d');
+                }
+            }
+
+            DB::transaction(function () use ($request, $startDate, $endDate) {
+                // If discount is being removed, clear dates too
+                $updateData = [
                     'discount' => $request->discount,
-                    'dis_per' => $request->dis_per
-                ]);
+                    'dis_per' => $request->dis_per,
+                    'dis_start_date' => ($request->discount == 0 && $request->dis_per == 0) ? null : $startDate,
+                    'dis_end_date' => ($request->discount == 0 && $request->dis_per == 0) ? null : $endDate,
+                ];
+
+                Product::whereIn('prod_code', $request->prod_codes)->update($updateData);
             });
 
             return response()->json([
@@ -76,7 +102,7 @@ class DiscountController extends Controller
             Log::error('Update Discounts Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update discounts'
+                'message' => 'Failed to update discounts: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -88,9 +114,15 @@ class DiscountController extends Controller
                 $q->where('discount', '>', 0)
                   ->orWhere('dis_per', '>', 0);
             })
-            ->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per')
+            ->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per', 'dis_start_date', 'dis_end_date')
             ->orderBy('prod_code')
-            ->get();
+            ->get()
+            ->map(function($product) {
+                // Format dates for display as DD/MM/YY as requested
+                $product->dis_start_date = $product->dis_start_date ? Carbon::parse($product->dis_start_date)->format('d/m/y') : null;
+                $product->dis_end_date = $product->dis_end_date ? Carbon::parse($product->dis_end_date)->format('d/m/y') : null;
+                return $product;
+            });
 
             return response()->json([
                 'success' => true,
