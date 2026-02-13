@@ -68,17 +68,17 @@ class DiscountController extends Controller
 
             if ($request->filled('dis_start_date')) {
                 try {
-                    $startDate = Carbon::createFromFormat('d/m/y', $request->dis_start_date)->format('Y-m-d');
+                    $startDate = Carbon::createFromFormat('d/m/y', $request->dis_start_date)->format('d/m/Y');
                 } catch (\Exception $e) {
-                    $startDate = Carbon::parse($request->dis_start_date)->format('Y-m-d');
+                    $startDate = Carbon::parse($request->dis_start_date)->format('d/m/Y');
                 }
             }
 
             if ($request->filled('dis_end_date')) {
                 try {
-                    $endDate = Carbon::createFromFormat('d/m/y', $request->dis_end_date)->format('Y-m-d');
+                    $endDate = Carbon::createFromFormat('d/m/y', $request->dis_end_date)->format('d/m/Y');
                 } catch (\Exception $e) {
-                    $endDate = Carbon::parse($request->dis_end_date)->format('Y-m-d');
+                    $endDate = Carbon::parse($request->dis_end_date)->format('d/m/Y');
                 }
             }
 
@@ -116,13 +116,8 @@ class DiscountController extends Controller
             })
             ->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per', 'dis_start_date', 'dis_end_date')
             ->orderBy('prod_code')
-            ->get()
-            ->map(function($product) {
-                // Format dates for display as DD/MM/YY as requested
-                $product->dis_start_date = $product->dis_start_date ? Carbon::parse($product->dis_start_date)->format('d/m/y') : null;
-                $product->dis_end_date = $product->dis_end_date ? Carbon::parse($product->dis_end_date)->format('d/m/y') : null;
-                return $product;
-            });
+            ->get();
+            // Dates are already stored as dd/mm/yyyy strings
 
             return response()->json([
                 'success' => true,
