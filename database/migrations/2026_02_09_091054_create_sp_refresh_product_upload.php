@@ -52,7 +52,9 @@ class CreateSpRefreshProductUpload extends Migration
                 Pack_Size,
                 U_ID,
                 M_id,
-                TamilDesc
+                TamilDesc,
+                DateFrom,
+                DateTo
             )
             SELECT
                 prod_code,                 -- Prod_Code
@@ -81,7 +83,9 @@ class CreateSpRefreshProductUpload extends Migration
                 1 AS Pack_Size,            -- Pack_Size
                 UUID() AS U_ID,            -- U_ID
                 'VENPAA' AS M_id,          -- M_id
-                ifnull(tamil_description,left(replace(prod_name,'''',' '),100)) -- TamilDesc
+                ifnull(tamil_description,left(replace(prod_name,'''',' '),100)), -- TamilDesc
+                dis_start_date,            -- DateFrom
+                dis_end_date               -- DateTo
             FROM products
             WHERE prod_code = p_prod_code;
         END
