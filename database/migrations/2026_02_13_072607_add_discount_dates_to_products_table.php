@@ -14,8 +14,8 @@ class AddDiscountDatesToProductsTable extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->date('dis_start_date')->nullable()->after('dis_per');
-            $table->date('dis_end_date')->nullable()->after('dis_start_date');
+            $table->string('dis_start_date', 20)->nullable()->after('dis_per');
+            $table->string('dis_end_date', 20)->nullable()->after('dis_start_date');
         });
     }
 
