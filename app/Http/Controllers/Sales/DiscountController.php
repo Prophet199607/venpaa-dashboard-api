@@ -55,43 +55,35 @@ class DiscountController extends Controller
     public function update(Request $request)
     {
         try {
-            $request->validate([
-                'prod_codes' => 'required|array',
-                'discount' => 'required|numeric|min:0',
-                'dis_per' => 'required|numeric|min:0|max:100',
-                'dis_start_date' => 'nullable|string',
-                'dis_end_date' => 'nullable|string',
-            ]);
-
-            $startDate = null;
-            $endDate = null;
-
-            if ($request->filled('dis_start_date')) {
-                try {
-                    $startDate = Carbon::createFromFormat('d/m/y', $request->dis_start_date)->format('d/m/Y');
-                } catch (\Exception $e) {
-                    $startDate = Carbon::parse($request->dis_start_date)->format('d/m/Y');
-                }
-            }
-
-            if ($request->filled('dis_end_date')) {
-                try {
-                    $endDate = Carbon::createFromFormat('d/m/y', $request->dis_end_date)->format('d/m/Y');
-                } catch (\Exception $e) {
-                    $endDate = Carbon::parse($request->dis_end_date)->format('d/m/Y');
-                }
-            }
-
-            DB::transaction(function () use ($request, $startDate, $endDate) {
-                // If discount is being removed, clear dates too
-                $updateData = [
+            if ($request->has('updates') && is_array($request->updates)) {
+                $updates = $request->updates;
+            } else {
+                $request->validate([
+                    'prod_codes' => 'required|array',
+                    'discount' => 'required|numeric|min:0',
+                    'dis_per' => 'required|numeric|min:0|max:100',
+                    'dis_start_date' => 'nullable|string',
+                    'dis_end_date' => 'nullable|string',
+                ]);
+                $updates = [[
+                    'prod_codes' => $request->prod_codes,
                     'discount' => $request->discount,
                     'dis_per' => $request->dis_per,
-                    'dis_start_date' => ($request->discount == 0 && $request->dis_per == 0) ? null : $startDate,
-                    'dis_end_date' => ($request->discount == 0 && $request->dis_per == 0) ? null : $endDate,
-                ];
+                    'dis_start_date' => $request->dis_start_date,
+                    'dis_end_date' => $request->dis_end_date,
+                ]];
+            }
 
-                Product::whereIn('prod_code', $request->prod_codes)->update($updateData);
+            DB::transaction(function () use ($updates) {
+                foreach ($updates as $update) {
+                    $isRemoving = ($update['discount'] == 0 && $update['dis_per'] == 0);
+                    Product::whereIn('prod_code', $update['prod_codes'])->update([
+                        'discount' => $update['discount'],
+                        'dis_per' => $update['dis_per'],
+                        'dis_start_date' => $isRemoving ? null : ($update['dis_start_date'] ?? null),
+                        'dis_end_date' => $isRemoving ? null : ($update['dis_end_date'] ?? null),
+                    ]);
+                }
             });
 
             return response()->json([
