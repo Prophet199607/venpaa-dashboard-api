@@ -97,7 +97,7 @@ class DiscountController extends Controller
                             'old_dis_end_date' => $product->dis_end_date,
                             'new_dis_end_date' => $new_dis_end_date,
                             'action' => $isRemoving ? 'removed' : (($product->discount == 0 && $product->dis_per == 0) ? 'created' : 'updated'),
-                            'updated_by' => auth()->user() ? auth()->user()->name : 'System',
+                            'updated_by' => auth()->user()->id,
                         ]);
 
                         $product->update([
