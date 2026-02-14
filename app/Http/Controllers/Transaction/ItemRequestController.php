@@ -203,45 +203,60 @@ class ItemRequestController extends Controller
 
     public function loadAllItemRequests(Request $request)
     {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+
         if ($request->status == 'drafted') {
             $itemRequests = TempTransactionHeader::where('iid', $request->iid)
+                ->where('location', $userLocation) // Added lately 2026/02/14
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $itemRequests->getCollection()->map(function ($ir) {
+            $formattedData = collect($itemRequests->items())->map(function ($ir) {
                 $data = $ir->toArray();
                 $data['supplier_name'] = $ir->supplier ? $ir->supplier->sup_name : null;
                 return $data;
             });
 
-            $itemRequests->setCollection($formattedData);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Draft item requests loaded successfully!',
                 'status' => 'drafted',
-                'data' => $itemRequests->items()
+                'data' => $formattedData,
             ]);
         } else {
             $itemRequests = ItemReqTransHeader::where('iid', $request->iid)
+                ->where('location', $userLocation) // Added lately 2026/02/14
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $itemRequests->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($itemRequests->items())->map(function ($ir) {
+                $data = $ir->toArray();
+                $data['supplier_name'] = $ir->supplier ? $ir->supplier->sup_name : null;
                 return $data;
             });
-
-            $itemRequests->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied item requests loaded successfully!',
                 'status' => 'applied',
-                'data' => $itemRequests->items()
+                'data' => $formattedData,
             ]);
         }
     }

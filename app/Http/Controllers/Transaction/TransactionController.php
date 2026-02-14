@@ -245,12 +245,6 @@ class TransactionController extends Controller
                 'message' => 'Draft transactions loaded successfully!',
                 'status' => 'drafted',
                 'data' => $formattedData,
-                'pagination' => [
-                    'current_page' => $tempTransactionData->currentPage(),
-                    'last_page' => $tempTransactionData->lastPage(),
-                    'total' => $tempTransactionData->total(),
-                    'per_page' => $tempTransactionData->perPage(),
-                ],
             ]);
         } else {
             $transactionData = TransactionHeader::where('iid', $request->iid)
@@ -272,12 +266,6 @@ class TransactionController extends Controller
                 'message' => 'Applied transactions loaded successfully!',
                 'status' => 'applied',
                 'data' => $formattedData,
-                'pagination' => [
-                    'current_page' => $transactionData->currentPage(),
-                    'last_page' => $transactionData->lastPage(),
-                    'total' => $transactionData->total(),
-                    'per_page' => $transactionData->perPage(),
-                ],
             ]);
         }
     }

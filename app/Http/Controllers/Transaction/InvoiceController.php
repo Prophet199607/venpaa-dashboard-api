@@ -184,10 +184,14 @@ class InvoiceController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
 
         if ($request->status == 'pending') {
             $tempTransactionSaleHeaders = TempTransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
@@ -195,11 +199,13 @@ class InvoiceController extends Controller
                 'success' => true,
                 'message' => 'Draft invoice loaded successfully!',
                 'status' => 'pending',
-                'data' => $tempTransactionSaleHeaders->items()
+                'data' => $tempTransactionSaleHeaders->items(),
             ]);
         } else {
             $transactionSaleHeaders = TransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
@@ -207,7 +213,7 @@ class InvoiceController extends Controller
                 'success' => true,
                 'message' => 'Applied invoice loaded successfully!',
                 'status' => 'applied',
-                'data' => $transactionSaleHeaders->items()
+                'data' => $transactionSaleHeaders->items(),
             ]);
         }
     }
