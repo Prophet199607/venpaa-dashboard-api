@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Sales;
 
-use Carbon\Carbon;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use App\Models\ProductDiscountLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -76,13 +76,37 @@ class DiscountController extends Controller
 
             DB::transaction(function () use ($updates) {
                 foreach ($updates as $update) {
+                    $prod_codes = $update['prod_codes'];
                     $isRemoving = ($update['discount'] == 0 && $update['dis_per'] == 0);
-                    Product::whereIn('prod_code', $update['prod_codes'])->update([
-                        'discount' => $update['discount'],
-                        'dis_per' => $update['dis_per'],
-                        'dis_start_date' => $isRemoving ? null : ($update['dis_start_date'] ?? null),
-                        'dis_end_date' => $isRemoving ? null : ($update['dis_end_date'] ?? null),
-                    ]);
+                    $new_discount = $update['discount'];
+                    $new_dis_per = $update['dis_per'];
+                    $new_dis_start_date = $isRemoving ? null : ($update['dis_start_date'] ?? null);
+                    $new_dis_end_date = $isRemoving ? null : ($update['dis_end_date'] ?? null);
+
+                    $products = Product::whereIn('prod_code', $prod_codes)->get();
+
+                    foreach ($products as $product) {
+                        ProductDiscountLog::create([
+                            'prod_code' => $product->prod_code,
+                            'old_discount' => $product->discount,
+                            'new_discount' => $new_discount,
+                            'old_dis_per' => $product->dis_per,
+                            'new_dis_per' => $new_dis_per,
+                            'old_dis_start_date' => $product->dis_start_date,
+                            'new_dis_start_date' => $new_dis_start_date,
+                            'old_dis_end_date' => $product->dis_end_date,
+                            'new_dis_end_date' => $new_dis_end_date,
+                            'action' => $isRemoving ? 'removed' : (($product->discount == 0 && $product->dis_per == 0) ? 'created' : 'updated'),
+                            'updated_by' => auth()->user() ? auth()->user()->name : 'System',
+                        ]);
+
+                        $product->update([
+                            'discount' => $new_discount,
+                            'dis_per' => $new_dis_per,
+                            'dis_start_date' => $new_dis_start_date,
+                            'dis_end_date' => $new_dis_end_date,
+                        ]);
+                    }
                 }
             });
 
