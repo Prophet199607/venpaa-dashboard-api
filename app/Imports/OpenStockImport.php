@@ -43,6 +43,16 @@ class OpenStockImport implements ToCollection, WithHeadingRow
         try {
             foreach ($groupedRows as $supplierCode => $rowsForSupplier) {
                 $docNumberRecord = DocNumber::where('type', 'OpenStock')->first();
+                
+                if (!$docNumberRecord) {
+                    $docNumberRecord = DocNumber::create([
+                        'type' => 'OpenStock',
+                        'prefix' => 'OPS',
+                        'length' => 8,
+                        'last_id' => 0
+                    ]);
+                }
+
                 $docCodeData = $docNumberRecord->getDocCode($this->location);
                 $doc_no = $docCodeData['code'];
                 $docNumberRecord->incrementLastId();
@@ -58,7 +68,7 @@ class OpenStockImport implements ToCollection, WithHeadingRow
                     'delivery_location' => $this->location,
                     'delivery_address' => $locationModel ? $locationModel->delivery_address : null,
                     'remarks_ref' => 'Opening Stock Import',
-                    'created_by' => auth()->id(),
+                    'created_by' => auth()->id() ?? 1,
                     'subtotal' => 0,
                     'net_total' => 0,
                     'total_amount' => 0,
