@@ -73,10 +73,8 @@ class OpenStockImport implements ToCollection, WithHeadingRow, WithBatchInserts,
                     'created_by' => auth()->id() ?? 1,
                     'subtotal' => 0,
                     'net_total' => 0,
-                    'total_amount' => 0,
                 ]);
 
-                $totalAmount = 0;
                 $lineNo = 1;
 
                 foreach ($rowsForSupplier as $row) {
@@ -95,7 +93,6 @@ class OpenStockImport implements ToCollection, WithHeadingRow, WithBatchInserts,
                     $sellingPrice = $row['selling_price'] ?? $product->selling_price ?? 0;
                     
                     $lineAmount = $quantity * $purchasePrice;
-                    $totalAmount += $lineAmount;
 
                     TransactionDetail::create([
                         'transaction_header_id' => $header->id,
@@ -129,12 +126,6 @@ class OpenStockImport implements ToCollection, WithHeadingRow, WithBatchInserts,
                         'updated_at' => now(),
                     ]);
                 }
-
-                $header->update([
-                    'subtotal' => $totalAmount,
-                    'net_total' => $totalAmount,
-                    'total_amount' => $totalAmount
-                ]);
             }
 
             DB::commit();
