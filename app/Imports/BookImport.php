@@ -41,7 +41,6 @@ class BookImport implements ToCollection, WithHeadingRow
         $supplierCode  = $row['supplier_code'] ?? null;
         $authorCode    = $row['authors_code'] ?? null;
         $typeInput     = $row['type'] ?? null;
-        $quantity      = $row['quantity'] ?? 0;
         $cost          = $row['cost'] ?? 0;
         $sellingPrice  = $row['selling_price'] ?? 0;
 
@@ -166,7 +165,6 @@ class BookImport implements ToCollection, WithHeadingRow
 
         // 5. Handle StockMaster (iid = CREATE)
         foreach ($activeLocations as $location) {
-            $locQty = ($location->loca_code == '002') ? $quantity : 0.000;
             $stock = StockMaster::where('prod_code', $product->prod_code)
                 ->where('location', $location->loca_code)
                 ->where('iid', 'CREATE')
@@ -174,7 +172,6 @@ class BookImport implements ToCollection, WithHeadingRow
 
             if ($stock) {
                 $stock->update([
-                    'qty' => $locQty,
                     'purchase_price' => $cost,
                     'selling_price' => $sellingPrice,
                     'updated_at' => now(),
@@ -186,7 +183,7 @@ class BookImport implements ToCollection, WithHeadingRow
                     'doc_no' => '',
                     'prod_code' => $product->prod_code,
                     'iid' => 'CREATE',
-                    'qty' => $locQty,
+                    'qty' => 0.000,
                     'purchase_price' => $cost,
                     'selling_price' => $sellingPrice,
                     'amount' => 0.00,
