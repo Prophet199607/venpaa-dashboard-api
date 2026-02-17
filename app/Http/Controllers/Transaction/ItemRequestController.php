@@ -633,7 +633,7 @@ class ItemRequestController extends Controller
                 'delivery_address' => $data['delivery_address'],
                 'delivery_location' => $data['delivery_location'],
                 'remarks_ref' => $data['remarks_ref'],
-                'payment_mode' => $data['payment_mode'],
+                'payment_mode' => 'credit',
                 'subtotal' => $data['subtotal'] ?? 0,
                 'net_total' => $data['net_total'] ?? 0,
                 'discount' => $data['discount'] ?? 0,
