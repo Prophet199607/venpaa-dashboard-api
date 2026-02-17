@@ -322,6 +322,9 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            if (isset($data['prod_code'])) {
+                $data['barcode'] = $data['prod_code'];
+            }
             $product->update($data);
 
             // Sync authors - delete existing and create new rows
