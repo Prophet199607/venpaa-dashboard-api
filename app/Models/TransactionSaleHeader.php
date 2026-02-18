@@ -19,6 +19,16 @@ class TransactionSaleHeader extends Model
         return $this->belongsTo(Location::class, 'location', 'loca_code');
     }
 
+    public function deliveryLocation()
+    {
+        return $this->belongsTo(Location::class, 'delivery_location', 'loca_code');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_code', 'customer_code');
+    }
+
     public function transactionSaleDetails()
     {
         return $this->hasMany(TransactionSaleDetail::class);

@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             PaymentTypeSeeder::class,
             SecLevelSeeder::class,
+            CompanyHeaderSeeder::class,
         ]);
     }
 }

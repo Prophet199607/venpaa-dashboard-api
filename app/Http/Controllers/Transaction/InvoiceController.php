@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Models\CompanyHeader;
 use Illuminate\Http\Request;
 use App\Models\PaymentSummary;
 use App\Models\PaidPaymentDetail;
@@ -208,45 +209,6 @@ class InvoiceController extends Controller
                 'message' => 'Applied invoice loaded successfully!',
                 'status' => 'applied',
                 'data' => $transactionSaleHeaders->items()
-            ]);
-        }
-    }
-
-    public function loadInvoiceByCode($doc_number, $status, $iid)
-    {
-        if ($status == 'applied') {
-            $transactionSaleHeaders = TransactionSaleHeader::with([
-                'location',
-                'transactionSaleDetails.product.unit',
-                'transactionSaleDetails' => function ($query) {
-                    $query->orderBy('line_no');
-                }
-            ])
-                ->where(['doc_no' => $doc_number, 'iid' => $iid])
-                ->first();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Invoice loaded successfully!',
-                'status' => 'applied',
-                'data' => $transactionSaleHeaders
-            ]);
-        } elseif ($status == 'pending') {
-            $tempTransactionSaleHeaders = TempTransactionSaleHeader::with([
-                'location',
-                'tempTransactionSaleDetails.product.unit',
-                'tempTransactionSaleDetails' => function ($query) {
-                    $query->orderBy('line_no');
-                }
-            ])
-                ->where(['doc_no' => $doc_number, 'iid' => $iid])
-                ->first();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Invoice loaded successfully!',
-                'status' => 'pending',
-                'data' => $tempTransactionSaleHeaders
             ]);
         }
     }
@@ -488,6 +450,7 @@ class InvoiceController extends Controller
 
     public function store(TempTransactionSaleHeaderRequest $request)
     {
+        
         try {
             DB::beginTransaction();
 
@@ -687,6 +650,109 @@ class InvoiceController extends Controller
                 'message' => 'Failed to create invoice: ' . $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile()
+            ], 500);
+        }
+    }
+
+    public function loadInvoiceByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'transactionSaleDetails.product.unit',
+                'transactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'tempTransactionSaleDetails.product.unit',
+                'tempTransactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
+        }
+    }
+
+    public function loadVatInvoiceByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'transactionSaleDetails.product.unit',
+                'transactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'tempTransactionSaleDetails.product.unit',
+                'tempTransactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+            ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
+        }
+    }
+
+    public function getCompanyHeader()
+    {
+        try {
+            $company = CompanyHeader::first();
+            return response()->json([
+                'success' => true,
+                'data' => $company
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch company details',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
