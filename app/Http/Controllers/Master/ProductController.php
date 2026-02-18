@@ -331,6 +331,7 @@ class ProductController extends Controller
             if ($supplier) {
                 $query->whereHas('suppliers', function ($q) use ($supplier) {
                     $q->where('sup_code', $supplier);
+                    // $q->where('suppliers.sup_code', $supplier);
                 });
             }
 
