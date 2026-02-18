@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Sales;
 
 use App\Models\DocNumber;
-use App\Models\PosSalesman;
+use App\Models\RepSalesman;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -13,7 +13,7 @@ class SalesmanController extends Controller
     public function index()
     {
         try {
-            $salesmen = PosSalesman::all();
+            $salesmen = RepSalesman::all();
             return response()->json([
                 'success' => true,
                 'message' => 'Salesmen fetched successfully',
@@ -62,12 +62,12 @@ class SalesmanController extends Controller
             DB::beginTransaction();
 
             // Check if Salesman code already exists
-            if (PosSalesman::where('sales_code', $data['sales_code'])->exists()) {
+            if (RepSalesman::where('sales_code', $data['sales_code'])->exists()) {
                 $docCode = DocNumber::where('type', 'Salesman')->first()->getDocCode();
                 $data['sales_code'] = $docCode['code'];
             }
 
-            $salesman = PosSalesman::create($data);
+            $salesman = RepSalesman::create($data);
             DocNumber::where('type', 'Salesman')->first()->incrementLastId();
             
             DB::commit();
@@ -90,7 +90,7 @@ class SalesmanController extends Controller
     public function show($sales_code)
     {
         try {
-            $salesman = PosSalesman::where('sales_code', $sales_code)->first();
+            $salesman = RepSalesman::where('sales_code', $sales_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Salesman fetched successfully',
@@ -107,7 +107,7 @@ class SalesmanController extends Controller
 
     public function update(Request $request, $id)
     {
-        $salesman = PosSalesman::findOrFail($id);
+        $salesman = RepSalesman::findOrFail($id);
 
         $validatedData = $request->validate([
             'sales_name' => 'required|string|max:255',

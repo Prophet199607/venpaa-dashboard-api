@@ -32,7 +32,11 @@ class ProductRequest extends FormRequest
                 'string',
                 Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code'),
             ],
-            'prod_name' => 'required|string',
+            'prod_name' => [
+                'required',
+                'string',
+                Rule::unique('products', 'prod_name')->ignore($prodCode, 'prod_code'),
+            ],
             'short_description' => 'nullable|string',
             'department' => 'required|exists:departments,dep_code',
             'category' => 'required|exists:categories,cat_code',
@@ -56,7 +60,7 @@ class ProductRequest extends FormRequest
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
-            'unit_name' => 'nullable|string',
+            'unit_name' => 'required|string',
         ];
     }
 

@@ -30,6 +30,8 @@ class AcceptGoodNoteController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
 
         if ($request->status == 'pending') {
             $usedDocNos = TransactionHeader::where('iid', 'AGN')
@@ -39,43 +41,57 @@ class AcceptGoodNoteController extends Controller
 
             $pendingAgn = TransactionHeader::where('iid', $request->iid)
                 ->where('delivery_location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->whereNotIn('doc_no', $usedDocNos)
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $pendingAgn->getCollection()->map(function ($agn) {
+            $formattedData = collect($pendingAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();
                 return $data;
             });
 
-            $pendingAgn->setCollection($formattedData);
+            // $formattedData = $pendingAgn->getCollection()->map(function ($agn) {
+            //     $data = $agn->toArray();
+            //     return $data;
+            // });
+
+            // $pendingAgn->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Pending AGN loaded successfully!',
                 'status' => 'pending',
                 'user_location' => $userLocation,
-                'data' => $pendingAgn->items()
+                'data' => $formattedData,
             ]);
         } else {
             $appliedAgn = TransactionHeader::where('iid', $request->iid)
                 ->where('delivery_location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $appliedAgn->getCollection()->map(function ($agn) {
+            $formattedData = collect($appliedAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();
                 return $data;
             });
 
-            $appliedAgn->setCollection($formattedData);
+            // $formattedData = $appliedAgn->getCollection()->map(function ($agn) {
+            //     $data = $agn->toArray();
+            //     return $data;
+            // });
+
+            // $appliedAgn->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied AGN loaded successfully!',
                 'status' => 'applied',
                 'user_location' => $userLocation,
-                'data' => $appliedAgn->items()
+                'data' => $formattedData,    
             ]);
         }
     }

@@ -8,6 +8,7 @@ use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Sales\CashierController;
 use App\Http\Controllers\Sales\SalesmanController;
+use App\Http\Controllers\Sales\DiscountController;
 use App\Http\Controllers\RolePermissionController;
 
 use App\Http\Controllers\Master\BookController;
@@ -24,13 +25,12 @@ use App\Http\Controllers\Master\PriceLevelController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
-use App\Http\Controllers\Master\BarcodePrintController;
-use App\Http\Controllers\Master\ClientBarcodeSettingController;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\Transaction\ItemRequestController;
 use App\Http\Controllers\Transaction\PurchaseOrderController;
+use App\Http\Controllers\Transaction\ProductDiscardController;
 use App\Http\Controllers\Transaction\AcceptGoodNoteController;
 use App\Http\Controllers\Transaction\GoodReceiveNoteController;
 use App\Http\Controllers\Transaction\StockAdjustmentController;
@@ -208,14 +208,23 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // products routes
     Route::group(['prefix' => 'products'], function () {
+        Route::get('/export-open-stock-template', [ProductController::class, 'exportOpenStockTemplate']);
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
         Route::get('/search', [ProductController::class, 'search']);
+        Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::get('/', [ProductController::class, 'index']);
         Route::post('/', [ProductController::class, 'store']);
-        Route::get('/{prod_code}', [ProductController::class, 'show']);
+        Route::post('/import-open-stock', [ProductController::class, 'importOpenStock']);
         Route::put('/{prod_code}', [ProductController::class, 'update']);
+    });
+
+    // product discounts routes
+    Route::group(['prefix' => 'products/discounts'], function () {
+        Route::post('/filter', [DiscountController::class, 'filter']);
+        Route::post('/update', [DiscountController::class, 'update']);
+        Route::get('/list', [DiscountController::class, 'list']);
     });
 
     // salesman routes
@@ -245,12 +254,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::delete('/expired', [PriceLevelController::class, 'deleteExpired']);
         Route::delete('/product/{prod_code}', [PriceLevelController::class, 'deleteByProduct']);
         Route::delete('/{id}', [PriceLevelController::class, 'destroy']);
-    });
-
-    // barcode print routes
-    Route::group(['prefix' => 'barcodes'], function () {
-        Route::post('/print', [BarcodePrintController::class, 'print']);
-        Route::apiResource('/settings', ClientBarcodeSettingController::class);
     });
 
     // common transactions routes
@@ -345,6 +348,19 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
+    });
+
+    // product discards routes
+    Route::group(['prefix' => 'product-discards'], function () {
+        Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [ProductDiscardController::class, 'loadTransactionByCode']);
+        Route::get('/load-all-transactions', [ProductDiscardController::class, 'loadAllTransactions']);
+        Route::get('/unsaved-sessions', [ProductDiscardController::class, 'getUnsavedSessions']);
+        Route::get('/discard-types', [ProductDiscardController::class, 'getDiscardTypes']);
+        
+        Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct']);
+
+        Route::post('/add-product', [ProductDiscardController::class, 'addProduct']);
+        Route::post('/save-pd', [ProductDiscardController::class, 'store']);
     });
 
     // payment voucher routes

@@ -32,7 +32,11 @@ class BookRequest extends FormRequest
                 'string',
                 Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code'),
             ],
-            'prod_name' => 'required|string',
+            'prod_name' => [
+                'required',
+                'string',
+                Rule::unique('products', 'prod_name')->ignore($prodCode, 'prod_code'),
+            ],
             'short_description' => 'nullable|string',
             'department' => 'required|exists:departments,dep_code',
             'category' => 'required|exists:categories,cat_code',
@@ -44,13 +48,21 @@ class BookRequest extends FormRequest
             'marked_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
 
-            'title_in_other_language' => 'nullable|string',
-            'book_type' => 'nullable|exists:book_types,bkt_code',
-            'publisher' => 'nullable|exists:publishers,pub_code',
-            'supplier' => 'nullable|string',
-            'author' => 'nullable|string',
 
-            'isbn' => 'nullable|string',
+            'title_in_other_language' => 'required|string',
+            'tamil_description' => 'required|string',
+            'book_type' => 'nullable|exists:book_types,bkt_code',
+            'publisher' => 'required|exists:publishers,pub_code',
+            'supplier' => 'nullable|string',
+            'author' => 'required|string',
+
+            'isbn' => [
+                'nullable',
+                'string',
+                Rule::unique('products', 'isbn')
+                    ->ignore($prodCode, 'prod_code')
+                    ->whereNotNull('isbn'),
+            ],
             'publish_year' => 'nullable|digits:4',
             'alert_qty' => 'nullable|integer',
             'width' => 'nullable|numeric',
@@ -66,6 +78,18 @@ class BookRequest extends FormRequest
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
             'unit_name' => 'nullable|string',
+        ];
+    }
+
+    /**
+     * Get custom error messages for validation rules.
+     *
+     * @return array
+     */
+    public function messages()
+    {
+        return [
+            'isbn.unique' => 'This ISBN is already in use by another book.',
         ];
     }
 

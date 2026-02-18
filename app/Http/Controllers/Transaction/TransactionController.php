@@ -222,48 +222,50 @@ class TransactionController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
 
         if ($request->status == 'drafted') {
             $tempTransactionData = TempTransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $tempTransactionData->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($tempTransactionData->items())->map(function ($transaction) {
+                $data = $transaction->toArray();
+                $data['supplier_name'] = $transaction->supplier ? $transaction->supplier->sup_name : null;
                 return $data;
             });
-
-            $tempTransactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Draft transactions loaded successfully!',
                 'status' => 'drafted',
-                'data' => $tempTransactionData->items()
+                'data' => $formattedData,
             ]);
         } else {
             $transactionData = TransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
                 ->paginate(10);
 
-            $formattedData = $transactionData->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($transactionData->items())->map(function ($transaction) {
+                $data = $transaction->toArray();
+                $data['supplier_name'] = $transaction->supplier ? $transaction->supplier->sup_name : null;
                 return $data;
             });
-
-            $transactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied transactions loaded successfully!',
                 'status' => 'applied',
-                'data' => $transactionData->items()
+                'data' => $formattedData,
             ]);
         }
     }

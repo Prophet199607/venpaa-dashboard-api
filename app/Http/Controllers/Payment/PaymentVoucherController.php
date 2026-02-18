@@ -113,7 +113,9 @@ class PaymentVoucherController extends Controller
 
             // 3. Handle Payment Set-Off
             $setoffNumber = "";
-            $hasSetOffPayment = collect($payments)->contains('mode', 'PAYMENT SETOFF');
+            $hasSetOffPayment = collect($payments)->contains(function ($p) {
+                return isset($p['mode']) && strtoupper($p['mode']) === 'PAYMENT SETOFF';
+            });
 
             if ($hasSetOffPayment) {
                 if (empty($setOffDocs)) {

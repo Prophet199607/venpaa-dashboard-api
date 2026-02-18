@@ -11,9 +11,12 @@ use App\Models\StockMaster;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
 use App\Models\ProductSupplier;
+use App\Imports\OpenStockImport;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
+use App\Exports\OpenStockTemplateExport;
 use App\Http\Requests\Master\ProductRequest;
 use App\Http\Resources\Master\ProductResource;
 
@@ -131,6 +134,7 @@ class ProductController extends Controller
             }
 
             unset($data['supplier']);
+            $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
 
             // Handle suppliers data
@@ -327,6 +331,7 @@ class ProductController extends Controller
             if ($supplier) {
                 $query->whereHas('suppliers', function ($q) use ($supplier) {
                     $q->where('sup_code', $supplier);
+                    // $q->where('suppliers.sup_code', $supplier);
                 });
             }
 
@@ -336,6 +341,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+             ->orderByRaw("CASE 
+                WHEN prod_code = ? THEN 1 
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3 
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 
@@ -374,6 +386,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+            ->orderByRaw("CASE 
+                WHEN prod_code = ? THEN 1 
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3 
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 
@@ -408,5 +427,33 @@ class ProductController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function importOpenStock(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+                'location' => 'required|string'
+            ]);
+
+            Excel::import(new OpenStockImport($request->location), $request->file('file'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Open stock imported successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import open stock',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function exportOpenStockTemplate()
+    {
+        return Excel::download(new OpenStockTemplateExport, 'open_stock_template.xlsx');
     }
 }

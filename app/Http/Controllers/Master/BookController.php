@@ -15,6 +15,7 @@ use App\Models\ProductImage;
 use App\Models\ProductAuthor;
 use App\Models\ProductSupplier;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -321,6 +322,9 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            if (isset($data['prod_code'])) {
+                $data['barcode'] = $data['prod_code'];
+            }
             $product->update($data);
 
             // Sync authors - delete existing and create new rows

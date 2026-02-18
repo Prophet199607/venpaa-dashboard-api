@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreatePosSalesmanTable extends Migration
+class CreateRepSalesmenTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,7 +13,7 @@ class CreatePosSalesmanTable extends Migration
      */
     public function up()
     {
-        Schema::create('pos_salesman', function (Blueprint $table) {
+        Schema::create('rep_salesmen', function (Blueprint $table) {
             $table->id();
             $table->string("sales_code");
             $table->string("sales_name");
@@ -33,6 +33,6 @@ class CreatePosSalesmanTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('pos_salesman');
+        Schema::dropIfExists('rep_salesmen');
     }
 }

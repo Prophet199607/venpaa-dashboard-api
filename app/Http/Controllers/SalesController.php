@@ -17,7 +17,7 @@ class SalesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'Details' => 'required|array|min:1',
-            'Details.*.R_No' => 'required|string|max:1000',
+            'Details.*.R_No' => 'required|string|max:1000|distinct',
         ]);
 
         if ($validator->fails()) {
@@ -31,7 +31,9 @@ class SalesController extends Controller
         $details = $request->input('Details');
 
         try {
+
             $rNos = collect($details)->pluck('R_No')->unique()->toArray();
+
             $existingRNos = PosTransactionApi::whereIn('R_No', $rNos)
                 ->pluck('R_No')
                 ->toArray();
@@ -39,15 +41,23 @@ class SalesController extends Controller
             DB::beginTransaction();
 
             $records = [];
+            $processedRNos = [];
+
             foreach ($details as $item) {
+
+                // Skip if exists in DB
                 if (in_array($item['R_No'], $existingRNos)) {
                     continue;
                 }
-                if (collect($records)->pluck('R_No')->contains($item['R_No'])) {
+
+                // Skip if already processed in this loop
+                if (in_array($item['R_No'], $processedRNos)) {
                     continue;
                 }
 
                 $records[] = $this->storeRecord($item);
+
+                $processedRNos[] = $item['R_No'];
             }
 
             DB::commit();
@@ -61,7 +71,9 @@ class SalesController extends Controller
             ], 200);
 
         } catch (Exception $e) {
+
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process transactions',

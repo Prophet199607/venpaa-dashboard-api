@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateResCashierTable extends Migration
+class CreateRepCashiersTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,7 +13,7 @@ class CreateResCashierTable extends Migration
      */
     public function up()
     {
-        Schema::create('res_cashier', function (Blueprint $table) {
+        Schema::create('rep_cashiers', function (Blueprint $table) {
             $table->id();
             $table->string('emp_code');
             $table->string('emp_name', 50);
@@ -54,6 +54,6 @@ class CreateResCashierTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('res_cashier');
+        Schema::dropIfExists('rep_cashiers');
     }
 }

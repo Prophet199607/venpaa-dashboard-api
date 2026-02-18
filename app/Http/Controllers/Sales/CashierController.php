@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Sales;
 
-use App\Models\Cashier;
 use App\Models\SecLevel;
 use App\Models\Location;
 use App\Models\DocNumber;
+use App\Models\RepCashier;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +16,8 @@ class CashierController extends Controller
     public function index()
     {
         try {
-            $cashiers = Cashier::leftJoin('locations', 'cashiers.cashier_loca', '=', 'locations.loca_code')
-                ->select('cashiers.*', 'locations.loca_name')
+            $cashiers = RepCashier::leftJoin('locations', 'rep_cashiers.cashier_loca', '=', 'locations.loca_code')
+                ->select('rep_cashiers.*', 'locations.loca_name')
                 ->get();
             return response()->json([
                 'success' => true,
@@ -36,7 +36,7 @@ class CashierController extends Controller
     public function show($emp_code)
     {
         try {
-            $cashier = Cashier::where('emp_code', $emp_code)->first();
+            $cashier = RepCashier::where('emp_code', $emp_code)->first();
             return response()->json([
                 'success' => true,
                 'message' => 'Cashier fetched successfully',
@@ -85,8 +85,8 @@ class CashierController extends Controller
         $validatedData = $request->validate([
             'emp_code' => 'required|string|max:255',
             'emp_name' => 'required|string|max:50',
-            'username' => 'required|string|max:50|unique:cashiers',
-            'password' => 'required|string|max:50|unique:cashiers',
+            'username' => 'required|string|max:50|unique:rep_cashiers',
+            'password' => 'required|string|max:50|unique:rep_cashiers',
             'mobile_number' => 'nullable|string|max:20',
             'cashier_loca' => 'required|string',
             'cancel' => 'boolean',
@@ -132,7 +132,7 @@ class CashierController extends Controller
                 }
             }
 
-            $cashier = Cashier::create($data);
+            $cashier = RepCashier::create($data);
 
             // Increment DocNumber last_id
             $docNumber = DocNumber::where('type', 'Cashier')->first();
@@ -159,12 +159,12 @@ class CashierController extends Controller
 
     public function update(Request $request, $id)
     {
-        $cashier = Cashier::findOrFail($id);
+        $cashier = RepCashier::findOrFail($id);
 
         $validatedData = $request->validate([
             'emp_name' => 'required|string|max:50',
-            'username' => 'required|string|max:50|unique:cashiers,username,' . $id,
-            'password' => 'required|string|max:50|unique:cashiers,password,' . $id,
+            'username' => 'required|string|max:50|unique:rep_cashiers,username,' . $id,
+            'password' => 'required|string|max:50|unique:rep_cashiers,password,' . $id,
             'mobile_number' => 'nullable|string|max:20',
             'cashier_loca' => 'required|string',
             'cancel' => 'boolean',
