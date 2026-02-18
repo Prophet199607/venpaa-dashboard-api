@@ -11,14 +11,14 @@ use App\Models\StockMaster;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
 use App\Models\ProductSupplier;
-use App\Imports\OpenStockImport;
+use App\Models\TransactionDetail;
+use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
-use App\Exports\OpenStockTemplateExport;
 use App\Http\Requests\Master\ProductRequest;
 use App\Http\Resources\Master\ProductResource;
+
 
 class ProductController extends Controller
 {
@@ -429,31 +429,120 @@ class ProductController extends Controller
         }
     }
 
-    public function importOpenStock(Request $request)
+    // public function importOpenStock(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'file' => 'required|file|mimes:xlsx,xls,csv',
+    //             'location' => 'required|string'
+    //         ]);
+
+    //         Excel::import(new OpenStockImport($request->location), $request->file('file'));
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Open stock imported successfully',
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to import open stock',
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    // public function exportOpenStockTemplate()
+    // {
+    //     return Excel::download(new OpenStockTemplateExport, 'open_stock_template.xlsx');
+    // }
+
+    public function storeOpenStock(Request $request)
     {
         try {
-            $request->validate([
-                'file' => 'required|file|mimes:xlsx,xls,csv',
-                'location' => 'required|string'
-            ]);
+            DB::beginTransaction();
 
-            Excel::import(new OpenStockImport($request->location), $request->file('file'));
+            $items = $request->input('items', []);
+
+            if (empty($items)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items provided',
+                ], 400);
+            }
+
+            $itemsByLocation = collect($items)->groupBy('loca_code');
+            $createdDocs = [];
+
+            foreach ($itemsByLocation as $locaCode => $locationItems) {
+                $generated = DocNumber::generate('OpenStock', 'OPS', 8, $locaCode);
+                $docNo = is_array($generated) ? $generated['code'] : $generated;
+
+                $netTotal = $locationItems->sum(function ($item) {
+                     return (float) $item['amount'];
+                });
+
+                $header = TransactionHeader::create([
+                    'doc_no' => $docNo,
+                    'iid' => 'OPS',
+                    'location' => $locaCode,
+                    'remarks_ref' => 'Open Stock',
+                    'created_by' => auth()->id(),
+                    'subtotal' => $netTotal,
+                    'net_total' => $netTotal,
+                    'document_date' => now(),
+                ]);
+
+                $lineNo = 1;
+                foreach ($locationItems as $item) {
+                    TransactionDetail::create([
+                        'line_no' => $lineNo++,
+                        'doc_no' => $docNo,
+                        'iid' => 'OPS',
+                        'transaction_header_id' => $header->id,
+                        'prod_code' => $item['prod_code'],
+                        'prod_name' => $item['prod_name'],
+                        'pack_size' => $item['pack_size'],
+                        'pack_qty' => $item['pack_qty'],
+                        'unit_qty' => $item['unit_qty'],
+                        'total_qty' => $item['total_qty'],
+                        'purchase_price' => $item['purchase_price'],
+                        'selling_price' => $item['selling_price'],
+                        'amount' => $item['amount'],
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    StockMaster::create([
+                        'location' => $locaCode,
+                        'transaction_date' => now(),
+                        'doc_no' => $docNo,
+                        'prod_code' => $item['prod_code'],
+                        'iid' => 'OPS',
+                        'qty' => $item['total_qty'],
+                        'purchase_price' => $item['purchase_price'],
+                        'selling_price' => $item['selling_price'],
+                        'amount' => $item['amount'],
+                    ]);
+                }
+
+                $createdDocs[] = $docNo;
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Open stock imported successfully',
+                'message' => 'Open stock stored successfully',
+                'docs' => $createdDocs
             ], 200);
+
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to import open stock',
+                'message' => 'Failed to store open stock',
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
-
-    public function exportOpenStockTemplate()
-    {
-        return Excel::download(new OpenStockTemplateExport, 'open_stock_template.xlsx');
     }
 }
