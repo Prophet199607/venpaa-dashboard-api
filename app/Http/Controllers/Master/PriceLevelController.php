@@ -86,35 +86,25 @@ class PriceLevelController extends Controller
         ]);
     }
 
-    public function deleteByProduct($prod_code)
+    public function deleteAll(Request $request)
     {
-        $priceLevels = PriceLevel::where('prod_code', $prod_code)->get();
-        
+        $prod_code = $request->query('prod_code');
+        $query = PriceLevel::query();
+
+        if ($prod_code) {
+            $query->where('prod_code', $prod_code);
+        }
+
+        $priceLevels = $query->get();
         foreach ($priceLevels as $pl) {
             $this->logAction($pl, 'deleted');
         }
 
-        PriceLevel::where('prod_code', $prod_code)->delete();
+        $query->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'All price levels for this product deleted'
-        ]);
-    }
-
-    public function deleteExpired()
-    {
-        $priceLevels = PriceLevel::all();
-        
-        foreach ($priceLevels as $pl) {
-            $this->logAction($pl, 'deleted');
-        }
-
-        PriceLevel::query()->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'All price levels removed'
+            'message' => $prod_code ? "All price levels for product $prod_code deleted" : "All price levels deleted successfully"
         ]);
     }
 
