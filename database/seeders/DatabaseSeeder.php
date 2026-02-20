@@ -33,6 +33,8 @@ class DatabaseSeeder extends Seeder
             PaymentTypeSeeder::class,
             DiscardTypeSeeder::class,
             SecLevelSeeder::class,
+            CourierWeightChargeSeeder::class,
+            CodValueChargeSeeder::class,
         ]);
     }
 }
