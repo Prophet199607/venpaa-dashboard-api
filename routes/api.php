@@ -249,6 +249,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'price-levels'], function () {
         Route::get('/', [PriceLevelController::class, 'index']);
         Route::post('/', [PriceLevelController::class, 'store']);
+        Route::put('/{id}', [PriceLevelController::class, 'update']);
         Route::post('/batch', [PriceLevelController::class, 'batchStore']);
         Route::delete('/expired', [PriceLevelController::class, 'deleteExpired']);
         Route::delete('/product/{prod_code}', [PriceLevelController::class, 'deleteByProduct']);
