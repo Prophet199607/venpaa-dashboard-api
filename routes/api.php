@@ -258,6 +258,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // common transactions routes
     Route::group(['prefix' => 'transactions'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadTransactionByCode']);
+        Route::get('/load-vat-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadVatTransactionByCode']);
         Route::get('/generate-code/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
         Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
@@ -373,6 +374,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // invoice routes
     Route::group(['prefix' => 'invoices'], function () {
         Route::get('/load-invoice-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadInvoiceByCode']);
+        Route::get('/company-header', [InvoiceController::class, 'getCompanyHeader']);
+        Route::get('/load-vat-invoice-by-code/{doc_number}/{status}/{iid}', [InvoiceController::class, 'loadVatInvoiceByCode']);
         Route::get('/temp-products/{doc_no}', [InvoiceController::class, 'getTempProducts']);
         Route::get('/unsaved-sessions', [InvoiceController::class, 'getUnsavedSessions']);
         Route::get('/load-all-invoices', [InvoiceController::class, 'loadAllInvoices']);
