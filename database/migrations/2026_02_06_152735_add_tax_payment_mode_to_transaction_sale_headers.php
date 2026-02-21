@@ -15,7 +15,7 @@ class AddTaxPaymentModeToTransactionSaleHeaders extends Migration
     {
         Schema::table('transaction_sale_headers', function (Blueprint $table) {
              $table->string('payment_mode')->nullable()->after('comments');
-             $table->boolean('is_vat')->nullable()->after('payment_mode')->default(false);
+             $table->string('vat_percent')->nullable()->after('payment_mode')->default(false);
         });
     }
 

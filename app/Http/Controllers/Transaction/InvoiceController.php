@@ -387,6 +387,11 @@ class InvoiceController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->user()->id;
+
+            if (isset($data['is_vat']) && $data['is_vat'] == true) {
+                $data['vat_percent'] = 18;
+            }
+
             $data = $this->processDiscountAndTax($data);
 
             $tempHeader = TempTransactionSaleHeader::create($data);
@@ -429,6 +434,11 @@ class InvoiceController extends Controller
 
             $data = $request->validated();
             $data['updated_by'] = auth()->user()->id;
+
+            if (isset($data['is_vat']) && $data['is_vat'] == true) {
+                $data['vat_percent'] = 18;
+            }
+
             $data = $this->processDiscountAndTax($data);
 
             $transactionDetail->update($data);
@@ -473,6 +483,10 @@ class InvoiceController extends Controller
             // ---------------------------------------------------------
             $headerData = $data;
             unset($headerData['id']); // Remove ID if present from request/validated data
+
+            if (isset($headerData['is_vat']) && $headerData['is_vat'] == true) {
+                $headerData['vat_percent'] = 18;
+            }
 
             // $transactionSaleHeader = TransactionSaleHeader::create([
             //     ...$headerData,

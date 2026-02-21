@@ -54,6 +54,8 @@ class TempTransactionSaleHeaderRequest extends FormRequest
             'is_approved' => 'nullable|boolean',
             'approved_by' => 'nullable|string|max:255',
             'is_vat' => 'nullable|boolean',
+            'vat_percent' => 'nullable|numeric',
+
         ];
     }
 }
