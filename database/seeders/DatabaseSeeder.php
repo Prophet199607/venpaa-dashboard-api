@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             CourierWeightChargeSeeder::class,
             CodValueChargeSeeder::class,
             CompanyHeaderSeeder::class,
+            IidSeeder::class,
         ]);
     }
 }
