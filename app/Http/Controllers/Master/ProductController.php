@@ -472,6 +472,24 @@ class ProductController extends Controller
             }
 
             $itemsByLocation = collect($items)->groupBy('loca_code');
+
+            // Check if any product already has Open Stock stored in the requested locations
+            foreach ($itemsByLocation as $locaCode => $locationItems) {
+                foreach ($locationItems as $item) {
+                    $exists = StockMaster::where('prod_code', $item['prod_code'])
+                        ->where('location', $locaCode)
+                        ->where('iid', 'OPS')
+                        ->exists();
+
+                    if ($exists) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Open stock already stored for product {$item['prod_code']} and location {$locaCode}.",
+                        ], 400);
+                    }
+                }
+            }
+
             $createdDocs = [];
 
             foreach ($itemsByLocation as $locaCode => $locationItems) {
@@ -485,6 +503,7 @@ class ProductController extends Controller
                 $header = TransactionHeader::create([
                     'doc_no' => $docNo,
                     'iid' => 'OPS',
+                    'transaction_date' => now(),
                     'location' => $locaCode,
                     'remarks_ref' => 'Open Stock',
                     'created_by' => auth()->id(),
@@ -541,6 +560,29 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to store open stock',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function checkOpenStock($prod_code)
+    {
+        try {
+            $existingLocations = StockMaster::where('prod_code', $prod_code)
+                ->where('iid', 'OPS')
+                ->pluck('location')
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'existing_locations' => $existingLocations
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check open stock status',
                 'error' => $e->getMessage()
             ], 500);
         }
