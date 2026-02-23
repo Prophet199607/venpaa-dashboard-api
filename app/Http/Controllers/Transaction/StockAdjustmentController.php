@@ -109,9 +109,13 @@ class StockAdjustmentController extends Controller
                 ], 400);
             }
 
-            $query    = StockMaster::where('prod_code', $prodCode)->where('location', $locaCode);
+            $query = StockMaster::where('prod_code', $prodCode)
+                ->where('location', $locaCode)
+                ->where('iid', '!=', 'CREATE');
+
             $totalQty = $query->sum('qty');
-            $firstRecord = $query->first();
+            $firstRecord = $query->orderByDesc('id')->first();
+            // $firstRecord = $query->first();
 
             if (!$firstRecord && $totalQty == 0) {
                 return response()->json([
