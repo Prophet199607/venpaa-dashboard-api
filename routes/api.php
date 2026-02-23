@@ -345,8 +345,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/stock', [StockAdjustmentController::class, 'getProductStock']);
 
         Route::put('/update-product/{id}', [StockAdjustmentController::class, 'updateProduct']);
+        Route::put('/draft/{doc_no}', [StockAdjustmentController::class, 'updateDraft']);
 
         Route::post('/add-product', [StockAdjustmentController::class, 'addProduct']);
+        Route::post('/draft', [StockAdjustmentController::class, 'draft']);
         Route::post('/save-sta', [StockAdjustmentController::class, 'store']);
     });
 
