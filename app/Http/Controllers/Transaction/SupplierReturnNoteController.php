@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Models\PaymentSummary;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,6 @@ use App\Http\Controllers\Controller;
 use App\Models\TempTransactionDetail;
 use App\Models\TempTransactionHeader;
 use Illuminate\Support\Facades\Cache;
-use App\Http\Requests\Transaction\TempTransactionDetailRequest;
 use App\Http\Requests\Transaction\TempTransactionHeaderRequest;
 
 class SupplierReturnNoteController extends Controller
@@ -181,7 +181,7 @@ class SupplierReturnNoteController extends Controller
                         'transaction_date' => $data['document_date'],
                         'doc_no' => $srnNumber,
                         'prod_code' => $detail->prod_code,
-                        'iid' => $data['iid'] ?? 'GRN',
+                        'iid' => $data['iid'] ?? 'SRN',
                         'qty' => -(abs($detail->total_qty ?? 0.000)),
                         'purchase_price' => $detail->purchase_price ?? 0.00,
                         'selling_price' => $detail->selling_price ?? 0.00,
@@ -190,6 +190,24 @@ class SupplierReturnNoteController extends Controller
                         'updated_at' => now(),
                     ]);
                 }
+
+                $netTotal = $data['net_total'] ?? 0;
+                $paymentMode = strtolower($data['payment_mode'] ?? '');
+
+                // Create PaymentSummary records for each product
+                PaymentSummary::create([
+                    'acc_code' => $data['supplier_code'] ?? null,
+                    'acc_type' => 'supplier',
+                    'iid' => $data['iid'] ?? 'SRN',
+                    'doc_no' => $srnNumber,
+                    'transaction_amount' => abs($netTotal),
+                    'balance_amount' => abs($netTotal),
+                    'transaction_date' => $data['transaction_date'] ?? null,
+                    'document_date' => $data['document_date'] ?? null,
+                    'location' => $data['location'] ?? null,
+                    'month_end' => 0,
+                ]);
+
 
                 // Clean up temp details for this doc
                 if (TempTransactionDetail::where('doc_no', $data['doc_no'])->exists()) {
