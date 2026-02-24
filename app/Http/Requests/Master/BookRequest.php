@@ -68,7 +68,7 @@ class BookRequest extends FormRequest
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',
-            'weight' => 'nullable|numeric',
+            'weight' => 'nullable|integer',
             'pages' => 'nullable|integer',
             'barcode' => 'nullable|string',
             'language' => 'nullable|string',

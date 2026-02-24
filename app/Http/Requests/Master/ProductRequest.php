@@ -53,7 +53,7 @@ class ProductRequest extends FormRequest
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',
-            'weight' => 'nullable|numeric',
+            'weight' => 'nullable|integer',
             'barcode' => 'nullable|string',
             'prod_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'images' => 'nullable|array',
