@@ -198,10 +198,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
+        Route::get('/{prod_code}/bin-card', [BookController::class, 'binCard']);
+        Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/import', [BookController::class, 'import']);
         Route::get('/export', [BookController::class, 'export']);
         Route::get('/', [BookController::class, 'index']);
-        Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/', [BookController::class, 'store']);
         Route::put('/{prod_code}', [BookController::class, 'update']);
     });
@@ -358,7 +359,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-all-transactions', [ProductDiscardController::class, 'loadAllTransactions']);
         Route::get('/unsaved-sessions', [ProductDiscardController::class, 'getUnsavedSessions']);
         Route::get('/discard-types', [ProductDiscardController::class, 'getDiscardTypes']);
-        
+
         Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct']);
 
         Route::post('/add-product', [ProductDiscardController::class, 'addProduct']);
