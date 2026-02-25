@@ -114,7 +114,8 @@ class AuthorController extends Controller
             if ($request->hasFile('auth_image')) {
                 $image = $request->file('auth_image');
                 $filename = $data['auth_code'] . '.' . $image->getClientOriginalExtension();
-                $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+                // $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+                $data['auth_image'] = $image->storeAs('authors', $filename, 's3');
             } else {
                 $data['auth_image'] = $data['auth_code'];
             }
@@ -147,14 +148,16 @@ class AuthorController extends Controller
             // If auth_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['auth_code']) && $data['auth_code'] !== $auth_code) || $request->hasFile('auth_image')) {
                 if ($author->auth_image) {
-                    Storage::disk('public')->delete($author->auth_image);
+                    // Storage::disk('public')->delete($author->auth_image);
+                    Storage::disk('s3')->delete($author->auth_image);
                 }
             }
 
             if ($request->hasFile('auth_image')) {
                 $image = $request->file('auth_image');
                 $filename = $new_auth_code . '.' . $image->getClientOriginalExtension();
-                $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+                // $data['auth_image'] = $image->storeAs('authors', $filename, 'public');
+                $data['auth_image'] = $image->storeAs('authors', $filename, 's3');
             } else {
                 unset($data['auth_image']);
             }

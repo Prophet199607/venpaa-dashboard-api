@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryResource extends JsonResource
 {
@@ -20,10 +21,28 @@ class CategoryResource extends JsonResource
             'cat_name'     => $this->cat_name,
             'cat_image'    => $this->cat_image,
             'department'   => $this->department,
-            'cat_image_url' => $this->cat_image ? asset('storage/' . $this->cat_image) : null,
+            // 'cat_image_url' => $this->cat_image ? asset('storage/' . $this->cat_image) : null,
+            'cat_image_url' => $this->getS3Url(),
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
             'sub_categories' => $this->whenLoaded('subCategories'),
         ];
+    }
+
+    /**
+     * Get S3 URL with proper type hinting for Intelephense
+     * 
+     * @return string|null
+     */
+    private function getS3Url()
+    {
+        if (!$this->cat_image) {
+            return null;
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
+        return $disk->temporaryUrl($this->cat_image, now()->addMinutes(60));
     }
 }

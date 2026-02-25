@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class SupplierResource extends JsonResource
 {
@@ -25,9 +26,27 @@ class SupplierResource extends JsonResource
             'email'         => $this->email,
             'description'   => $this->description,
             'sup_image'     => $this->sup_image,
-            'sup_image_url' => $this->sup_image ? asset('storage/' . $this->sup_image) : null,
+            'sup_image_url' => $this->getS3Url(),
+            // 'sup_image_url' => $this->sup_image ? asset('storage/' . $this->sup_image) : null,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
         ];
+    }
+
+    /**
+     * Get S3 URL with proper type hinting for Intelephense
+     * 
+     * @return string|null
+     */
+    private function getS3Url()
+    {
+        if (!$this->sup_image) {
+            return null;
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
+        return $disk->temporaryUrl($this->sup_image, now()->addMinutes(60));
     }
 }
