@@ -85,7 +85,8 @@ class CategoryController extends Controller
             if ($request->hasFile('cat_image')) {
                 $image = $request->file('cat_image');
                 $filename = $data['cat_code'] . '.' . $image->getClientOriginalExtension();
-                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                // $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                $data['cat_image'] = $image->storeAs('categories', $filename, 's3');
             } else {
                 $data['cat_image'] = $data['cat_code'];
             }
@@ -121,14 +122,16 @@ class CategoryController extends Controller
             // If cat_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['cat_code']) && $data['cat_code'] !== $cat_code) || $request->hasFile('cat_image')) {
                 if ($category->cat_image) {
-                    Storage::disk('public')->delete($category->cat_image);
+                    // Storage::disk('public')->delete($category->cat_image);
+                    Storage::disk('s3')->delete($category->cat_image);
                 }
             }
 
             if ($request->hasFile('cat_image')) {
                 $image = $request->file('cat_image');
                 $filename = $new_cat_code . '.' . $image->getClientOriginalExtension();
-                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                // $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                $data['cat_image'] = $image->storeAs('categories', $filename, 's3');
             } else {
                 unset($data['cat_image']);
             }

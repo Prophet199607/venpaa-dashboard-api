@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class BookResource extends JsonResource
 {
@@ -58,10 +59,12 @@ class BookResource extends JsonResource
             'barcode'       => $this->barcode,
             'language'      => $this->language,
             'prod_image'    => $this->prod_image,
-            'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
+            // 'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
+            'prod_image_url' => $this->getS3Url($this->prod_image),
             'image_urls'     => $this->whenLoaded('images', function () {
                 return $this->images->map(function ($Image) {
-                    return asset('storage/' . $Image->image);
+                    // return asset('storage/' . $Image->image);
+                    return $this->getS3Url($Image->image);
                 });
             }),
             'description'   => $this->description,
@@ -70,5 +73,23 @@ class BookResource extends JsonResource
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
         ];
+    }
+
+    /**
+     * Get S3 URL with proper type hinting for Intelephense
+     * 
+     * @param string|null $imagePath
+     * @return string|null
+     */
+    private function getS3Url($imagePath)
+    {
+        if (!$imagePath) {
+            return null;
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
+        return $disk->temporaryUrl($imagePath, now()->addMinutes(60));
     }
 }

@@ -129,7 +129,8 @@ class ProductController extends Controller
             if ($request->hasFile('prod_image')) {
                 $prodImage = $request->file('prod_image');
                 $filename = $data['prod_code'] . '.' . $prodImage->getClientOriginalExtension();
-                $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                // $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                $prodImagePath = $prodImage->storeAs('products/main', $filename, 's3');
                 $data['prod_image'] = $prodImagePath;
             }
 
@@ -156,7 +157,8 @@ class ProductController extends Controller
                 foreach ($images as $image) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $product->prod_code . '-' . $timestamp . '.' . $image->getClientOriginalExtension();
-                    $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    // $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    $imagePath = $image->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $product->prod_code,
                         'image' => $imagePath,
@@ -238,11 +240,13 @@ class ProductController extends Controller
             if ($request->hasFile('prod_image')) {
                 // Delete old image if exists
                 if ($product->prod_image) {
-                    Storage::disk('public')->delete($product->prod_image);
+                    // Storage::disk('public')->delete($product->prod_image);
+                    Storage::disk('s3')->delete($product->prod_image);
                 }
                 $prodImage = $request->file('prod_image');
                 $filename = $new_prod_code . '.' . $prodImage->getClientOriginalExtension();
-                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                // $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 's3');
             } else {
                 unset($data['prod_image']);
             }
@@ -251,7 +255,8 @@ class ProductController extends Controller
             if ($images) {
                 // Delete old images
                 foreach ($product->images as $image) {
-                    Storage::disk('public')->delete($image->image);
+                    // Storage::disk('public')->delete($image->image);
+                    Storage::disk('s3')->delete($image->image);
                     $image->delete();
                 }
 
@@ -259,7 +264,8 @@ class ProductController extends Controller
                 foreach ($images as $imagefile) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $new_prod_code . '-' . $timestamp . '.' . $imagefile->getClientOriginalExtension();
-                    $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    // $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    $path = $imagefile->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $new_prod_code,
                         'image' => $path,
