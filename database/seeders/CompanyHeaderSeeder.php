@@ -12,15 +12,15 @@ class CompanyHeaderSeeder extends Seeder
     {
         DB::table('company_headers')->insert([
             [
-                'name' => 'Venpura Book Store',
-                'address' => '123 Main St, Anytown, USA',
-                'phone' => '123-456-7890',
-                'email' => 'info@venpurabookstore.com',
-                'website' => 'https://venpurabookstore.com',
-                'logo' => 'https://venpurabookstore.com/logo.png',
-                'vat_number' => '1234567890',
-                'tin_number' => '1234567890',
-                'links' => 'https://venpurabookstore.com/links',
+                'name' => 'Venpaa (Pvt) Ltd',
+                'address' => 'No 465 1/1, Galle Road, Wellawatta, Colombo 06',
+                'phone' => '0766699647',
+                'email' => 'venpaabookhouse@gmail.com',
+                'website' => '',
+                'logo' => '',
+                'vat_number' => '101121917',
+                'tin_number' => '',
+                'links' => '',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]
