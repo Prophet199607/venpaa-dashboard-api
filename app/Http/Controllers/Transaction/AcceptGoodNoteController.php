@@ -32,6 +32,7 @@ class AcceptGoodNoteController extends Controller
         $userLocation = $user->location;
         $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
         $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'pending') {
             $usedDocNos = TransactionHeader::where('iid', 'AGN')
@@ -45,7 +46,7 @@ class AcceptGoodNoteController extends Controller
                 ->whereDate('document_date', '<=', $endDate)
                 ->whereNotIn('doc_no', $usedDocNos)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($pendingAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();
@@ -72,7 +73,7 @@ class AcceptGoodNoteController extends Controller
                 ->whereDate('document_date', '>=', $startDate)
                 ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($appliedAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();

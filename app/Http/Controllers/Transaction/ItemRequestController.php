@@ -215,6 +215,7 @@ class ItemRequestController extends Controller
         $userLocation = $user->location;
         $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
         $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'drafted') {
             $itemRequests = TempTransactionHeader::where('iid', $request->iid)
@@ -223,7 +224,7 @@ class ItemRequestController extends Controller
                 ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($itemRequests->items())->map(function ($ir) {
                 $data = $ir->toArray();
@@ -244,7 +245,7 @@ class ItemRequestController extends Controller
                 ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($itemRequests->items())->map(function ($ir) {
                 $data = $ir->toArray();
@@ -311,6 +312,7 @@ class ItemRequestController extends Controller
         try {
             $status = $request->get('approval_status', 'all');
             $docNo = $request->get('doc_no');
+            $perPage = $request->input('per_page', 10);
 
             $query = ItemReqTransHeader::where('iid', 'IR')
                 ->orderBy('id', 'desc');
@@ -323,7 +325,7 @@ class ItemRequestController extends Controller
                 $query->where('doc_no', 'like', '%' . $docNo . '%');
             }
 
-            $itemRequests = $query->paginate(10);
+            $itemRequests = $query->paginate($perPage);
 
             return response()->json([
                 'success' => true,

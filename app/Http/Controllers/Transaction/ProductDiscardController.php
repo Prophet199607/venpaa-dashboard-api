@@ -28,6 +28,7 @@ class ProductDiscardController extends Controller
             $location = $request->input('location');
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
+            $perPage = $request->input('per_page', 10);
 
             $query = ($status === 'drafted') 
                 ? TempTransactionHeader::query() 
@@ -43,7 +44,7 @@ class ProductDiscardController extends Controller
                 $query->whereBetween('document_date', [$startDate, $endDate]);
             }
 
-            $transactions = $query->orderBy('id', 'desc')->paginate(10);
+            $transactions = $query->orderBy('id', 'desc')->paginate($perPage);
 
             // Format data to include location name
             $formattedData = collect($transactions->items())->map(function ($pd) {

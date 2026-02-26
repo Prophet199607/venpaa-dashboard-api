@@ -224,6 +224,7 @@ class TransactionController extends Controller
         $userLocation = $user->location;
         $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
         $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'drafted') {
             $tempTransactionData = TempTransactionHeader::where('iid', $request->iid)
@@ -232,7 +233,7 @@ class TransactionController extends Controller
                 ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($tempTransactionData->items())->map(function ($transaction) {
                 $data = $transaction->toArray();
@@ -253,7 +254,7 @@ class TransactionController extends Controller
                 ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             $formattedData = collect($transactionData->items())->map(function ($transaction) {
                 $data = $transaction->toArray();
