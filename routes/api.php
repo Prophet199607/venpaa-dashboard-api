@@ -396,14 +396,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::delete('/delete-detail/{doc_no}/{line_no}', [InvoiceController::class, 'deleteTempDetail']);
     });
 
+    // Pos sales & Day end routes
+    Route::group(['prefix' => 'Sales'], function () {
+        Route::get('/pos-sales-summary', [SalesController::class, 'getPosSalesSummary']);
+        Route::post('/process-day-end', [SalesController::class, 'processDayEnd']);
+    });
+
     // Report routes
     Route::group(['prefix' => 'reports'], function () {
         Route::get('/stock-summary', [ReportController::class, 'getStockSummary']);
-    });
-
-    // POS Sales routes
-    Route::group(['prefix' => 'Sales'], function () {
-        Route::get('/pos-sales-summary', [SalesController::class, 'getPosSalesSummary']);
     });
 
 

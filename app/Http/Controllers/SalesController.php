@@ -188,4 +188,58 @@ class SalesController extends Controller
             'error_code' => $lastErrorCode
         ], 200);
     }
+    
+    public function processDayEnd(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'Loca' => 'required|string',
+            'Date' => 'required|date_format:Y-m-d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $loca = $request->input('Loca');
+        $reportDate = date('d/m/Y', strtotime($request->input('Date')));
+        $userName = $request->user() ? $request->user()->name : 'System';
+
+        try {
+            DB::statement("SET @pErr_x = 0");
+            
+            DB::select("CALL sp_DayEndProcess(@pErr_x, ?, ?, ?)", [
+                $userName,
+                $loca,
+                $reportDate
+            ]);
+
+            $errorResult = DB::select("SELECT @pErr_x as error_code");
+            $errorCode = $errorResult[0]->error_code ?? 0;
+
+            if ($errorCode != 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Day end process error',
+                    'error_code' => $errorCode
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Day end process completed successfully',
+                'error_code' => $errorCode
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process day end',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
