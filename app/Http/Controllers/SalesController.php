@@ -119,4 +119,59 @@ class SalesController extends Controller
 
         return PosTransactionApi::create($mapped);
     }
+
+    public function getPosSalesSummary(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'Loca' => 'required|string',
+            'DateFrom' => 'required|date_format:Y-m-d',
+            'DateTo' => 'required|date_format:Y-m-d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $loca = $request->input('Loca');
+        $dateFrom = date('d/m/Y', strtotime($request->input('DateFrom')));
+        $dateTo = date('d/m/Y', strtotime($request->input('DateTo')));
+
+        try {
+            DB::statement("SET @pErrorCode = 0");
+            
+            $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?, ?, ?)", [
+                $loca,
+                $dateFrom,
+                $dateTo
+            ]);
+
+            $errorCodeResult = DB::select("SELECT @pErrorCode as error_code");
+            $errorCode = $errorCodeResult[0]->error_code ?? 0;
+
+            if ($errorCode != 0 && $errorCode != 50020) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'Stored procedure error',
+                    'error_code' => $errorCode
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'error_code' => $errorCode
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch POS sales summary',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

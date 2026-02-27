@@ -401,6 +401,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/stock-summary', [ReportController::class, 'getStockSummary']);
     });
 
+    // POS Sales routes
+    Route::group(['prefix' => 'Sales'], function () {
+        Route::get('/pos-sales-summary', [SalesController::class, 'getPosSalesSummary']);
+    });
+
 
 
     // Role and Permission routes
