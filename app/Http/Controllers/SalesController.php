@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use Illuminate\Http\Request;
 use App\Models\PosTransactionApi;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class SalesController extends Controller
 {
@@ -137,41 +138,54 @@ class SalesController extends Controller
         }
 
         $loca = $request->input('Loca');
-        $dateFrom = date('d/m/Y', strtotime($request->input('DateFrom')));
-        $dateTo = date('d/m/Y', strtotime($request->input('DateTo')));
+        $startDate = new \DateTime($request->input('DateFrom'));
+        $endDate = new \DateTime($request->input('DateTo'));
+        
+        $rangeEnd = clone $endDate;
+        $rangeEnd->modify('+1 day');
+        
+        $interval = new \DateInterval('P1D');
+        $period = new \DatePeriod($startDate, $interval, $rangeEnd);
 
-        try {
-            DB::statement("SET @pErrorCode = 0");
+        $allResults = [];
+        $lastErrorCode = 0;
+
+        foreach ($period as $date) {
+            $formattedDate = $date->format('d/m/Y');
             
-            $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?, ?, ?)", [
-                $loca,
-                $dateFrom,
-                $dateTo
-            ]);
+            try {
+                DB::statement("SET @pErrorCode = 0");
+                
+                $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?, ?, ?)", [
+                    $loca,
+                    $formattedDate,
+                    $formattedDate
+                ]);
 
-            $errorCodeResult = DB::select("SELECT @pErrorCode as error_code");
-            $errorCode = $errorCodeResult[0]->error_code ?? 0;
+                $errorCodeResult = DB::select("SELECT @pErrorCode as error_code");
+                $currentErrorCode = $errorCodeResult[0]->error_code ?? 0;
 
-            if ($errorCode != 0 && $errorCode != 50020) {
-                 return response()->json([
-                    'success' => false,
-                    'message' => 'Stored procedure error',
-                    'error_code' => $errorCode
-                ], 500);
+                if ($currentErrorCode != 0 && $currentErrorCode != 50020) {
+                    $lastErrorCode = $currentErrorCode;
+                }
+
+                if (!empty($results)) {
+                    foreach ($results as $row) {
+                        $row->DateFrom = $formattedDate;
+                        $row->DateTo = $formattedDate;
+                        $allResults[] = $row;
+                    }
+                }
+            } catch (Exception $e) {
+                Log::warning("SP skip for date {$formattedDate}: " . $e->getMessage());
+                continue;
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $results,
-                'error_code' => $errorCode
-            ], 200);
-
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch POS sales summary',
-                'error' => $e->getMessage()
-            ], 500);
         }
+
+        return response()->json([
+            'success' => true,
+            'data' => $allResults,
+            'error_code' => $lastErrorCode
+        ], 200);
     }
 }
