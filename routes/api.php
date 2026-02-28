@@ -122,6 +122,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // sub category routes
     Route::group(['prefix' => 'sub-categories'], function () {
         Route::get('/generate-code', [SubCategoryController::class, 'generateSubCategoryCode']);
+        Route::get('/search', [SubCategoryController::class, 'search']);
         Route::get('/', [SubCategoryController::class, 'index']);
         Route::get('/{scat_code}', [SubCategoryController::class, 'show']);
         Route::post('/', [SubCategoryController::class, 'store']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Master;
 
 use App\Models\DocNumber;
 use App\Models\SubCategory;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\SubCategoryRequest;
 use App\Http\Resources\Master\SubCategoryResource;
@@ -64,6 +65,38 @@ class SubCategoryController extends Controller
                 'message' => 'Sub category not found',
                 'error' => $e->getMessage()
             ], 404);
+        }
+    }
+
+    public function search(Request $request)
+    {
+        try {
+            $query = $request->input('query', '');
+            $cat_code = $request->input('cat_code');
+
+            $subCategories = SubCategory::where('status', 1)
+                ->when($cat_code, function ($q) use ($cat_code) {
+                    $q->where('cat_code', $cat_code);
+                })
+                ->where(function ($q) use ($query) {
+                    $q->where('scat_name', 'LIKE', "%{$query}%")
+                    ->orWhere('scat_code', 'LIKE', "%{$query}%");
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sub categories search results',
+                'data' => SubCategoryResource::collection($subCategories),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to search sub categories',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
