@@ -12,9 +12,11 @@ use App\Models\StockMaster;
 use App\Exports\BookExport;
 use App\Imports\BookImport;
 use Illuminate\Http\Request;
+use App\Models\SubCategory;
 use App\Models\ProductImage;
 use App\Models\ProductAuthor;
 use App\Models\ProductSupplier;
+use App\Models\ProductSubCategory;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
@@ -48,7 +50,7 @@ class BookController extends Controller
         try {
             $products = Product::where('status', 1)
                 ->where('department', '10')
-                ->with(['authors', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'suppliers', 'images'])
+                ->with(['authors', 'category', 'subCategories', 'department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation'])
                 ->get();
 
             return response()->json([
@@ -69,7 +71,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authors', 'subCategory.category.department', 'bookType', 'publisher', 'suppliers', 'images'])
+                ->with(['authors', 'subCategories.category.department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation'])
                 ->first();
 
             if (!$product) {
@@ -216,6 +218,22 @@ class BookController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
@@ -233,6 +251,7 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            unset($data['sub_category']);
 
             $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
@@ -259,6 +278,20 @@ class BookController extends Controller
                         ProductSupplier::create([
                             'prod_code' => $product->prod_code,
                             'supplier_id' => $supplier->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
+            // Handle sub_categories data
+            if (!empty($subCategoryCodes)) {
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
                             'created_by' => auth()->id()
                         ]);
                     }
@@ -301,7 +334,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'authors', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategories', 'publisher', 'suppliers', 'authors', 'images', 'languageRelation']);
 
             return response()->json([
                 'success' => true,
@@ -361,6 +394,22 @@ class BookController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
@@ -405,6 +454,7 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            unset($data['sub_category']);
             if (isset($data['prod_code'])) {
                 $data['barcode'] = $data['prod_code'];
             }
@@ -448,10 +498,29 @@ class BookController extends Controller
                 }
             }
 
+            // Sync sub_categories - delete existing and create new rows
+            if ($subCategoryCodes !== null) {
+                // Delete existing sub category relationships
+                ProductSubCategory::where('prod_code', $product->prod_code)->delete();
+
+                // Create new sub category relationships
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'suppliers', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategories', 'publisher', 'suppliers', 'authors', 'images', 'languageRelation']);
 
             return response()->json([
                 'success' => true,

@@ -22,14 +22,19 @@ class BookResource extends JsonResource
             'short_description'     => $this->short_description,
             'department'    => $this->department,
             'category'      => $this->category,
-            'sub_category'  => new SubCategoryResource($this->whenLoaded('subCategory')),
-            'suppliers'       => $this->whenLoaded('suppliers', function () {
-                return $this->suppliers->map(function ($supplier) {
+            'sub_category'  => $this->whenLoaded('subCategories', function () {
+                return $this->subCategories->map(function ($sub) {
                     return [
-                        'value' => $supplier->sup_code,
-                        'label' => $supplier->sup_name
+                        'value' => $sub->scat_code,
+                        'label' => $sub->scat_name
                     ];
                 });
+            }),
+            'language_data' => $this->whenLoaded('languageRelation', function () {
+                return [
+                    'value' => $this->languageRelation->lang_code ?? $this->language,
+                    'label' => $this->languageRelation->lang_name ?? $this->language
+                ];
             }),
             'pack_size'     => $this->pack_size,
             'purchase_price'=> $this->purchase_price,

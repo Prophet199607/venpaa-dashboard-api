@@ -27,9 +27,15 @@ class Product extends Model
         return $this->belongsTo(Category::class, 'category', 'cat_code');
     }
 
-    public function subCategory()
+    public function subCategories()
     {
-        return $this->belongsTo(SubCategory::class, 'sub_category', 'scat_code');
+        return $this->belongsToMany(SubCategory::class, 'product_sub_categories', 'prod_code', 'sub_category_id', 'prod_code', 'id')
+                    ->withTimestamps();
+    }
+
+    public function languageRelation()
+    {
+        return $this->belongsTo(Language::class, 'language', 'lang_code');
     }
 
     public function department()

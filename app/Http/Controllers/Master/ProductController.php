@@ -8,11 +8,13 @@ use App\Models\Supplier;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
 use App\Models\ProductSupplier;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
+use App\Models\ProductSubCategory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -46,7 +48,7 @@ class ProductController extends Controller
         try {
             $products = Product::where('status', 1)
                 ->where('department', '!=', '10')
-                ->with(['category', 'subCategory', 'department', 'suppliers', 'images'])
+                ->with(['category', 'subCategories', 'department', 'suppliers', 'images'])
                 ->get();
 
             return response()->json([
@@ -67,7 +69,7 @@ class ProductController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['subCategory.category.department', 'suppliers', 'images'])
+                ->with(['subCategories.category.department', 'suppliers', 'images'])
                 ->first();
 
             if (!$product) {
@@ -121,6 +123,22 @@ class ProductController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from product data
             $images = $request->file('images');
             unset($data['images']);
@@ -135,6 +153,7 @@ class ProductController extends Controller
             }
 
             unset($data['supplier']);
+            unset($data['sub_category']);
             $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
 
@@ -146,6 +165,20 @@ class ProductController extends Controller
                         ProductSupplier::create([
                             'prod_code' => $product->prod_code,
                             'supplier_id' => $supplier->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
+            // Handle sub_categories data
+            if (!empty($subCategoryCodes)) {
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
                             'created_by' => auth()->id()
                         ]);
                     }
@@ -188,7 +221,7 @@ class ProductController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
+            $product->load(['department', 'category', 'subCategories', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -228,6 +261,22 @@ class ProductController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Some suppliers do not exist: ' . implode(', ', $nonExistingSuppliers)
+                    ], 422);
+                }
+            }
+
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
                     ], 422);
                 }
             }
@@ -275,6 +324,7 @@ class ProductController extends Controller
             }
 
             unset($data['supplier']);
+            unset($data['sub_category']);
             $product->update($data);
             DB::commit();
 
@@ -297,10 +347,29 @@ class ProductController extends Controller
                 }
             }
 
+            // Sync sub_categories - delete existing and create new rows
+            if ($subCategoryCodes !== null) {
+                // Delete existing sub category relationships
+                ProductSubCategory::where('prod_code', $product->prod_code)->delete();
+
+                // Create new sub category relationships
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
+            $product->load(['department', 'category', 'subCategories', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,

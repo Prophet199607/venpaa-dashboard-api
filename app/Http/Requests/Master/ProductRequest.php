@@ -40,7 +40,7 @@ class ProductRequest extends FormRequest
             'short_description' => 'nullable|string',
             'department' => 'required|exists:departments,dep_code',
             'category' => 'required|exists:categories,cat_code',
-            'sub_category' => 'required|exists:sub_categories,scat_code',
+            'sub_category' => 'required|string',
 
             'pack_size' => 'nullable|string',
             'purchase_price' => 'nullable|numeric',
@@ -69,6 +69,11 @@ class ProductRequest extends FormRequest
         if ($this->has('supplier') && is_array($this->supplier)) {
             $this->merge([
                 'supplier' => implode(',', $this->supplier)
+            ]);
+        }
+        if ($this->has('sub_category') && is_array($this->sub_category)) {
+            $this->merge([
+                'sub_category' => implode(',', $this->sub_category)
             ]);
         }
     }
