@@ -194,7 +194,7 @@ class SalesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'Loca' => 'required|string',
-            'ReportDate_d' => 'required|string',
+            'BillDate_d' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -207,7 +207,7 @@ class SalesController extends Controller
 
         $loca = str_pad(ltrim($request->input('Loca'), '0'), 2, '0', STR_PAD_LEFT);
         $userName = $request->user() ? $request->user()->name : 'System';
-        $reportDate = $request->input('ReportDate_d');
+        $reportDate = $request->input('BillDate_d');
 
         try {
             DB::statement("SET @pErr_x = 0");
