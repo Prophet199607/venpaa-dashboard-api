@@ -12,7 +12,7 @@ class Category extends Model
     use HasFactory;
     protected $guarded = [];
 
-    public function department(): BelongsTo
+    public function department_relation(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department', 'dep_code');
     }

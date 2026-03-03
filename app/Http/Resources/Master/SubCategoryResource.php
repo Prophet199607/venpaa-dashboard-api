@@ -28,6 +28,13 @@ class SubCategoryResource extends JsonResource
                     'department' => $this->category->department,
                 ];
             }),
+            'department_name' => $this->department_relation ? $this->department_relation->dep_name : $this->department,
+            'dep_data' => $this->whenLoaded('department_relation', function () {
+                return [
+                    'dep_code' => $this->department_relation->dep_code,
+                    'dep_name' => $this->department_relation->dep_name,
+                ];
+            }),
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
         ];
