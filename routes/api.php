@@ -25,6 +25,7 @@ use App\Http\Controllers\Master\PriceLevelController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SubCategoryController;
 use App\Http\Controllers\Master\PaymentTypeController;
+use App\Http\Controllers\Master\SubCategoryL2Controller;
 
 use App\Http\Controllers\Transaction\InvoiceController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -127,6 +128,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{scat_code}', [SubCategoryController::class, 'show']);
         Route::post('/', [SubCategoryController::class, 'store']);
         Route::put('/{scat_code}', [SubCategoryController::class, 'update']);
+    });
+
+    // sub category level 2 routes
+    Route::group(['prefix' => 'sub-categories-l2'], function () {
+        Route::get('/generate-code', [SubCategoryL2Controller::class, 'generateSubCategoryL2Code']);
+        Route::get('/', [SubCategoryL2Controller::class, 'index']);
+        Route::get('/{scat_l2_code}', [SubCategoryL2Controller::class, 'show']);
+        Route::post('/', [SubCategoryL2Controller::class, 'store']);
+        Route::put('/{scat_l2_code}', [SubCategoryL2Controller::class, 'update']);
     });
 
     // category routes
