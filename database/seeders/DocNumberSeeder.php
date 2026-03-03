@@ -56,6 +56,7 @@ class DocNumberSeeder extends Seeder
             ['type' => 'CustomerSetOff', 'prefix' => 'CSOF', 'last_id' => 0, 'length' => 8],
             ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],   
             ['type' => 'OpenStock', 'prefix' => 'OPS', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SubCategoryL2', 'prefix' => 'SC2', 'last_id' => 0, 'length' => 3],
         ];
 
         foreach ($default as $key => $value) {
