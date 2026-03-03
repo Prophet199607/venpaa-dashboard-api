@@ -135,8 +135,9 @@ class SalesController extends Controller
             ], 422);
         }
 
+        $loca = str_pad(substr($request->input('Loca'), -2), 2, '0', STR_PAD_LEFT);
         // $loca = str_pad(ltrim($request->input('Loca'), '0'), 2, '0', STR_PAD_LEFT);
-        $loca = $request->input('Loca');
+        // $loca = $request->input('Loca');
         try {
             DB::statement("SET @pErrorCode = 0");
             $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?)", [
