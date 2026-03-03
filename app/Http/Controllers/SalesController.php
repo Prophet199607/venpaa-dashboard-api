@@ -136,8 +136,6 @@ class SalesController extends Controller
         }
 
         $loca = str_pad(substr($request->input('Loca'), -2), 2, '0', STR_PAD_LEFT);
-        // $loca = str_pad(ltrim($request->input('Loca'), '0'), 2, '0', STR_PAD_LEFT);
-        // $loca = $request->input('Loca');
         try {
             DB::statement("SET @pErrorCode = 0");
             $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?)", [
@@ -196,6 +194,7 @@ class SalesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'Loca' => 'required|string',
+            'ReportDate_d' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -208,14 +207,15 @@ class SalesController extends Controller
 
         $loca = str_pad(ltrim($request->input('Loca'), '0'), 2, '0', STR_PAD_LEFT);
         $userName = $request->user() ? $request->user()->name : 'System';
+        $reportDate = $request->input('ReportDate_d');
 
         try {
             DB::statement("SET @pErr_x = 0");
             
-            // Updated CALL: Removing pReport_Date parameter
-            DB::select("CALL sp_DayEndProcess(@pErr_x, ?, ?)", [
+            DB::select("CALL sp_DayEndProcess(@pErr_x, ?, ?, ?)", [
                 $userName,
-                $loca
+                $loca,
+                $reportDate
             ]);
 
             $errorResult = DB::select("SELECT @pErr_x as error_code");
@@ -236,10 +236,23 @@ class SalesController extends Controller
             ], 200);
 
         } catch (Exception $e) {
+            $msg = $e->getMessage();
+            if (strpos($msg, 'SQLSTATE[45000]') !== false || strpos($msg, '1644') !== false) {
+                $cleanMsg = $msg;
+                if (preg_match('/1644\s+(.*?)\s+\(SQL/', $msg, $matches)) {
+                    $cleanMsg = $matches[1];
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => $cleanMsg,
+                    'error_code' => 1644
+                ], 400);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process day end',
-                'error' => $e->getMessage()
+                'error' => $msg
             ], 500);
         }
     }
