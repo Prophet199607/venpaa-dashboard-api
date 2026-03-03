@@ -71,7 +71,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authors', 'subCategories.category.department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation'])
+                ->with(['authors', 'subCategories.category.department', 'department.categories', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation'])
                 ->first();
 
             if (!$product) {
@@ -85,7 +85,7 @@ class BookController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Book fetched successfully',
-                'data' => new BookResource($product->load('images'))
+                'data' => new BookResource($product)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

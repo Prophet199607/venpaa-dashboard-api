@@ -69,7 +69,7 @@ class ProductController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['subCategories.category.department', 'suppliers', 'images'])
+                ->with(['department.categories', 'subCategories.category.department', 'suppliers', 'images', 'languageRelation', 'unit'])
                 ->first();
 
             if (!$product) {
@@ -83,7 +83,7 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Product fetched successfully',
-                'data' => new ProductResource($product->load('images'))
+                'data' => new ProductResource($product)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -416,12 +416,12 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
-             ->orderByRaw("CASE 
-                WHEN prod_code = ? THEN 1 
+             ->orderByRaw("CASE
+                WHEN prod_code = ? THEN 1
                 WHEN barcode = ? THEN 1
                 WHEN isbn = ? THEN 1
                 WHEN prod_name = ? THEN 2
-                ELSE 3 
+                ELSE 3
             END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
@@ -461,12 +461,12 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
-            ->orderByRaw("CASE 
-                WHEN prod_code = ? THEN 1 
+            ->orderByRaw("CASE
+                WHEN prod_code = ? THEN 1
                 WHEN barcode = ? THEN 1
                 WHEN isbn = ? THEN 1
                 WHEN prod_name = ? THEN 2
-                ELSE 3 
+                ELSE 3
             END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
