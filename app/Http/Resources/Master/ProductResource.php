@@ -20,23 +20,29 @@ class ProductResource extends JsonResource
             'prod_code'     => $this->prod_code,
             'prod_name'     => $this->prod_name,
             'short_description'     => $this->short_description,
-            'department'    => $this->department,
-            'category'      => $this->category,
-            'sub_category'  => $this->whenLoaded('subCategories', function () {
-                return $this->subCategories->map(function ($sub) {
+            'department'    => (string) $this->getRawOriginal('department'),
+            'department_categories' => $this->whenLoaded('department', function() {
+                $depRelation = $this->getRelation('department');
+                return $depRelation->categories->map(function($cat) {
                     return [
-                        'value' => $sub->scat_code,
-                        'label' => $sub->scat_name
+                        'cat_code' => $cat->cat_code,
+                        'cat_name' => $cat->cat_name,
+                        'department' => $cat->department
                     ];
                 });
             }),
-            'suppliers'       => $this->whenLoaded('suppliers', function () {
-                return $this->suppliers->map(function ($supplier) {
-                    return [
-                        'value' => $supplier->sup_code,
-                        'label' => $supplier->sup_name
-                    ];
-                });
+            'category'      => (string) $this->getRawOriginal('category'),
+            'sub_categories'  => $this->subCategories->map(function ($sub) {
+                return [
+                    'value' => (string) $sub->scat_code,
+                    'label' => $sub->scat_name
+                ];
+            }),
+            'suppliers'       => $this->suppliers->map(function ($supplier) {
+                return [
+                    'value' => (string) $supplier->sup_code,
+                    'label' => $supplier->sup_name
+                ];
             }),
             'pack_size'     => $this->pack_size,
             'purchase_price'=> $this->purchase_price,

@@ -20,15 +20,24 @@ class BookResource extends JsonResource
             'prod_code'     => $this->prod_code,
             'prod_name'     => $this->prod_name,
             'short_description'     => $this->short_description,
-            'department'    => $this->department,
-            'category'      => $this->category,
-            'sub_category'  => $this->whenLoaded('subCategories', function () {
-                return $this->subCategories->map(function ($sub) {
+            'department'    => (string) $this->getRawOriginal('department'),
+            'department_categories' => $this->whenLoaded('department', function() {
+                $depRelation = $this->getRelation('department');
+                return $depRelation->categories->map(function($cat) {
                     return [
-                        'value' => $sub->scat_code,
-                        'label' => $sub->scat_name
+                        'cat_code' => $cat->cat_code,
+                        'cat_name' => $cat->cat_name,
+                        'department' => $cat->department
                     ];
                 });
+            }),
+            'category'      => (string) $this->getRawOriginal('category'),
+            'sub_categories' => $this->subCategories->map(function ($sub) {
+                return [
+                    'value' => (string) $sub->scat_code,
+                    'label' => $sub->scat_name,
+                    'cat_code' => $sub->cat_code
+                ];
             }),
             'language_data' => $this->whenLoaded('languageRelation', function () {
                 return [
@@ -43,15 +52,26 @@ class BookResource extends JsonResource
             'wholesale_price' => $this->wholesale_price,
             'title_in_other_language' => $this->title_in_other_language,
             'tamil_description' => $this->tamil_description,
-            'book_type'     => $this->book_type,
-            'publisher'     => $this->publisher,
-            'authors'       => $this->whenLoaded('authors', function () {
-                return $this->authors->map(function ($author) {
-                    return [
-                        'value' => $author->auth_code,
-                        'label' => $author->auth_name
-                    ];
-                });
+            'book_type'     => (string) $this->getRawOriginal('book_type'),
+            'publisher'     => (string) $this->getRawOriginal('publisher'),
+            'publisher_data' => $this->whenLoaded('publisher', function () {
+                $publisherRelation = $this->getRelation('publisher');
+                return [
+                    'pub_code' => $publisherRelation->pub_code,
+                    'pub_name' => $publisherRelation->pub_name,
+                ];
+            }),
+            'authors'       => $this->authors->map(function ($author) {
+                return [
+                    'value' => (string) $author->auth_code,
+                    'label' => $author->auth_name
+                ];
+            }),
+            'suppliers'     => $this->suppliers->map(function ($supplier) {
+                return [
+                    'value' => (string) $supplier->sup_code,
+                    'label' => $supplier->sup_name,
+                ];
             }),
             'isbn'          => $this->isbn,
             'publish_year'  => $this->publish_year,
@@ -62,7 +82,7 @@ class BookResource extends JsonResource
             'weight'        => $this->weight,
             'pages'         => $this->pages,
             'barcode'       => $this->barcode,
-            'language'      => $this->language,
+            'language'      => (string) $this->getRawOriginal('language'),
             'prod_image'    => $this->prod_image,
             // 'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
             'prod_image_url' => $this->getS3Url($this->prod_image),
