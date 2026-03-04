@@ -18,6 +18,8 @@ class SubCategoryL2Resource extends JsonResource
             'id' => $this->id,
             'scat_l2_code' => $this->scat_l2_code,
             'scat_l2_name' => $this->scat_l2_name,
+            'value'        => (string) $this->scat_l2_code,
+            'label'        => $this->scat_l2_name,
             'department' => $this->department,
             'cat_code' => $this->cat_code,
             'scat_code' => $this->scat_code,
@@ -35,11 +37,12 @@ class SubCategoryL2Resource extends JsonResource
                     'cat_name' => $this->category->cat_name,
                 ];
             }),
-            'department_name' => $this->department_relation ? $this->department_relation->dep_name : $this->department,
-            'dep_data' => $this->whenLoaded('department_relation', function () {
+            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : $this->department,
+            'dep_data' => $this->whenLoaded('department', function () {
+                $dep = $this->getRelation('department');
                 return [
-                    'dep_code' => $this->department_relation->dep_code,
-                    'dep_name' => $this->department_relation->dep_name,
+                    'dep_code' => $dep->dep_code,
+                    'dep_name' => $dep->dep_name,
                 ];
             }),
             'created_by' => $this->created_by,

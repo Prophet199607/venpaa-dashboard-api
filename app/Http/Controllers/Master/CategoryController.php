@@ -35,7 +35,7 @@ class CategoryController extends Controller
     public function index()
     {
         try {
-            $categories = Category::with(['subCategories', 'department_relation'])->where('status', 1)->get();
+            $categories = Category::with(['subCategories', 'department'])->where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Categories fetched successfully',

@@ -21,11 +21,12 @@ class CategoryResource extends JsonResource
             'cat_name'     => $this->cat_name,
             'cat_image'    => $this->cat_image,
             'department'   => $this->department,
-            'department_name' => $this->department_relation ? $this->department_relation->dep_name : $this->department,
-            'dep_data' => $this->whenLoaded('department_relation', function () {
+            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : $this->department,
+            'dep_data' => $this->whenLoaded('department', function () {
+                $dep = $this->getRelation('department');
                 return [
-                    'dep_code' => $this->department_relation->dep_code,
-                    'dep_name' => $this->department_relation->dep_name,
+                    'dep_code' => $dep->dep_code,
+                    'dep_name' => $dep->dep_name,
                 ];
             }),
             // 'cat_image_url' => $this->cat_image ? asset('storage/' . $this->cat_image) : null,

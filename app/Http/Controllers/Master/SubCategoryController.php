@@ -33,7 +33,7 @@ class SubCategoryController extends Controller
     public function index()
     {
         try {
-            $subCategories = SubCategory::with(['category', 'department_relation'])->where('status', 1)->get();
+            $subCategories = SubCategory::with(['category', 'department'])->where('status', 1)->get();
 
             return response()->json([
                 'success' => true,
@@ -52,7 +52,7 @@ class SubCategoryController extends Controller
     public function show($scat_code)
     {
         try {
-            $subCategory = SubCategory::with(['category.department_relation', 'department_relation'])->where('scat_code', $scat_code)->first();
+            $subCategory = SubCategory::with(['category.department', 'department'])->where('scat_code', $scat_code)->first();
 
             return response()->json([
                 'success' => true,

@@ -33,7 +33,7 @@ class SubCategoryL2Controller extends Controller
     public function index()
     {
         try {
-            $subCategoriesL2 = SubCategoryL2::with(['subCategory', 'category', 'department_relation'])->where('status', 1)->get();
+            $subCategoriesL2 = SubCategoryL2::with(['subCategory', 'category', 'department'])->where('status', 1)->get();
 
             return response()->json([
                 'success' => true,
@@ -52,7 +52,7 @@ class SubCategoryL2Controller extends Controller
     public function show($scat_l2_code)
     {
         try {
-            $subCategoryL2 = SubCategoryL2::with(['subCategory', 'category', 'department_relation'])->where('scat_l2_code', $scat_l2_code)->first();
+            $subCategoryL2 = SubCategoryL2::with(['subCategory', 'category', 'department'])->where('scat_l2_code', $scat_l2_code)->first();
 
             return response()->json([
                 'success' => true,
