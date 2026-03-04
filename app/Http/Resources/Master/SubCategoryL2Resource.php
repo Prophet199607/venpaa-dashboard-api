@@ -16,17 +16,17 @@ class SubCategoryL2Resource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'scat_l2_code' => $this->scat_l2_code,
+            'scat_l2_code' => (string) $this->scat_l2_code,
             'scat_l2_name' => $this->scat_l2_name,
             'value'        => (string) $this->scat_l2_code,
             'label'        => $this->scat_l2_name,
-            'department' => $this->department,
-            'cat_code' => $this->cat_code,
-            'scat_code' => $this->scat_code,
+            'department' => (string) $this->department,
+            'cat_code' => (string) $this->cat_code,
+            'scat_code' => (string) $this->scat_code,
             'sub_category' => $this->whenLoaded('subCategory', function () {
                 return [
                     'id' => $this->subCategory->id,
-                    'scat_code' => $this->subCategory->scat_code,
+                    'scat_code' => (string) $this->subCategory->scat_code,
                     'scat_name' => $this->subCategory->scat_name,
                 ];
             }),

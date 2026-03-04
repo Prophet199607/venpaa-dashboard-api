@@ -25,9 +25,9 @@ class BookResource extends JsonResource
                 $depRelation = $this->getRelation('department');
                 return $depRelation->categories->map(function($cat) {
                     return [
-                        'cat_code' => $cat->cat_code,
+                        'cat_code' => (string) $cat->cat_code,
                         'cat_name' => $cat->cat_name,
-                        'department' => $cat->department
+                        'department' => (string) $cat->department
                     ];
                 });
             }),

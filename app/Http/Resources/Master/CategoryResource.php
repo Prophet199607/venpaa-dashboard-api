@@ -17,15 +17,15 @@ class CategoryResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'cat_code'     => $this->cat_code,
+            'cat_code'     => (string) $this->cat_code,
             'cat_name'     => $this->cat_name,
             'cat_image'    => $this->cat_image,
-            'department'   => $this->department,
-            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : $this->department,
+            'department'   => (string) $this->department,
+            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->department,
             'dep_data' => $this->whenLoaded('department', function () {
                 $dep = $this->getRelation('department');
                 return [
-                    'dep_code' => $dep->dep_code,
+                    'dep_code' => (string) $dep->dep_code,
                     'dep_name' => $dep->dep_name,
                 ];
             }),

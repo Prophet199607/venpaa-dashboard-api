@@ -16,18 +16,18 @@ class SubCategoryResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'scat_code'     => $this->scat_code,
+            'scat_code'     => (string) $this->scat_code,
             'scat_name'     => $this->scat_name,
             'value'         => (string) $this->scat_code,
             'label'         => $this->scat_name,
-            'department'    => $this->department,
-            'cat_code'      => $this->cat_code,
+            'department'    => (string) $this->department,
+            'cat_code'      => (string) $this->cat_code,
             'category' => $this->whenLoaded('category', function () {
                 return [
                     'id' => $this->category->id,
-                    'cat_code' => $this->category->cat_code,
+                    'cat_code' => (string) $this->category->cat_code,
                     'cat_name' => $this->category->cat_name,
-                    'department' => $this->category->department,
+                    'department' => (string) $this->category->department,
                 ];
             }),
             'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : $this->department,
