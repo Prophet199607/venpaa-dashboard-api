@@ -133,6 +133,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // sub category level 2 routes
     Route::group(['prefix' => 'sub-categories-l2'], function () {
         Route::get('/generate-code', [SubCategoryL2Controller::class, 'generateSubCategoryL2Code']);
+        Route::get('/search', [SubCategoryL2Controller::class, 'search']);
         Route::get('/', [SubCategoryL2Controller::class, 'index']);
         Route::get('/{scat_l2_code}', [SubCategoryL2Controller::class, 'show']);
         Route::post('/', [SubCategoryL2Controller::class, 'store']);

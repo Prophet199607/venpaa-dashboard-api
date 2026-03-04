@@ -68,6 +68,50 @@ class SubCategoryL2Controller extends Controller
         }
     }
 
+    public function search(Request $request)
+    {
+        try {
+            $query = $request->input('query', '');
+            $scat_code = $request->input('scat_code');
+            $cat_code = $request->input('cat_code');
+            $department = $request->input('department');
+
+            $subCategoriesL2 = SubCategoryL2::where('status', 1)
+                ->when($scat_code, function ($q) use ($scat_code) {
+                    if (is_array($scat_code)) {
+                        $q->whereIn('scat_code', $scat_code);
+                    } else {
+                        $q->where('scat_code', $scat_code);
+                    }
+                })
+                ->when($cat_code, function ($q) use ($cat_code) {
+                    $q->where('cat_code', $cat_code);
+                })
+                ->when($department, function ($q) use ($department) {
+                    $q->where('department', $department);
+                })
+                ->where(function ($q) use ($query) {
+                    $q->where('scat_l2_name', 'LIKE', "%{$query}%")
+                    ->orWhere('scat_l2_code', 'LIKE', "%{$query}%");
+                })
+                ->limit(100)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sub categories L2 search results',
+                'data' => SubCategoryL2Resource::collection($subCategoriesL2),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to search sub categories L2',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function store(SubCategoryL2Request $request)
     {
         try {
