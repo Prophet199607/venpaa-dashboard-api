@@ -20,8 +20,8 @@ class CategoryResource extends JsonResource
             'cat_code'     => (string) $this->cat_code,
             'cat_name'     => $this->cat_name,
             'cat_image'    => $this->cat_image,
-            'department'   => (string) $this->department,
-            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->department,
+            'department'   => (string) $this->getRawOriginal('department'),
+            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->getRawOriginal('department'),
             'dep_data' => $this->whenLoaded('department', function () {
                 $dep = $this->getRelation('department');
                 return [
