@@ -76,7 +76,7 @@ class SubCategoryL2Controller extends Controller
             $cat_code = $request->input('cat_code');
             $department = $request->input('department');
 
-            $subCategoriesL2 = SubCategoryL2::where('status', 1)
+            $subCategoriesL2 = SubCategoryL2::with(['subCategory', 'category', 'department'])->where('status', 1)
                 ->when($scat_code, function ($q) use ($scat_code) {
                     if (is_array($scat_code)) {
                         $q->whereIn('scat_code', $scat_code);

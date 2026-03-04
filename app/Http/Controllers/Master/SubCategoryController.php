@@ -74,7 +74,7 @@ class SubCategoryController extends Controller
             $query = $request->input('query', '');
             $cat_code = $request->input('cat_code');
 
-            $subCategories = SubCategory::where('status', 1)
+            $subCategories = SubCategory::with(['category', 'department'])->where('status', 1)
                 ->when($cat_code, function ($q) use ($cat_code) {
                     $q->where('cat_code', $cat_code);
                 })
