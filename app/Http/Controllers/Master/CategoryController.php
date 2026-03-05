@@ -158,7 +158,7 @@ class CategoryController extends Controller
     {
         try {
             $category = Category::where('cat_code', $cat_code)->firstOrFail();
-            $subCategories = $category->subCategories;
+            $subCategories = $category->subCategories()->with(['department', 'category'])->get();
 
             return response()->json([
                 'success' => true,
