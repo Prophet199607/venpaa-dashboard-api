@@ -662,4 +662,45 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+    public function stockByLocation($prod_code)
+    {
+        try {
+            $locations = Location::where('is_active', 1)->get()->keyBy('loca_code');
+
+            $stocks = StockMaster::select('location', DB::raw('SUM(qty) as total_qty'))
+                ->where('prod_code', $prod_code)
+                ->where('iid', '!=', 'CREATE')
+                ->groupBy('location')
+                ->get();
+
+            $data = $locations->map(function ($loc) use ($stocks, $prod_code) {
+                $stock = $stocks->firstWhere('location', $loc->loca_code);
+                
+                $latestStock = StockMaster::where('prod_code', $prod_code)
+                    ->where('location', $loc->loca_code)
+                    ->where('iid', '!=', 'CREATE')
+                    ->orderByDesc('id')
+                    ->first();
+                
+                return [
+                    'loca_code' => $loc->loca_code,
+                    'loca_name' => $loc->loca_name,
+                    'qty' => $stock ? $stock->total_qty : 0,
+                    'selling_price' => $latestStock ? $latestStock->selling_price : 0,
+                ];
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch stock by location.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
