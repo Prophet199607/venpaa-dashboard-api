@@ -418,6 +418,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // Report routes
     Route::group(['prefix' => 'reports'], function () {
         Route::get('/stock-summary', [ReportController::class, 'getStockSummary']);
+        Route::get('/pos-sales-summary-report', [ReportController::class, 'getPosSalesSummaryReport']);
     });
 
 
