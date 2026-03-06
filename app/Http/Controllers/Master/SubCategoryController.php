@@ -111,7 +111,7 @@ class SubCategoryController extends Controller
                 $data['scat_code'] = DocNumber::where('type', 'SubCategory')->first()->getDocCode();
             }
 
-            $subCategory = SubCategory::create($data);
+            $subCategory = SubCategory::create($data)->load(['category', 'department']);
 
             return response()->json([
                 'success' => true,
@@ -134,6 +134,7 @@ class SubCategoryController extends Controller
             $data = $request->validated();
             $data['updated_by'] = auth()->id();
             $subCategory->update($data);
+            $subCategory->load(['category', 'department']);
 
             return response()->json([
                 'success' => true,
