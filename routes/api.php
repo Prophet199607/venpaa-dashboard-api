@@ -210,7 +210,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
-        Route::get('/{prod_code}/bin-card', [BookController::class, 'binCard']);
         Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/import', [BookController::class, 'import']);
         Route::get('/export', [BookController::class, 'export']);
@@ -223,11 +222,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'products'], function () {
         Route::get('/{prod_code}/check-open-stock', [ProductController::class, 'checkOpenStock']);
         Route::get('/{prod_code}/stock-by-location', [ProductController::class, 'stockByLocation']);
+        Route::get('/{prod_code}/bin-card/export', [ProductController::class, 'exportBinCard']);
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
+        Route::get('/{prod_code}/bin-card', [ProductController::class, 'binCard']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
-        Route::get('/search', [ProductController::class, 'search']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
+        Route::get('/search', [ProductController::class, 'search']);
         Route::get('/', [ProductController::class, 'index']);
         Route::post('/', [ProductController::class, 'store']);
         Route::post('/store-open-stock', [ProductController::class, 'storeOpenStock']);
@@ -418,6 +419,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // Report routes
     Route::group(['prefix' => 'reports'], function () {
         Route::get('/stock-summary', [ReportController::class, 'getStockSummary']);
+        Route::get('/current-stock-report', [ReportController::class, 'getCurrentStockReport']);
         Route::get('/pos-sales-summary-report', [ReportController::class, 'getPosSalesSummaryReport']);
         Route::get('/pos-collection-summary-report', [ReportController::class, 'getPosCollectionSummaryReport']);
     });

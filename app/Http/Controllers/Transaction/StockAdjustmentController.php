@@ -109,13 +109,14 @@ class StockAdjustmentController extends Controller
                 ], 400);
             }
 
-            $query = StockMaster::where('prod_code', $prodCode)
+            $stats = StockMaster::where('prod_code', $prodCode)
                 ->where('location', $locaCode)
-                ->where('iid', '!=', 'CREATE');
+                ->where('iid', '!=', 'CREATE')
+                ->selectRaw('SUM(qty) as total_qty, MAX(id) as max_id')
+                ->first();
 
-            $totalQty = $query->sum('qty');
-            $firstRecord = $query->orderByDesc('id')->first();
-            // $firstRecord = $query->first();
+            $totalQty = $stats ? (float) $stats->total_qty : 0;
+            $firstRecord = ($stats && $stats->max_id) ? StockMaster::find($stats->max_id) : null;
 
             if (!$firstRecord && $totalQty == 0) {
                 return response()->json([
