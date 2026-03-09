@@ -222,12 +222,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'products'], function () {
         Route::get('/{prod_code}/check-open-stock', [ProductController::class, 'checkOpenStock']);
         Route::get('/{prod_code}/stock-by-location', [ProductController::class, 'stockByLocation']);
+        Route::get('/{prod_code}/bin-card/export', [ProductController::class, 'exportBinCard']);
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
         Route::get('/{prod_code}/bin-card', [ProductController::class, 'binCard']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
-        Route::get('/search', [ProductController::class, 'search']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);
+        Route::get('/search', [ProductController::class, 'search']);
         Route::get('/', [ProductController::class, 'index']);
         Route::post('/', [ProductController::class, 'store']);
         Route::post('/store-open-stock', [ProductController::class, 'storeOpenStock']);

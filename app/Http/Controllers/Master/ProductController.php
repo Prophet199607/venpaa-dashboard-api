@@ -12,16 +12,17 @@ use App\Models\StockMaster;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
+use App\Exports\BinCardExport;
 use App\Models\ProductSupplier;
 use App\Models\TransactionDetail;
 use App\Models\TransactionHeader;
 use App\Models\ProductSubCategory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\ProductRequest;
 use App\Http\Resources\Master\ProductResource;
-
 
 class ProductController extends Controller
 {
@@ -605,6 +606,63 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load bin card',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function exportBinCard(Request $request, $prod_code)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            if ($userLocation === null || $userLocation === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Logged-in location is required to view bin card.',
+                ], 400);
+            }
+
+            $product = Product::where('prod_code', $prod_code)->first();
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            $query = StockMaster::where('prod_code', $prod_code)
+                ->where('location', $userLocation)
+                ->where('iid', '!=', 'CREATE')
+                ->orderBy('transaction_date')
+                ->orderBy('id');
+
+            $rows = $query->get();
+            $iidNames = Iid::whereIn('iid', $rows->pluck('iid')->unique()->filter())->pluck('name', 'iid');
+
+            $balance = 0;
+            $transactions = [];
+            foreach ($rows as $row) {
+                $qty = (float) $row->qty;
+                $balance += $qty;
+                $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
+                $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
+                $transactions[] = [
+                    'transaction' => $iidNames[$row->iid] ?? $row->iid,
+                    'date'        => (string) $row->transaction_date,
+                    'document'    => $row->doc_no,
+                    'reference'   => $row->doc_no,
+                    'cost'        => number_format((float) $row->purchase_price, 2, '.', ''),
+                    'stock_in'    => $stockIn,
+                    'stock_out'   => $stockOut,
+                    'balance'     => (string) round($balance, 3),
+                ];
+            }
+
+            return Excel::download(new BinCardExport($transactions), "bin_card_{$prod_code}.xlsx");
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export bin card',
                 'error'   => $e->getMessage(),
             ], 500);
         }
