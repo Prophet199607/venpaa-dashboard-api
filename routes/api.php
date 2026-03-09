@@ -210,7 +210,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
-        Route::get('/{prod_code}/bin-card', [BookController::class, 'binCard']);
         Route::get('/{prod_code}', [BookController::class, 'show']);
         Route::post('/import', [BookController::class, 'import']);
         Route::get('/export', [BookController::class, 'export']);
@@ -224,6 +223,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{prod_code}/check-open-stock', [ProductController::class, 'checkOpenStock']);
         Route::get('/{prod_code}/stock-by-location', [ProductController::class, 'stockByLocation']);
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
+        Route::get('/{prod_code}/bin-card', [ProductController::class, 'binCard']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
         Route::get('/search', [ProductController::class, 'search']);
