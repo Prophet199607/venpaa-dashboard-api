@@ -501,6 +501,13 @@ class InvoiceController extends Controller
                 $headerData['vat_percent'] = 18;
             }
 
+            if ($type === 'return') {
+                $headerData['subtotal'] = abs($headerData['subtotal'] ?? 0);
+                $headerData['net_total'] = abs($headerData['net_total'] ?? 0);
+                $headerData['tax'] = abs($headerData['tax'] ?? 0);
+                $headerData['discount'] = abs($headerData['discount'] ?? 0);
+            }
+
             $transactionSaleHeader = TransactionSaleHeader::create(
                 array_merge(
                     $headerData,
@@ -620,7 +627,7 @@ class InvoiceController extends Controller
                         'doc_no'        => $invNumber,
                         'line_no'       => $product->line_no,
                         'iid'           => 'INV',
-                        'amount'        => $product->amount,
+                        'amount'        => abs($product->amount),
                         'prod_code'     => $product->prod_code,
                         'prod_name'     => $product->prod_name,
                         'type'          => $product->type ?? 'Sales',
@@ -628,9 +635,10 @@ class InvoiceController extends Controller
                         'marked_price'  => $product->marked_price ?? 0,
                         'selling_price' => $product->selling_price,
                         'line_wise_discount_value' => $product->line_wise_discount_value,
-                        'free_qty'      => $product->free_qty,
-                        'pack_qty'      => $product->pack_qty,
-                        'total_qty'     => $product->total_qty,
+                        'free_qty'      => abs($product->free_qty),
+                        'unit_qty'      => abs($product->unit_qty),
+                        'pack_qty'      => abs($product->pack_qty),
+                        'total_qty'     => abs($product->total_qty),
                     ]);
 
                     // 4.2 Update Stock Master
@@ -638,7 +646,7 @@ class InvoiceController extends Controller
                     $qtyChange = -abs($product->total_qty);
                     $amountChange = -abs($product->amount); // Stock Value Impact
 
-                    if (($product->type ?? 'Sales') === 'Return') {
+                    if ($type === 'return' || ($product->type ?? 'Sales') === 'Return') {
                         $qtyChange = abs($product->total_qty);
                         $amountChange = abs($product->amount);
                     }
@@ -660,14 +668,14 @@ class InvoiceController extends Controller
                         'location'      => $data['location'],
                         'doc_no'        => $invNumber,
                         'iid'           => 'INV',
-                        'free_qty'      => $product->free_qty,
+                        'free_qty'      => abs($product->free_qty),
                         'product_code'  => $product->prod_code,
                         'product_name'  => $product->prod_name,
-                        'pack_qty'      => $product->pack_qty,
+                        'pack_qty'      => abs($product->pack_qty),
                         'selling_price' => $product->selling_price,
                         'purchase_price' => $product->purchase_price,
                         'sale_date'     => $data['document_date'] ?? now(),
-                        'amount'        => $product->amount,
+                        'amount'        => abs($product->amount),
                     ]);
                 }
             }
