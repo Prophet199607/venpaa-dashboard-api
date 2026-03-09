@@ -150,12 +150,11 @@ class ItemRequestController extends Controller
 
                 $headerData = $data;
                 unset($headerData['id']);
-                $itemReqTransHeader = ItemReqTransHeader::create([
-                    ...$headerData,
+                $itemReqTransHeader = ItemReqTransHeader::create(array_merge($headerData, [
                     'doc_no'      => $irNumber,
                     'temp_doc_no' => $data['doc_no'],
                     'created_by'  => auth()->id(),
-                ]);
+                ]));
 
                 // Load temp products for this temp doc
                 $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
@@ -165,12 +164,11 @@ class ItemRequestController extends Controller
                 foreach ($tempProducts as $temp) {
                     $tempData = $temp->toArray();
                     unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    ItemReqTransDetail::create([
-                        ...$tempData,
+                    ItemReqTransDetail::create(array_merge($tempData, [
                         'item_transaction_header_id'    => $itemReqTransHeader->id,
                         'doc_no'       => $irNumber,
                         'created_by'   => auth()->id(),
-                    ]);
+                    ]));
                 }
 
                 // Clean up temp details for this doc

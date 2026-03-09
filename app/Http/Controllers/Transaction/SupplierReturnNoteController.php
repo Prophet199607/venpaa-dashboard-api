@@ -150,12 +150,11 @@ class SupplierReturnNoteController extends Controller
 
                 $headerData = $data;
                 unset($headerData['id']);
-                $transactionHeader = TransactionHeader::create([
-                    ...$headerData,
+                $transactionHeader = TransactionHeader::create(array_merge($headerData, [
                     'doc_no'      => $srnNumber,
                     'temp_doc_no' => $data['doc_no'],
                     'created_by'  => auth()->id(),
-                ]);
+                ]));
 
                 // Load temp products for this temp doc
                 $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
@@ -166,11 +165,10 @@ class SupplierReturnNoteController extends Controller
                 foreach ($tempProducts as $temp) {
                     $tempData = $temp->toArray();
                     unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    $transactionDetail = TransactionDetail::create([
-                        ...$tempData,
+                    $transactionDetail = TransactionDetail::create(array_merge($tempData, [
                         'transaction_header_id' => $transactionHeader->id,
                         'doc_no'                => $srnNumber,
-                    ]);
+                    ]));
                     $transactionDetails[] = $transactionDetail;
                 }
 

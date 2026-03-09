@@ -206,8 +206,7 @@ class InvoiceController extends Controller
         } else {
             $transactionSaleHeaders = TransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
-                ->whereDate('document_date', '>=', $startDate)
-                ->whereDate('document_date', '<=', $endDate)
+          
                 ->orderBy('id', 'desc')
                 ->paginate($perPage);
 
@@ -467,7 +466,7 @@ class InvoiceController extends Controller
 
     public function store(TempTransactionSaleHeaderRequest $request)
     {
-        
+    
         try {
             DB::beginTransaction();
 
@@ -476,8 +475,21 @@ class InvoiceController extends Controller
             // ---------------------------------------------------------
             $data = $request->validated();
             $payments = $request->input('payments', []);
+            $location_code = $data['location'] ?? '';
 
-            $invNumber = DocNumber::generate('INV', 'INV', 8, $data['location']);
+            $invNumber = DocNumber::generate('INV', 'INV', 8, $location_code);
+
+            // Read refund flag from payload (supports both root and inv nodes)
+            $refund = strtolower($request->input('refund', $request->inv['refund'] ?? ''));
+            $isRefundYes = ($refund === 'yes');
+            $type = strtolower($data['type'] ?? 'sales');
+
+            $org_pmt_doc_no = null;
+
+            // Generate CAR number for Return with Refund Yes
+            if ($type === 'return' && $isRefundYes) {
+                $org_pmt_doc_no = DocNumber::generate('CashRefund', 'CAR', 8, $location_code);
+            }
 
             // ---------------------------------------------------------
             // 2. Create Transaction Sale Header
@@ -489,20 +501,12 @@ class InvoiceController extends Controller
                 $headerData['vat_percent'] = 18;
             }
 
-            // $transactionSaleHeader = TransactionSaleHeader::create([
-            //     ...$headerData,
-            //     'doc_no'      => $invNumber,
-            //     'temp_doc_no' => $data['doc_no'],
-            //     'created_by'  => auth()->id(),
-            //     'iid'         => 'INV'
-            // ]);
-
             $transactionSaleHeader = TransactionSaleHeader::create(
                 array_merge(
                     $headerData,
                     [
                         'doc_no'      => $invNumber,
-                        'temp_doc_no' => $data['doc_no'],
+                        'temp_doc_no' => $data['doc_no'] ?? '',
                         'created_by'  => auth()->id(),
                         'iid'         => 'INV',
                     ]
@@ -513,68 +517,88 @@ class InvoiceController extends Controller
             // 3. Handle Payments & Receipts
             // ---------------------------------------------------------
 
-            // 3.1 Generate Receipt Number
-            $rec_doc = DocNumber::firstOrCreate(
-                ['type' => 'Receipt'],
-                ['prefix' => 'REC', 'last_id' => 0, 'created_at' => now(), 'updated_at' => now()]
-            );
-            $rec_doc->last_id += 1;
-            $rec_doc->save();
-            $org_pmt_doc_no = 'REC-' . str_pad($rec_doc->last_id, 8, '0', STR_PAD_LEFT);
-
-            // 3.2 Process Each Payment
             $totalPaid = 0;
             if (!empty($payments)) {
                 foreach ($payments as $payment) {
-                    $amount = (float)($payment['amount'] ?? 0);
-                    $totalPaid += $amount;
-
-                    PaidPaymentSummary::create([
-
-                        'location'      => $data['location'],
-                        'temp_doc_no'   => $data['doc_no'],
-                        'org_doc_no'    => $org_pmt_doc_no,
-                        'doc_no'        => $invNumber,
-                        'payment_mode'  => $payment['method'] ?? $payment['mode'] ?? 'CASH',
-                        'amount'        => $amount,
-                        'iid'           => 'REC',
-                        'acc_code'      => $data['customer_code'],
-                        'transaction_date' => $payment['date'] ?? now(),
-                        'document_date' => $data['document_date'] ?? now(),
-                        'bank_name'     => $payment['bank'] ?? null,
-                        'branch'        => $payment['branch'] ?? null,
-                        'cheque_no'     => $payment['chequeNo'] ?? null,
-                    ]);
+                    $totalPaid += (float)($payment['amount'] ?? 0);
                 }
             }
 
-            // 3.3 Create Paid Payment Link (Invoice <-> Payment)
             $netAmount = (float)($data['net_total'] ?? 0);
-            $balanceAmount = max(0, $netAmount - $totalPaid);
 
-            PaidPaymentDetail::create([
-                'org_doc_no' => $org_pmt_doc_no,
-                'doc_no'     => $invNumber,
-                'location'   => $data['location'],
-                'transaction_amount' => $netAmount,
-                'transaction_date'   => $data['document_date'] ?? now(),
-                'balance_amount'     => $balanceAmount,
-                'paid_amount'        => $totalPaid,
-                'temp_doc_no'        => $data['doc_no'],
-                'iid'                => 'REC',
-                'acc_code'           => $data['customer_code'],
-                'document_date'      => $data['document_date'] ?? now(),
-                'setoff_sr_doc'      => 0,
-            ]);
+            // For negative net with refund yes, we effectively "paid" the customer
+            if ($type === 'return' && $isRefundYes && $netAmount < 0 && empty($payments)) {
+                $totalPaid = $netAmount;
+            }
+
+            $balanceAmount = $netAmount - $totalPaid;
+
+            if ($type === 'return') {
+                $netAmount = abs($netAmount);
+                $totalPaid = abs($totalPaid);
+                $balanceAmount = abs($balanceAmount);
+            }
+
+            // If it's a return "no", no need to save in PaidPaymentSummary or PaidPaymentDetail
+            if ($type === 'return' && !$isRefundYes) {
+                // Skip payment entries for credit returns
+            } elseif ($org_pmt_doc_no || $totalPaid != 0) {
+                if (!$org_pmt_doc_no) {
+                    // Generate Receipt Number if not already set (e.g. not a CAR)
+                    $org_pmt_doc_no = DocNumber::generate('Receipt', 'REC', 8, $location_code);
+                }
+
+                // If it's a return "yes", no need to save in PaidPaymentSummaries table
+                if ($type === 'return' && $isRefundYes) {
+                    // Skip saving in PaidPaymentSummaries table per user request
+                } else {
+                    foreach ($payments as $payment) {
+                        $amount = abs((float)($payment['amount'] ?? 0));
+                        if ($amount == 0) continue;
+
+                        PaidPaymentSummary::create([
+                            'location'      => $location_code,
+                            'temp_doc_no'   => $data['doc_no'] ?? '',
+                            'org_doc_no'    => $org_pmt_doc_no,
+                            'doc_no'        => $invNumber,
+                            'payment_mode'  => $payment['method'] ?? $payment['mode'] ?? 'CASH',
+                            'amount'        => $amount,
+                            'iid'           => 'REC',
+                            'acc_code'      => $data['customer_code'],
+                            'transaction_date' => $payment['date'] ?? now(),
+                            'document_date' => $data['document_date'] ?? now(),
+                            'bank_name'     => $payment['bank'] ?? null,
+                            'branch'        => $payment['branch'] ?? null,
+                            'cheque_no'     => $payment['chequeNo'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Create Paid Payment Link (Invoice <-> Payment)
+                PaidPaymentDetail::create([
+                    'org_doc_no' => $org_pmt_doc_no,
+                    'doc_no'     => $invNumber,
+                    'location'   => $location_code,
+                    'transaction_amount' => $netAmount,
+                    'transaction_date'   => $data['document_date'] ?? now(),
+                    'balance_amount'     => $balanceAmount,
+                    'paid_amount'        => $totalPaid,
+                    'temp_doc_no'        => $data['doc_no'] ?? '',
+                    'iid'                => ($type === 'return' && $isRefundYes) ? 'CAR' : 'REC',
+                    'acc_code'           => $data['customer_code'],
+                    'document_date'      => $data['document_date'] ?? now(),
+                    'setoff_sr_doc'      => 0,
+                ]);
+            }
 
             // 3.4 Update Customer Ledger (Payment Summary)
             // If there's a transaction amount, record it against the customer
             if ($netAmount != 0) {
                 PaymentSummary::create([
                     'acc_code'      => $data['customer_code'],
-                    'location'      => $data['location'],
+                    'location'      => $location_code,
                     'acc_type'      => 'customer',
-                    'iid'           => 'INV',
+                    'iid'           => ($type === 'return') ? 'CUR' : 'INV',
                     'doc_no'        => $invNumber,
                     'transaction_amount' => $netAmount,
                     'document_date' => $data['document_date'] ?? now(),
