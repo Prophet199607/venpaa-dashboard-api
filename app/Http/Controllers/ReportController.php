@@ -38,11 +38,11 @@ class ReportController extends Controller
         try {
             $locaRaw = $request->input('location', $request->input('Loca', ''));
             $location = str_pad(ltrim($locaRaw, '0'), 2, '0', STR_PAD_LEFT);
-            
+
             $dateFrom = $request->input('dateFrom', '');
             $dateTo = $request->input('dateTo', '');
 
-            DB::statement('SET @pErrorCode = 0');            
+            DB::statement('SET @pErrorCode = 0');
             $summary = DB::select('CALL sp_PosSalesSummaryReport(@pErrorCode, ?, ?, ?)', [
                 $location,
                 $dateFrom,
@@ -81,12 +81,12 @@ class ReportController extends Controller
         try {
             $locaRaw = $request->input('location', $request->input('Loca', ''));
             $location = str_pad(ltrim($locaRaw, '0'), 2, '0', STR_PAD_LEFT);
-            
+
             $dateFrom = $request->input('dateFrom', '');
             $dateTo = $request->input('dateTo', '');
 
             DB::statement('SET @pErrorCode = 0');
-            
+
             $summary = DB::select('CALL sp_PosCollectionSummaryReport(@pErrorCode, ?, ?, ?)', [
                 $location,
                 $dateFrom,
@@ -112,6 +112,44 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch POS collection summary report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get Current Stock Report
+     */
+    public function getCurrentStockReport(Request $request)
+    {
+        try {
+            $location = $request->input('location', $request->input('Loca', ''));
+
+            DB::statement('SET @pErrorCode = 0');
+
+            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?)', [
+                $location
+            ]);
+
+            $errorCode = DB::select('SELECT @pErrorCode as error_code')[0]->error_code;
+
+            if ($errorCode != 0) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'Stored procedure error',
+                    'error_code' => $errorCode
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Current stock report fetched successfully',
+                'data' => $summary
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch current stock report',
                 'error' => $e->getMessage()
             ], 500);
         }
