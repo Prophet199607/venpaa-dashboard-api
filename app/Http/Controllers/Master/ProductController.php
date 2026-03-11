@@ -45,13 +45,29 @@ class ProductController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $userLocation = $request->user()->location ?? null;
+
             $products = Product::where('status', 1)
                 ->where('department', '!=', '10')
-                ->with(['category', 'subCategories', 'department', 'suppliers', 'images'])
+                ->with(['category', 'subCategories', 'department', 'suppliers', 'images', 'unit'])
                 ->get();
+
+            if ($userLocation) {
+                // Get stock sum per product for the user's location
+                $stocks = StockMaster::whereIn('prod_code', $products->pluck('prod_code'))
+                    ->where('location', $userLocation)
+                    ->where('iid', '!=', 'CREATE')
+                    ->groupBy('prod_code')
+                    ->select('prod_code', DB::raw('SUM(qty) as total_qty'))
+                    ->pluck('total_qty', 'prod_code');
+
+                foreach ($products as $product) {
+                    $product->current_stock = (float) ($stocks[$product->prod_code] ?? 0);
+                }
+            }
 
             return response()->json([
                 'success' => true,

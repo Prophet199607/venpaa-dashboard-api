@@ -74,6 +74,7 @@ class ProductResource extends JsonResource
             }),
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
+            'current_stock' => $this->current_stock ?? 0,
         ];
     }
 
