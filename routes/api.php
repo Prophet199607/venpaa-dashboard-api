@@ -225,6 +225,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/{prod_code}/bin-card/export', [ProductController::class, 'exportBinCard']);
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
         Route::get('/{prod_code}/bin-card', [ProductController::class, 'binCard']);
+        Route::get('/open-stocks', [ProductController::class, 'getOpenStocks']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
         Route::get('/{prod_code}', [ProductController::class, 'show']);

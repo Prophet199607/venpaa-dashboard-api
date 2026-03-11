@@ -668,6 +668,37 @@ class ProductController extends Controller
         }
     }
 
+    public function getOpenStocks(Request $request)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            $perPage = $request->input('per_page', 10);
+            
+            $query = StockMaster::where('iid', 'OPS')
+                ->select('stock_masters.*', 'products.prod_name', 'units.unit_type')
+                ->leftJoin('products', 'stock_masters.prod_code', '=', 'products.prod_code')
+                ->leftJoin('units', 'products.unit_name', '=', 'units.unit_name')
+                ->orderBy('stock_masters.id', 'desc');
+
+            if ($userLocation) {
+                $query->where('location', $userLocation);
+            }
+                
+            $openStocks = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $openStocks
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load open stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function storeOpenStock(Request $request)
     {
         try {
