@@ -158,6 +158,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // payment type routes
     Route::group(['prefix' => 'payment-types'], function () {
         Route::get('/', [PaymentTypeController::class, 'index']);
+        Route::get('/invoice', [PaymentTypeController::class, 'paymentTypesInvoice']);
+        Route::get('/load-all-setoff-payments/{customer_code}/{location}', [PaymentTypeController::class, 'loadAllSetoffPayments']);
     });
 
     // publisher routes
@@ -387,6 +389,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
+    });
+
+    // customer receipt routes
+    Route::group(['prefix' => 'customer-receipts'], function () {
+        Route::get('/pending-receipts/{customer_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingCustomerReceipts']);
+        Route::get('/available-set-offs/{customer_code}/{loca_code}', [PaymentVoucherController::class, 'getAvailableSetOffsRec']);
+
+        Route::post('/save-rec', [PaymentVoucherController::class, 'receiptStore']);
+        Route::post('/generate-code', [PaymentVoucherController::class, 'getRecNumber']);
     });
 
     // invoice routes

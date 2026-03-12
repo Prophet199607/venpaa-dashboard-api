@@ -206,7 +206,7 @@ class InvoiceController extends Controller
         } else {
             $transactionSaleHeaders = TransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
-          
+
                 ->orderBy('id', 'desc')
                 ->paginate($perPage);
 
@@ -466,7 +466,7 @@ class InvoiceController extends Controller
 
     public function store(TempTransactionSaleHeaderRequest $request)
     {
-    
+
         try {
             DB::beginTransaction();
 
@@ -519,6 +519,51 @@ class InvoiceController extends Controller
                     ]
                 )
             );
+
+            $payments = $request->payments ?? [];
+
+            foreach ($payments as $paymentDetails) {
+
+                $method = strtoupper($paymentDetails['method'] ?? '');
+
+                $isAdvanceMode = $method === 'ADVANCE' && isset($paymentDetails['advanceId']);
+                $isOverPaymentMode = ($method === 'OVER PAYMENT' || $method === 'OVERPAYMENT') && (isset($paymentDetails['overPaymentId']) || isset($paymentDetails['overDocNo']));
+                $isReturn = $method === 'RETURN' && isset($paymentDetails['returnId']);
+
+                // Detect document number
+                if ($isAdvanceMode) {
+                    $advanceLikeDocNo = $paymentDetails['advanceId'];
+                } elseif ($isOverPaymentMode) {
+                    $advanceLikeDocNo = $paymentDetails['overPaymentId'];
+                } elseif ($isReturn) {
+                    $advanceLikeDocNo = $paymentDetails['returnId'];
+                } else {
+                    $advanceLikeDocNo = null;
+                }
+
+                // Get amount (frontend sends 'amount')
+                $advanceLikeAmount = (float)($paymentDetails['amount'] ?? 0);
+
+                // Save logic
+                if ($advanceLikeDocNo) {
+
+                    $advanceRecord = PaymentSummary::where([
+                        'doc_no' => $advanceLikeDocNo,
+                        'acc_code' => $request->customer_code,
+                        'iid' => $paymentDetails['IID'],
+                    ])->first();
+
+                    if ($advanceRecord) {
+
+                        $deductAmount = min($advanceRecord->balance_amount, $advanceLikeAmount);
+
+                        $advanceRecord->balance_amount -= $deductAmount;
+
+                        $advanceRecord->save();
+                    }
+                }
+            }
+
 
             // ---------------------------------------------------------
             // 3. Handle Payments & Receipts
@@ -719,8 +764,8 @@ class InvoiceController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -738,8 +783,8 @@ class InvoiceController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -762,8 +807,8 @@ class InvoiceController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -781,8 +826,8 @@ class InvoiceController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
