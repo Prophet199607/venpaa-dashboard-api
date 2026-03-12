@@ -14,6 +14,8 @@ class SubCategoryResource extends JsonResource
      */
     public function toArray($request)
     {
+        $dep = $this->resource->getRelationValue('department');
+
         return [
             'id' => $this->id,
             'scat_code'     => (string) $this->scat_code,
@@ -30,9 +32,12 @@ class SubCategoryResource extends JsonResource
                     'department' => (string) ($this->category->getAttributes()['department'] ?? ''),
                 ];
             }),
-            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) ($this->resource->getAttributes()['department'] ?? ''),
+            'department_name' => $dep ? $dep->dep_name : (string) ($this->resource->getAttributes()['department'] ?? ''),
             'dep_data' => $this->whenLoaded('department', function () {
-                $dep = $this->getRelation('department');
+                $dep = $this->resource->getRelationValue('department');
+                if (!$dep) {
+                    return null;
+                }
                 return [
                     'dep_code' => (string) $dep->dep_code,
                     'dep_name' => $dep->dep_name,

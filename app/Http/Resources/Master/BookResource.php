@@ -97,6 +97,12 @@ class BookResource extends JsonResource
             'unit_name'     => $this->unit_name,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
+            'current_stock' => $this->current_stock ?? 0,
+            'unit' => $this->whenLoaded('unit', function () {
+                return [
+                    'unit_type' => $this->unit->unit_type ?? null,
+                ];
+            }),
         ];
     }
 

@@ -157,6 +157,13 @@ class DepartmentController extends Controller
     {
         try {
             $department = Department::where('dep_code', $dep_code)->first();
+            if (!$department) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Department not found',
+                    'error' => 'Invalid department code'
+                ], 404);
+            }
             $categories = $department->categories;
 
             return response()->json([

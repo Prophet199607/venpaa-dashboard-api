@@ -45,13 +45,29 @@ class ProductController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $userLocation = $request->user()->location ?? null;
+
             $products = Product::where('status', 1)
                 ->where('department', '!=', '10')
-                ->with(['category', 'subCategories', 'department', 'suppliers', 'images'])
+                ->with(['category', 'subCategories', 'department', 'suppliers', 'images', 'unit'])
                 ->get();
+
+            if ($userLocation) {
+                // Get stock sum per product for the user's location
+                $stocks = StockMaster::whereIn('prod_code', $products->pluck('prod_code'))
+                    ->where('location', $userLocation)
+                    ->where('iid', '!=', 'CREATE')
+                    ->groupBy('prod_code')
+                    ->select('prod_code', DB::raw('SUM(qty) as total_qty'))
+                    ->pluck('total_qty', 'prod_code');
+
+                foreach ($products as $product) {
+                    $product->current_stock = (float) ($stocks[$product->prod_code] ?? 0);
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -556,14 +572,15 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $query = StockMaster::where('prod_code', $prod_code)
-                ->where('location', $userLocation)
-                ->where('iid', '!=', 'CREATE')
-                ->orderBy('transaction_date')
-                ->orderBy('id');
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
 
-            $rows = $query->get();
-            $iidNames = Iid::whereIn('iid', $rows->pluck('iid')->unique()->filter())->pluck('name', 'iid');
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
 
             $balance = 0;
             $transactions = [];
@@ -573,7 +590,7 @@ class ProductController extends Controller
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
                 $transactions[] = [
-                    'transaction' => $iidNames[$row->iid] ?? $row->iid,
+                    'transaction' => $row->iid_name ?? $row->iid,
                     'date'        => $row->transaction_date,
                     'document'    => $row->doc_no,
                     'reference'   => $row->doc_no,
@@ -630,14 +647,15 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $query = StockMaster::where('prod_code', $prod_code)
-                ->where('location', $userLocation)
-                ->where('iid', '!=', 'CREATE')
-                ->orderBy('transaction_date')
-                ->orderBy('id');
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
 
-            $rows = $query->get();
-            $iidNames = Iid::whereIn('iid', $rows->pluck('iid')->unique()->filter())->pluck('name', 'iid');
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
 
             $balance = 0;
             $transactions = [];
@@ -647,7 +665,7 @@ class ProductController extends Controller
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
                 $transactions[] = [
-                    'transaction' => $iidNames[$row->iid] ?? $row->iid,
+                    'transaction' => $row->iid_name ?? $row->iid,
                     'date'        => (string) $row->transaction_date,
                     'document'    => $row->doc_no,
                     'reference'   => $row->doc_no,
@@ -664,6 +682,37 @@ class ProductController extends Controller
                 'success' => false,
                 'message' => 'Failed to export bin card',
                 'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getOpenStocks(Request $request)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            $perPage = $request->input('per_page', 10);
+            
+            $query = StockMaster::where('iid', 'OPS')
+                ->select('stock_masters.*', 'products.prod_name', 'units.unit_type')
+                ->leftJoin('products', 'stock_masters.prod_code', '=', 'products.prod_code')
+                ->leftJoin('units', 'products.unit_name', '=', 'units.unit_name')
+                ->orderBy('stock_masters.id', 'desc');
+
+            if ($userLocation) {
+                $query->where('location', $userLocation);
+            }
+                
+            $openStocks = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $openStocks
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load open stocks',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
