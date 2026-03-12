@@ -15,15 +15,20 @@ class CategoryResource extends JsonResource
      */
     public function toArray($request)
     {
+        $dep = $this->resource->getRelationValue('department');
+
         return [
             'id' => $this->id,
             'cat_code'     => (string) $this->cat_code,
             'cat_name'     => $this->cat_name,
             'cat_image'    => $this->cat_image,
             'department'   => (string) $this->getRawOriginal('department'),
-            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->getRawOriginal('department'),
+            'department_name' => $dep ? $dep->dep_name : (string) $this->getRawOriginal('department'),
             'dep_data' => $this->whenLoaded('department', function () {
-                $dep = $this->getRelation('department');
+                $dep = $this->resource->getRelationValue('department');
+                if (!$dep) {
+                    return null;
+                }
                 return [
                     'dep_code' => (string) $dep->dep_code,
                     'dep_name' => $dep->dep_name,
@@ -39,7 +44,7 @@ class CategoryResource extends JsonResource
 
     /**
      * Get S3 URL with proper type hinting for Intelephense
-     * 
+     *
      * @return string|null
      */
     private function getS3Url()
