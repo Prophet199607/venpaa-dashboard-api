@@ -40,7 +40,10 @@ class SubCategoryL2Resource extends JsonResource
             }),
             'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->getRawOriginal('department'),
             'dep_data' => $this->whenLoaded('department', function () {
-                $dep = $this->getRelation('department');
+                $dep = $this->resource->getRelationValue('department');
+                if (!$dep) {
+                    return null;
+                }
                 return [
                     'dep_code' => (string) $dep->dep_code,
                     'dep_name' => $dep->dep_name,

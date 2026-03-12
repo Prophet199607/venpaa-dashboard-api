@@ -22,7 +22,10 @@ class ProductResource extends JsonResource
             'short_description'     => $this->short_description,
             'department'    => (string) $this->getRawOriginal('department'),
             'department_categories' => $this->whenLoaded('department', function() {
-                $depRelation = $this->getRelation('department');
+                $depRelation = $this->resource->getRelationValue('department');
+                if (!$depRelation) {
+                    return [];
+                }
                 return $depRelation->categories->map(function($cat) {
                     return [
                         'cat_code' => (string) $cat->cat_code,
