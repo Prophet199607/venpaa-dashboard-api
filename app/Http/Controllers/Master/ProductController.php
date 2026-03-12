@@ -572,14 +572,15 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $query = StockMaster::where('prod_code', $prod_code)
-                ->where('location', $userLocation)
-                ->where('iid', '!=', 'CREATE')
-                ->orderBy('transaction_date')
-                ->orderBy('id');
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
 
-            $rows = $query->get();
-            $iidNames = Iid::whereIn('iid', $rows->pluck('iid')->unique()->filter())->pluck('name', 'iid');
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
 
             $balance = 0;
             $transactions = [];
@@ -589,7 +590,7 @@ class ProductController extends Controller
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
                 $transactions[] = [
-                    'transaction' => $iidNames[$row->iid] ?? $row->iid,
+                    'transaction' => $row->iid_name ?? $row->iid,
                     'date'        => $row->transaction_date,
                     'document'    => $row->doc_no,
                     'reference'   => $row->doc_no,
@@ -646,14 +647,15 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $query = StockMaster::where('prod_code', $prod_code)
-                ->where('location', $userLocation)
-                ->where('iid', '!=', 'CREATE')
-                ->orderBy('transaction_date')
-                ->orderBy('id');
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
 
-            $rows = $query->get();
-            $iidNames = Iid::whereIn('iid', $rows->pluck('iid')->unique()->filter())->pluck('name', 'iid');
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
 
             $balance = 0;
             $transactions = [];
@@ -663,7 +665,7 @@ class ProductController extends Controller
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
                 $transactions[] = [
-                    'transaction' => $iidNames[$row->iid] ?? $row->iid,
+                    'transaction' => $row->iid_name ?? $row->iid,
                     'date'        => (string) $row->transaction_date,
                     'document'    => $row->doc_no,
                     'reference'   => $row->doc_no,
