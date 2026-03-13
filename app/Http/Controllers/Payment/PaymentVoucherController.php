@@ -10,6 +10,7 @@ use App\Models\PaidPaymentSummary;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payment\PaymentVoucherRequest;
+use App\Http\Requests\Payment\CustomerReceiptRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Http\Resources\Payment\PaidPaymentSummaryResource;
 
@@ -122,7 +123,7 @@ class PaymentVoucherController extends Controller
                     throw new \Exception('Payment setoff mode requires at least one setoff document.');
                 }
 
-                $setoffNumber = DocNumber::generate('SupplierSetOff', 'SSOF', 8, $location);
+                $setoffNumber = DocNumber::generate('SupplierSetOff', 'CSOF', 8, $location);
 
                 foreach ($setOffDocs as $doc) {
                     $paidAmount = (float) $doc['paid_amount'];
@@ -140,7 +141,7 @@ class PaymentVoucherController extends Controller
                         'transaction_date' => $date,
                         'balance_amount' => $doc['balance_amount'],
                         'paid_amount' => $paidAmount,
-                        'iid' => "SSOF",
+                        'iid' => "CSOF",
                         'acc_code' => $supplierCode,
                         'document_date' => $date,
                         'temp_doc_no' => "",
@@ -304,13 +305,13 @@ class PaymentVoucherController extends Controller
         ]);
     }
 
-    public function receiptStore(PaymentVoucherRequest $request)
+    public function receiptStore(CustomerReceiptRequest $request)
     {
         return DB::transaction(function () use ($request) {
             $validated = $request->validated();
 
             $receipt = $validated['receipt'];
-            $supplier = $validated['supplier'];
+            $customer = $validated['customer'];
             $payments = $validated['payments'];
             $allocations = $validated['allocations'];
             $setOffDocs = $validated['setoff']['selectedDocs'] ?? [];
@@ -319,7 +320,7 @@ class PaymentVoucherController extends Controller
             $location = $receipt['location'];
             $date = $receipt['date'];
             $overPayment = (float) $receipt['over_payment'];
-            $supplierCode = $supplier['supplier_code'];
+            $customerCode = $customer['customer_code'];
 
             // 1. Ensure Unique Document Number
             while (
@@ -335,8 +336,8 @@ class PaymentVoucherController extends Controller
 
             // 2. Update Payment Doc Number Sequence
             $last8Digits = (int) substr($orgDocNo, -8);
-            DocNumber::where('type', 'Payment')
-                ->where('prefix', 'PMT')
+            DocNumber::where('type', 'Receipt')
+                ->where('prefix', 'REC')
                 ->update(['last_id' => $last8Digits]);
 
             // 3. Handle Payment Set-Off
@@ -350,7 +351,7 @@ class PaymentVoucherController extends Controller
                     throw new \Exception('Payment setoff mode requires at least one setoff document.');
                 }
 
-                $setoffNumber = DocNumber::generate('SupplierSetOff', 'SSOF', 8, $location);
+                $setoffNumber = DocNumber::generate('CustomerSetOff', 'CSOF', 8, $location);
 
                 foreach ($setOffDocs as $doc) {
                     $paidAmount = (float) $doc['paid_amount'];
@@ -368,8 +369,8 @@ class PaymentVoucherController extends Controller
                         'transaction_date' => $date,
                         'balance_amount' => $doc['balance_amount'],
                         'paid_amount' => $paidAmount,
-                        'iid' => "SSOF",
-                        'acc_code' => $supplierCode,
+                        'iid' => "CSOF",
+                        'acc_code' => $customerCode,
                         'document_date' => $date,
                         'temp_doc_no' => "",
                         'setoff_sr_doc' => $orgDocNo,
@@ -395,8 +396,8 @@ class PaymentVoucherController extends Controller
                     'transaction_date' => $date,
                     'balance_amount' => $allocation['balance_amount'],
                     'paid_amount' => $paid,
-                    'iid' => "PMT",
-                    'acc_code' => $supplierCode,
+                    'iid' => "REC",
+                    'acc_code' => $customerCode,
                     'document_date' => $date,
                     'temp_doc_no' => "",
                     'setoff_sr_doc' => $setoffNumber,
@@ -415,8 +416,8 @@ class PaymentVoucherController extends Controller
                         'cheque_date' => $payment['chequeDate'] ?? null,
                         'branch' => $payment['branch'] ?? null,
                         'amount' => (float) ($payment['amount'] ?? 0),
-                        'iid' => "PMT",
-                        'acc_code' => $supplierCode,
+                        'iid' => "REC",
+                        'acc_code' => $customerCode,
                         'transaction_date' => $date,
                         'document_date' => $date,
                     ]);
@@ -427,14 +428,14 @@ class PaymentVoucherController extends Controller
             if ($overPayment < 0) {
                 $opAmount = abs($overPayment);
 
-                // Create a new credit record for the supplier (Advance/Overpayment)
+                // Create a new credit record for the suppr (Advance/Overpayment)
                 PaymentSummary::create([
                     'doc_no' => $orgDocNo,
                     'transaction_amount' => $opAmount,
-                    'acc_code' => $supplierCode,
-                    'acc_type' => 'supplier',
+                    'acc_code' => $customerCode,
+                    'acc_type' => 'customer',
                     'month_end' => 0,
-                    'iid' => "OVPMT",
+                    'iid' => "OVREC",
                     'balance_amount' => $opAmount,
                     'transaction_date' => $date,
                     'document_date' => $date,
@@ -454,8 +455,8 @@ class PaymentVoucherController extends Controller
                     'cheque_date' => $primaryPayment['chequeDate'] ?? null,
                     'branch' => $primaryPayment['branch'] ?? null,
                     'amount' => $opAmount,
-                    'iid' => "PMT",
-                    'acc_code' => $supplierCode,
+                    'iid' => "REC",
+                    'acc_code' => $customerCode,
                     'transaction_date' => $date,
                     'document_date' => $date,
                 ]);
@@ -465,7 +466,7 @@ class PaymentVoucherController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment voucher created successfully.',
+                'message' => 'Customer receipt created successfully.',
                 'org_doc_no' => $orgDocNo,
                 'setoff_number' => $setoffNumber,
                 'has_setoff' => !empty($setoffNumber),

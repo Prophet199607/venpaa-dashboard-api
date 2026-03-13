@@ -4,7 +4,7 @@ namespace App\Http\Requests\Payment;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PaymentVoucherRequest extends FormRequest
+class CustomerReceiptRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -29,7 +29,7 @@ class PaymentVoucherRequest extends FormRequest
             'receipt.date' => 'required|date',
             'receipt.over_payment' => 'numeric',
 
-            'supplier.supplier_code' => 'required|string',
+            'customer.customer_code' => 'required|string',
 
             'payments' => 'required|array|min:1',
             'payments.*.mode' => 'required|string',
