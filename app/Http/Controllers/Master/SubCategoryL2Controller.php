@@ -120,7 +120,8 @@ class SubCategoryL2Controller extends Controller
 
             // Check if sub category L2 code already exists
             if (SubCategoryL2::where('scat_l2_code', $data['scat_l2_code'])->exists()) {
-                $data['scat_l2_code'] = DocNumber::where('type', 'SubCategoryL2')->first()->getDocCode();
+                $docCode = DocNumber::where('type', 'SubCategoryL2')->first()->getDocCode();
+                $data['scat_l2_code'] = $docCode['code'];
             }
 
             $subCategoryL2 = SubCategoryL2::create($data);

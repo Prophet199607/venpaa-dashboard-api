@@ -108,7 +108,8 @@ class SubCategoryController extends Controller
 
             // Check if sub category code already exists
             if (SubCategory::where('scat_code', $data['scat_code'])->exists()) {
-                $data['scat_code'] = DocNumber::where('type', 'SubCategory')->first()->getDocCode();
+                $docCode = DocNumber::where('type', 'SubCategory')->first()->getDocCode();
+                $data['scat_code'] = $docCode['code'];
             }
 
             $subCategory = SubCategory::create($data)->load(['category', 'department']);
