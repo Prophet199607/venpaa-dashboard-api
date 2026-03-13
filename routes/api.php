@@ -14,6 +14,7 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\Master\BookController;
 use App\Http\Controllers\Master\AuthorController;
 use App\Http\Controllers\Master\ProductController;
+use App\Http\Controllers\Master\MagazineController;
 use App\Http\Controllers\Master\CustomerController;
 use App\Http\Controllers\Master\BookTypeController;
 use App\Http\Controllers\Master\CategoryController;
@@ -208,7 +209,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [CustomerController::class, 'store']);
         Route::put('/{customer_code}', [CustomerController::class, 'update']);
     });
-
+    
     // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
@@ -218,6 +219,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/', [BookController::class, 'index']);
         Route::post('/', [BookController::class, 'store']);
         Route::put('/{prod_code}', [BookController::class, 'update']);
+    });
+
+    // magazines routes
+    Route::group(['prefix' => 'magazines'], function () {
+        Route::get('/generate-code', [MagazineController::class, 'generateMagazineCode']);
+        Route::get('/{prod_code}', [MagazineController::class, 'show']);
+        Route::get('/', [MagazineController::class, 'index']);
+        Route::post('/', [MagazineController::class, 'store']);
+        Route::put('/{prod_code}', [MagazineController::class, 'update']);
     });
 
     // products routes
