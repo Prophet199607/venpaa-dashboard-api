@@ -51,7 +51,7 @@ class ProductController extends Controller
             $userLocation = $request->user()->location ?? null;
 
             $products = Product::where('status', 1)
-                ->where('department', '!=', '10')
+                ->whereNotIn('department', [10, 15])
                 ->with(['category', 'subCategories', 'department', 'suppliers', 'images', 'unit'])
                 ->get();
 
