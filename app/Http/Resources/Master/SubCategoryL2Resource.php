@@ -14,13 +14,15 @@ class SubCategoryL2Resource extends JsonResource
      */
     public function toArray($request)
     {
+        $dep = $this->resource->getRelationValue('department');
+
         return [
             'id' => $this->id,
             'scat_l2_code' => (string) $this->scat_l2_code,
             'scat_l2_name' => $this->scat_l2_name,
             'value'        => (string) $this->scat_l2_code,
             'label'        => $this->scat_l2_name,
-            'department' => (string) $this->getRawOriginal('department'),
+            'department' => (string) ($this->resource->getAttributes()['department'] ?? ''),
             'cat_code' => (string) $this->cat_code,
             'scat_code' => (string) $this->scat_code,
             'sub_category' => $this->whenLoaded('subCategory', function () {
@@ -35,10 +37,10 @@ class SubCategoryL2Resource extends JsonResource
                     'id' => $this->category->id,
                     'cat_code' => (string) $this->category->cat_code,
                     'cat_name' => $this->category->cat_name,
-                    'department' => (string) $this->category->getRawOriginal('department'),
+                    'department' => (string) ($this->category->getAttributes()['department'] ?? ''),
                 ];
             }),
-            'department_name' => $this->getRelation('department') ? $this->getRelation('department')->dep_name : (string) $this->getRawOriginal('department'),
+            'department_name' => $dep ? $dep->dep_name : (string) ($this->resource->getAttributes()['department'] ?? ''),
             'dep_data' => $this->whenLoaded('department', function () {
                 $dep = $this->resource->getRelationValue('department');
                 if (!$dep) {
