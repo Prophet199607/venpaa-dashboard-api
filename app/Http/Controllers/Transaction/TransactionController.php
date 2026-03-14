@@ -605,4 +605,52 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
+    public function loadAllAdvances(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
+        $type = $request->input('type'); // 'customer' or 'supplier'
+
+        $iid = $type === 'supplier' ? 'SADV' : 'CADV';
+
+        $advances = PaymentSummary::where('iid', $iid)
+            ->where('location', $userLocation)
+            ->whereDate('document_date', '>=', $startDate)
+            ->whereDate('document_date', '<=', $endDate)
+            ->orderBy('id', 'desc')
+            ->paginate($perPage);
+
+        $formattedData = collect($advances->items())->map(function ($advance) use ($type) {
+            $data = $advance->toArray();
+            if ($type === 'supplier') {
+                $supplier = \App\Models\Supplier::where('sup_code', $advance['acc_code'])->first();
+                $data['name'] = $supplier ? $supplier->sup_name : $advance['acc_code'];
+            } else {
+                $customer = \App\Models\Customer::where('customer_code', $advance['acc_code'])->first();
+                $data['name'] = $customer ? $customer->customer_name : $advance['acc_code'];
+            }
+            return $data;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Advances loaded successfully!',
+            'data' => $formattedData,
+            'current_page' => $advances->currentPage(),
+            'last_page' => $advances->lastPage(),
+            'total' => $advances->total(),
+        ]);
+    }
 }

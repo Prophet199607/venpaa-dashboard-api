@@ -549,4 +549,54 @@ class PaymentVoucherController extends Controller
             ], 500);
         }
     }
+
+    public function loadPaymentByCode($org_doc_no)
+    {
+        try {
+            $paymentDetails = PaidPaymentDetail::where('org_doc_no', $org_doc_no)->get();
+            $paymentSummaries = PaidPaymentSummary::where('org_doc_no', $org_doc_no)->get();
+            
+            if ($paymentDetails->isEmpty() && $paymentSummaries->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Document not found'
+                ], 404);
+            }
+
+            $firstDetail = $paymentDetails->first();
+            $firstSummary = $paymentSummaries->first();
+            $accCode = $firstDetail ? $firstDetail->acc_code : ($firstSummary ? $firstSummary->acc_code : null);
+            $iid = $firstDetail ? $firstDetail->iid : ($firstSummary ? $firstSummary->iid : null);
+
+            $account = null;
+            if ($accCode) {
+                if ($iid === 'PMT' || $iid === 'PMTV' || $iid === 'CSOF') { // CSOF or PMT goes to supplier if payment
+                    $account = Supplier::where('sup_code', $accCode)->first();
+                    if (!$account) {
+                         $account = Customer::where('customer_code', $accCode)->first();
+                    }
+                } else {
+                    $account = Customer::where('customer_code', $accCode)->first();
+                    if (!$account) {
+                         $account = Supplier::where('sup_code', $accCode)->first();
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'details' => $paymentDetails,
+                    'summaries' => $paymentSummaries,
+                    'account' => $account,
+                ]
+            ]);
+        } catch (\Exception $e) {
+             return response()->json([
+                'success' => false,
+                'message' => 'Failed to load document',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
