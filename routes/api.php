@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Sales\CashierController;
 use App\Http\Controllers\Sales\SalesmanController;
 use App\Http\Controllers\Sales\DiscountController;
@@ -209,7 +210,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/', [CustomerController::class, 'store']);
         Route::put('/{customer_code}', [CustomerController::class, 'update']);
     });
-    
+
     // books routes
     Route::group(['prefix' => 'books'], function () {
         Route::get('/generate-code', [BookController::class, 'generateBookCode']);
@@ -448,7 +449,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/pos-collection-summary-report', [ReportController::class, 'getPosCollectionSummaryReport']);
     });
 
-
+    // Dashboard routes
+    Route::group(['prefix' => 'dashboard'], function () {
+        Route::get('/stats', [DashboardController::class, 'getStats']);
+    });
 
     // Role and Permission routes
     // Route::post('/role', [RolePermissionController::class, 'createRole']);
