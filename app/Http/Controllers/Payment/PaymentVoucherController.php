@@ -13,6 +13,8 @@ use App\Http\Requests\Payment\PaymentVoucherRequest;
 use App\Http\Requests\Payment\CustomerReceiptRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Http\Resources\Payment\PaidPaymentSummaryResource;
+use App\Models\Supplier;
+use App\Models\Customer;
 
 class PaymentVoucherController extends Controller
 {
@@ -473,5 +475,78 @@ class PaymentVoucherController extends Controller
                 'data' => PaidPaymentSummaryResource::collection($createdPayments),
             ]);
         });
+    }
+
+    public function loadAllPaymentVouchers(Request $request)
+    {
+        return $this->loadAll('PMT', $request);
+    }
+
+    public function loadAllCustomerReceipts(Request $request)
+    {
+        return $this->loadAll('REC', $request);
+    }
+
+    private function loadAll($iid, Request $request)
+    {
+        try {
+            $user = $request->user();
+            $location = $request->input('location') ?: (isset($user->location) ? $user->location : null);
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+            $perPage = $request->input('per_page', 10);
+
+            // Using PaidPaymentSummary to get unique vouchers and totals
+            // We group by org_doc_no, acc_code, location, document_date to get unique headers
+            // For the total amount, we sum paid_amount from PaidPaymentDetail because 
+            // PaidPaymentSummary might have repeated amounts per allocation.
+
+            $query = PaidPaymentDetail::where('iid', $iid);
+
+            if ($location) {
+                $query->where('location', $location);
+            }
+            if ($startDate) {
+                $query->whereDate('document_date', '>=', $startDate);
+            }
+            if ($endDate) {
+                $query->whereDate('document_date', '<=', $endDate);
+            }
+
+            $results = $query->select('org_doc_no', 'document_date', 'acc_code', 'location')
+                ->selectRaw('SUM(paid_amount) as total_amount')
+                ->groupBy('org_doc_no', 'document_date', 'acc_code', 'location')
+                ->orderBy('document_date', 'desc')
+                ->paginate($perPage);
+
+            $formattedData = collect($results->items())->map(function ($item) use ($iid) {
+                $data = $item->toArray();
+                if ($iid === 'PMT' || $iid === 'PMTV') {
+                    $supplier = Supplier::where('sup_code', $item->acc_code)->first();
+                    $data['account_name'] = $supplier ? $supplier->sup_name : 'N/A';
+                } else {
+                    $customer = Customer::where('customer_code', $item->acc_code)->first();
+                    $data['account_name'] = $customer ? $customer->customer_name : 'N/A';
+                }
+                return $data;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transactions loaded successfully!',
+                'data' => $formattedData,
+                'meta' => [
+                    'current_page' => $results->currentPage(),
+                    'last_page' => $results->lastPage(),
+                    'total' => $results->total(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load transactions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
