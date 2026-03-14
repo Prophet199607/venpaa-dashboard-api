@@ -290,6 +290,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/load-vat-transaction-by-code/{doc_number}/{status}/{iid}', [TransactionController::class, 'loadVatTransactionByCode']);
         Route::get('/generate-code/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
         Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
+        Route::get('/load-all-advances', [TransactionController::class, 'loadAllAdvances']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
         Route::get('/applied', [TransactionController::class, 'getAppliedTransactions']);
 
@@ -401,6 +402,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
         Route::get('/load-all-pmt', [PaymentVoucherController::class, 'loadAllPaymentVouchers']);
+        Route::get('/load-payment-by-code/{doc_number}', [PaymentVoucherController::class, 'loadPaymentByCode']);
     });
 
     // customer receipt routes
@@ -411,6 +413,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/save-rec', [PaymentVoucherController::class, 'receiptStore']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getRecNumber']);
         Route::get('/load-all-rec', [PaymentVoucherController::class, 'loadAllCustomerReceipts']);
+        Route::get('/load-receipt-by-code/{doc_number}', [PaymentVoucherController::class, 'loadPaymentByCode']);
     });
 
     // invoice routes
