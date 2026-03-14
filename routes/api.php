@@ -400,6 +400,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
+        Route::get('/load-all-pmt', [PaymentVoucherController::class, 'loadAllPaymentVouchers']);
     });
 
     // customer receipt routes
@@ -409,6 +410,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
         Route::post('/save-rec', [PaymentVoucherController::class, 'receiptStore']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getRecNumber']);
+        Route::get('/load-all-rec', [PaymentVoucherController::class, 'loadAllCustomerReceipts']);
     });
 
     // invoice routes
