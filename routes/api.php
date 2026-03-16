@@ -281,6 +281,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/generate-code/{type}/{loca_code}', [TransactionController::class, 'getTempTransactionNumber']);
         Route::get('/load-all-transactions', [TransactionController::class, 'loadAllTransactions']);
         Route::get('/load-all-advances', [TransactionController::class, 'loadAllAdvances']);
+        Route::get('/load-advance-by-code/{doc_number}', [TransactionController::class, 'loadAdvanceByCode']);
         Route::get('/temp-products/{doc_no}', [TransactionController::class, 'getTempProducts']);
         Route::get('/applied', [TransactionController::class, 'getAppliedTransactions']);
 
