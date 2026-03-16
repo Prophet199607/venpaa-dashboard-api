@@ -241,8 +241,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/open-stocks', [ProductController::class, 'getOpenStocks']);
         Route::get('/basic-search', [ProductController::class, 'searchBasic']);
         Route::get('/unit-types', [ProductController::class, 'unitTypes']);
-        Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::get('/search', [ProductController::class, 'search']);
+        Route::get('/{prod_code}', [ProductController::class, 'show']);
         Route::get('/', [ProductController::class, 'index']);
         Route::post('/', [ProductController::class, 'store']);
         Route::post('/store-open-stock', [ProductController::class, 'storeOpenStock']);
