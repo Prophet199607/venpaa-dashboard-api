@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Transaction;
 
 use App\Models\Product;
 use App\Models\Location;
+use App\Models\Supplier;
+use App\Models\Customer;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
 use App\Models\PaymentSummary;
@@ -619,7 +621,7 @@ class TransactionController extends Controller
         $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
         $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
         $perPage = $request->input('per_page', 10);
-        $type = $request->input('type'); // 'customer' or 'supplier'
+        $type = $request->input('type');
 
         $iid = $type === 'supplier' ? 'SADV' : 'CADV';
 
@@ -633,10 +635,10 @@ class TransactionController extends Controller
         $formattedData = collect($advances->items())->map(function ($advance) use ($type) {
             $data = $advance->toArray();
             if ($type === 'supplier') {
-                $supplier = \App\Models\Supplier::where('sup_code', $advance['acc_code'])->first();
+                $supplier = Supplier::where('sup_code', $advance['acc_code'])->first();
                 $data['name'] = $supplier ? $supplier->sup_name : $advance['acc_code'];
             } else {
-                $customer = \App\Models\Customer::where('customer_code', $advance['acc_code'])->first();
+                $customer = Customer::where('customer_code', $advance['acc_code'])->first();
                 $data['name'] = $customer ? $customer->customer_name : $advance['acc_code'];
             }
             return $data;
@@ -665,9 +667,9 @@ class TransactionController extends Controller
             }
 
             if ($advance->acc_type === 'supplier') {
-                $account = \App\Models\Supplier::where('sup_code', $advance->acc_code)->first();
+                $account = Supplier::where('sup_code', $advance->acc_code)->first();
             } else {
-                $account = \App\Models\Customer::where('customer_code', $advance->acc_code)->first();
+                $account = Customer::where('customer_code', $advance->acc_code)->first();
             }
 
             return response()->json([
