@@ -130,7 +130,6 @@ class TransactionController extends Controller
                 'message' => 'Code generated successfully',
                 'code' => $generatedCode,
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -189,18 +188,17 @@ class TransactionController extends Controller
             })->get();
 
             $formatted = $recallTransactions->map(function ($item) {
-                    return [
-                        'doc_no' => $item->doc_no,
-                        'sup_name' => isset($item->supplier) ? $item->supplier->sup_name : 'N/A',
-                    ];
-                });
+                return [
+                    'doc_no' => $item->doc_no,
+                    'sup_name' => isset($item->supplier) ? $item->supplier->sup_name : 'N/A',
+                ];
+            });
 
             return response()->json([
-                    'success' => true,
-                    'message' => 'Applied transactions loaded successfully!',
-                    'data' => $formatted
-                ]);
-
+                'success' => true,
+                'message' => 'Applied transactions loaded successfully!',
+                'data' => $formatted
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -283,8 +281,8 @@ class TransactionController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -302,8 +300,8 @@ class TransactionController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -400,11 +398,11 @@ class TransactionController extends Controller
                 'line_wise_discount_value' => $data['line_wise_discount_value'],
                 'amount' => $data['amount'],
                 'updated_by' => auth()->user()->id,
-           ]);
+            ]);
 
-           $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+            $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
 
-           return response()->json([
+            return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully!',
                 'data' => TempTransactionDetailResource::collection($response_detail),
@@ -652,5 +650,39 @@ class TransactionController extends Controller
             'last_page' => $advances->lastPage(),
             'total' => $advances->total(),
         ]);
+    }
+
+    public function loadAdvanceByCode($doc_number)
+    {
+        try {
+            $advance = PaymentSummary::where('doc_no', $doc_number)->first();
+
+            if (!$advance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Advance not found.'
+                ], 404);
+            }
+
+            if ($advance->acc_type === 'supplier') {
+                $account = \App\Models\Supplier::where('sup_code', $advance->acc_code)->first();
+            } else {
+                $account = \App\Models\Customer::where('customer_code', $advance->acc_code)->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'advance' => $advance,
+                    'account' => $account,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load advance',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
