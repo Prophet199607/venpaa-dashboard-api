@@ -206,7 +206,8 @@ class InvoiceController extends Controller
         } else {
             $transactionSaleHeaders = TransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
-
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
                 ->paginate($perPage);
 
