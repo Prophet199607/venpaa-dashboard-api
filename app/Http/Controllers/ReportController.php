@@ -124,17 +124,19 @@ class ReportController extends Controller
     {
         try {
             $location = $request->input('location', $request->input('Loca', ''));
-            $department = $request->input('department', '');
-            $category = $request->input('category', '');
             $supplierCodes = $request->input('supplierCodes', '');
+            $department = $request->input('department', '');
+            $prodCodes = $request->input('prodCodes', '');
+            $category = $request->input('category', '');
 
             DB::statement('SET @pErrorCode = 0');
 
-            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?)', [
+            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?, ?)', [
                 $location,
                 $department,
                 $category,
-                $supplierCodes
+                $supplierCodes,
+                $prodCodes
             ]);
 
             $errorCode = DB::select('SELECT @pErrorCode as error_code')[0]->error_code;
