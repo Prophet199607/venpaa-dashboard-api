@@ -133,12 +133,12 @@ class RolePermissionController extends Controller
     public function assignPermissionsToRole(Request $request, $roleId)
     {
         $request->validate([
-            'permission_ids' => 'required|array',
+            'permission_ids' => 'present|array',
             'permission_ids.*' => 'exists:permissions,id',
         ]);
 
         $role = Role::findOrFail($roleId);
-        $permissions = Permission::whereIn('id', $request->permission_ids)->get();
+        $permissions = Permission::whereIn('id', $request->input('permission_ids', []))->get();
         
         $role->syncPermissions($permissions);
 
@@ -209,12 +209,12 @@ class RolePermissionController extends Controller
     public function assignPermissionsToUser(Request $request, $userId)
     {
         $request->validate([
-            'permission_ids' => 'required|array',
+            'permission_ids' => 'present|array',
             'permission_ids.*' => 'exists:permissions,id',
         ]);
 
         $user = User::findOrFail($userId);
-        $permissions = Permission::whereIn('id', $request->permission_ids)->get();
+        $permissions = Permission::whereIn('id', $request->input('permission_ids', []))->get();
         
         $user->syncPermissions($permissions);
 
@@ -231,12 +231,12 @@ class RolePermissionController extends Controller
     public function assignRolesToUser(Request $request, $userId)
     {
         $request->validate([
-            'role_ids' => 'required|array',
+            'role_ids' => 'present|array',
             'role_ids.*' => 'exists:roles,id',
         ]);
 
         $user = User::findOrFail($userId);
-        $roles = Role::whereIn('id', $request->role_ids)->get();
+        $roles = Role::whereIn('id', $request->input('role_ids', []))->get();
         
         $user->syncRoles($roles);
 
