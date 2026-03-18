@@ -17,10 +17,18 @@ class AdminUserSeeder extends Seeder
     {
         $admins = [
             [
-                'name' => 'admin',
-                'email' => 'admin1@example.com',
+                'name' => 'Super Admin',
+                'email' => 'superadmin@example.com',
+                'password' => 'onimta1+',
+                'location' => '001',
+                'role' => 'super-admin',
+            ],
+            [
+                'name' => 'Admin',
+                'email' => 'admin@example.com',
                 'password' => '2025',
                 'location' => '001',
+                'role' => 'admin',
             ],
         ];
 
