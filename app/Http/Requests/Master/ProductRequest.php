@@ -61,6 +61,7 @@ class ProductRequest extends FormRequest
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
             'unit_name' => 'required|string',
+            'unconfirm_price' => 'nullable|boolean',
         ];
     }
 
@@ -74,6 +75,11 @@ class ProductRequest extends FormRequest
         if ($this->has('sub_category') && is_array($this->sub_category)) {
             $this->merge([
                 'sub_category' => implode(',', $this->sub_category)
+            ]);
+        }
+        if ($this->has('unconfirmed_price')) {
+            $this->merge([
+                'unconfirm_price' => $this->boolean('unconfirmed_price')
             ]);
         }
     }

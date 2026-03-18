@@ -58,6 +58,7 @@ class ProductResource extends JsonResource
             'depth'         => $this->depth,
             'weight'        => $this->weight,
             'barcode'       => $this->barcode,
+            'unconfirmed_price' => $this->unconfirm_price,
             'prod_image'    => $this->prod_image,
             // 'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
             'prod_image_url' => $this->getS3Url($this->prod_image),

@@ -40,8 +40,9 @@ class TempTransactionDetailResource extends JsonResource
             'amount' => $this->amount,
             'unit_name' => $this->product->unit_name,
             'unit' => [
-                'unit_type' => $this->product->unit->unit_type,
+                'unit_type' => $this->product->unit->unit_type ?? null,
             ],
+            'unconfirmed_price' => $this->product ? $this->product->unconfirm_price : false,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
