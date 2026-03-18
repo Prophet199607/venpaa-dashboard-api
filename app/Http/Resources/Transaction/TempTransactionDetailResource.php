@@ -26,6 +26,7 @@ class TempTransactionDetailResource extends JsonResource
             'marked_price' => $this->marked_price,
             'selling_price' => $this->selling_price,
             'whole_sale' => $this->whole_sale,
+            'wholesale_price' => $this->whole_sale,
             'pack_qty' => $this->pack_qty,
             'unit_qty' => $this->unit_qty,
             'free_qty' => $this->free_qty,

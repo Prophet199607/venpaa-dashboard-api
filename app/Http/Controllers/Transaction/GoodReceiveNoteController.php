@@ -182,6 +182,7 @@ class GoodReceiveNoteController extends Controller
                         $product->update([
                             'purchase_price' => $detail->purchase_price ?? $product->purchase_price,
                             'selling_price'  => $detail->selling_price ?? $product->selling_price,
+                            'wholesale_price' => $detail->whole_sale ?? $product->wholesale_price,
                             'unconfirm_price' => 0,
                         ]);
                     }
