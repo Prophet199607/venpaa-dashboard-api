@@ -328,6 +328,7 @@ class TransactionController extends Controller
                     'temp_transaction_header_id' => 0,
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
+                    'whole_sale' => $data['wholesale_price'] ?? 0,
                     'created_by' => auth()->id(),
                 ]);
                 $existingProduct->increment('pack_qty', $data['pack_qty']);
@@ -348,6 +349,7 @@ class TransactionController extends Controller
                     'prod_name' => $data['prod_name'],
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
+                    'whole_sale' => $data['wholesale_price'] ?? 0,
                     'pack_size' => $data['pack_size'],
                     'pack_qty' => $data['pack_qty'],
                     'unit_qty' => $data['unit_qty'],
@@ -392,6 +394,7 @@ class TransactionController extends Controller
             $productToUpdate->update([
                 'purchase_price' => $data['purchase_price'],
                 'selling_price' => $data['selling_price'],
+                'whole_sale' => $data['wholesale_price'] ?? 0,
                 'pack_size' => $data['pack_size'],
                 'pack_qty' => $data['pack_qty'],
                 'unit_qty' => $data['unit_qty'],

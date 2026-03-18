@@ -35,6 +35,7 @@ class TempTransactionDetailRequest extends FormRequest
             'marked_price' => 'nullable|numeric',
             'selling_price' => 'nullable|numeric',
             'whole_sale' => 'nullable|numeric',
+            'wholesale_price' => 'nullable|numeric',
             'physical_pack_qty' => 'nullable|numeric',
             'physical_unit_qty' => 'nullable|numeric',
             'total_qty' => 'nullable|numeric',
