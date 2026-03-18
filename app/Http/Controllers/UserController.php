@@ -15,7 +15,20 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with('roles')->get()->map(function ($user) {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        $isSuperAdmin = $currentUser->hasRole('super-admin');
+
+        $query = User::with('roles');
+        
+        // Hide super admins from non-super admins
+        if (!$isSuperAdmin) {
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'super-admin');
+            });
+        }
+
+        $users = $query->get()->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,

@@ -12,7 +12,18 @@ class RolePermissionController extends Controller
 {
     public function getRoles()
     {
-        return response()->json(Role::all());
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        
+        $query = Role::query();
+        if (!$currentUser || !$currentUser->hasRole('super-admin')) {
+            $query->where('name', '!=', 'super-admin');
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get()
+        ]);
     }
 
     public function createRole(Request $request)
@@ -35,10 +46,10 @@ class RolePermissionController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        if (strtolower($role->name) === 'admin') {
+        if (strtolower($role->name) === 'admin' || strtolower($role->name) === 'super-admin') {
             return response()->json([
                 'success' => false,
-                'message' => 'The admin role cannot be deleted.',
+                'message' => 'The ' . $role->name . ' role cannot be deleted.',
             ], 403);
         }
 
@@ -50,15 +61,16 @@ class RolePermissionController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9_]+$/',
-                Rule::unique('roles', 'name')->ignore($role->id),
-            ],
-        ]);
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        $isSuperAdmin = $currentUser->hasRole('super-admin');
+
+        if (strtolower($role->name) === 'super-admin' && !$isSuperAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to edit super-admin role.',
+            ], 403);
+        }
 
         $newName = strtolower($request->name);
 
@@ -81,7 +93,10 @@ class RolePermissionController extends Controller
 
     public function getPermissions()
     {
-        return response()->json(Permission::all());
+        return response()->json([
+            'success' => true,
+            'data' => Permission::all()
+        ]);
     }
 
     public function createPermission(Request $request)
