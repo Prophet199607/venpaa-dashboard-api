@@ -28,6 +28,8 @@ class SupplierResource extends JsonResource
             'sup_image'     => $this->sup_image,
             'sup_image_url' => $this->getS3Url(),
             // 'sup_image_url' => $this->sup_image ? asset('storage/' . $this->sup_image) : null,
+            'is_vat_supplier' => $this->is_vat_supplier,
+            'vat_number'      => $this->vat_number,
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
         ];
