@@ -16,70 +16,151 @@ class RolePermissionSeeder extends Seeder
 
         $guard = 'sanctum';
 
-        // 2️⃣ Create permissions
-        $permissions = [
-            'books',
-            'create book',
-            'edit book',
-            'delete book',
-            'view book',
-            'products',
-            'create product',
-            'edit product',
-            'delete product',
-            'view product',
-            'locations',
-            'create location',
-            'edit location',
-            'delete location',
-            'view location',
-            'suppliers',
-            'create supplier',
-            'edit supplier',
-            'delete supplier',
-            'view supplier',
-            'authors',
-            'create author',
-            'edit author',
-            'delete author',
-            'view author',
-            'publishers',
-            'create publisher',
-            'edit publisher',
-            'delete publisher',
-            'view publisher',
-            'create invoice',
-            'edit invoice',
-            'delete invoice',
-            'view reports',
-            'manage users',
+        // Modules and their actions
+        $masterModules = [
+            'department', 'supplier', 'location', 'product', 'customer', 'price-level', 
+            'publisher', 'author', 'book', 'magazine', 'book-type', 'category', 
+            'sub-category', 'sub-category-l2', 'language', 'bin-card'
         ];
 
-        foreach ($permissions as $perm) {
+        $userManagementModules = [
+            'user', 'role', 'permission'
+        ];
+
+        $salesOperationModules = [
+            'cashier', 'salesman'
+        ];
+
+        $transactionModules = [
+            'item-request', 'purchase-order', 'good-receive-note', 'supplier-return-note', 
+            'stock-adjustment', 'transfer-good-note', 'accept-good-note', 'transfer-good-return', 
+            'product-discard', 'invoice'
+        ];
+
+        $paymentModules = [
+            'advance-payment', 'customer-receipt', 'payment-voucher'
+        ];
+
+        $reportModules = [
+            'pos-sales-summary-report', 'daily-collection-report', 'current-stock-report'
+        ];
+
+        $allPermissionsList = [];
+
+        // Master Data Permissions (View, Create, Edit Only)
+        foreach ($masterModules as $module) {
+            $allPermissionsList[] = "view $module";
+            if ($module !== 'language' && $module !== 'bin-card') {
+                $allPermissionsList[] = "create $module";
+                $allPermissionsList[] = "edit $module";
+            }
+            
+            // Special case for bin-card export
+            if ($module === 'bin-card') {
+                $allPermissionsList[] = "export bin-card";
+            }
+        }
+
+        // User Management Permissions
+        foreach ($userManagementModules as $module) {
+            $allPermissionsList[] = "view $module";
+            $allPermissionsList[] = "create $module";
+            $allPermissionsList[] = "edit $module";
+        }
+
+        // Sales Operation Permissions
+        foreach ($salesOperationModules as $module) {
+            $allPermissionsList[] = "view $module";
+            $allPermissionsList[] = "create $module";
+            $allPermissionsList[] = "edit $module";
+        }
+
+        // Transaction Permissions (View, Create, Edit, Print Only)
+        foreach ($transactionModules as $module) {
+            $allPermissionsList[] = "view $module";
+            if ($module !== 'accept-good-note') {
+                $allPermissionsList[] = "create $module";
+            }
+            $allPermissionsList[] = "edit $module";
+            $allPermissionsList[] = "print $module";
+        }
+
+        // Payment Permissions (View, Create, Edit, Print Only)
+        foreach ($paymentModules as $module) {
+            $allPermissionsList[] = "view $module";
+            $allPermissionsList[] = "create $module";
+            $allPermissionsList[] = "edit $module";
+            $allPermissionsList[] = "print $module";
+        }
+
+        // Report Permissions
+        foreach ($reportModules as $module) {
+            $allPermissionsList[] = "view $module";
+        }
+
+        // System/Other Permissions
+        $otherPermissions = [
+            'view dashboard stats',
+            'permission assign',
+            'manage discount',
+            'process day-end',
+            'manage-pending-item-request',
+            'manage-open-stock'
+        ];
+
+        $allPermissionsList = array_merge($allPermissionsList, $otherPermissions);
+
+        // 2️⃣ Create or Update permissions
+        foreach ($allPermissionsList as $perm) {
             Permission::firstOrCreate([
                 'name' => $perm,
                 'guard_name' => $guard,
             ]);
         }
 
+        Permission::where('guard_name', $guard)
+            ->whereNotIn('name', $allPermissionsList)
+            ->delete();
+
         // 3️⃣ Create roles and assign permissions
-        $adminRole = Role::firstOrCreate([
+        $superAdmin = Role::firstOrCreate([
+            'name' => 'super-admin',
+            'guard_name' => $guard,
+        ]);
+
+        $admin = Role::firstOrCreate([
             'name' => 'admin',
             'guard_name' => $guard,
         ]);
-        $staffRole = Role::firstOrCreate([
-            'name' => 'staff',
-            'guard_name' => $guard,
-        ]);
 
-        $adminRole->givePermissionTo(Permission::where('guard_name', $guard)->get());
-        $staffRole->givePermissionTo(['create invoice', 'edit invoice']);
+        $adminPermissions = Permission::where('guard_name', $guard)
+            ->whereNotIn('name', [
+                'manage role',
+                'manage permission',
+                'create role',
+                'edit role',
+                'delete role',
+                'create permission',
+                'edit permission',
+                'delete permission',
+                'view permission'
+            ])
+            ->get();
 
-        // 4️⃣ Assign roles to users (optional)
-        // Make sure you have at least one user in your DB first
-        $firstUser = User::first();
-        if ($firstUser) {
-            $firstUser->assignRole('admin');
+        $allPerms = Permission::where('guard_name', $guard)->get();
+        
+        $superAdmin->syncPermissions($allPerms);
+        $admin->syncPermissions($adminPermissions);
+
+        // 4️⃣ Ensure initial users have roles
+        $user = User::where('name', 'Super Admin')->first();
+        if ($user) {
+            $user->assignRole($superAdmin);
+        }
+
+        $user1 = User::where('name', 'Admin')->first();
+        if ($user1) {
+            $user1->assignRole($admin);
         }
     }
 }
