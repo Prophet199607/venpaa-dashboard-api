@@ -176,6 +176,16 @@ class GoodReceiveNoteController extends Controller
 
                 // Create StockMaster records for each product
                 foreach ($transactionDetails as $detail) {
+                    // Update Product prices if unconfirmed
+                    $product = Product::where('prod_code', $detail->prod_code)->first();
+                    if ($product && $product->unconfirm_price == 1) {
+                        $product->update([
+                            'purchase_price' => $detail->purchase_price ?? $product->purchase_price,
+                            'selling_price'  => $detail->selling_price ?? $product->selling_price,
+                            'unconfirm_price' => 0,
+                        ]);
+                    }
+
                     StockMaster::create([
                         'location' => $data['location'],
                         'transaction_date' => $data['transaction_date'],

@@ -114,6 +114,7 @@ class BookController extends Controller
     public function store(BookRequest $request)
     {
         try {
+            
             DB::beginTransaction();
             $data = $request->validated();
             $data['created_by'] = auth()->id();
