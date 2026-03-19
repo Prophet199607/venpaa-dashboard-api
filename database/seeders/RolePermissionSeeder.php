@@ -47,12 +47,18 @@ class RolePermissionSeeder extends Seeder
 
         $allPermissionsList = [];
 
-        // Master Data Permissions (View, Create, Edit Only)
+        // Master Data Permissions (View, Create, Edit, Import, Export)
         foreach ($masterModules as $module) {
             $allPermissionsList[] = "view $module";
             if ($module !== 'language' && $module !== 'bin-card') {
                 $allPermissionsList[] = "create $module";
                 $allPermissionsList[] = "edit $module";
+            }
+            
+            // Import/Export permissions for specific modules
+            if (in_array($module, ['supplier', 'publisher', 'author', 'book'])) {
+                $allPermissionsList[] = "import $module";
+                $allPermissionsList[] = "export $module";
             }
             
             // Special case for bin-card export
