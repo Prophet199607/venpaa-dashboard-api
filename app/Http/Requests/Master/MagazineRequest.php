@@ -71,6 +71,7 @@ class MagazineRequest extends FormRequest
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
             'unit_name' => 'nullable|string',
+            'unconfirm_price' => 'nullable|boolean',
         ];
     }
 
@@ -89,6 +90,11 @@ class MagazineRequest extends FormRequest
         if ($this->has('sub_category_l2') && is_array($this->sub_category_l2)) {
             $this->merge([
                 'sub_category_l2' => implode(',', $this->sub_category_l2)
+            ]);
+        }
+        if ($this->has('unconfirmed_price')) {
+            $this->merge([
+                'unconfirm_price' => $this->boolean('unconfirmed_price')
             ]);
         }
     }

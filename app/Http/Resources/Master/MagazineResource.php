@@ -86,6 +86,7 @@ class MagazineResource extends JsonResource
             'weight'        => $this->weight,
             'pages'         => $this->pages,
             'barcode'       => $this->barcode,
+            'unconfirmed_price' => $this->unconfirm_price,
             'language'      => (string) $this->getRawOriginal('language'),
             'prod_image'    => $this->prod_image,
             'prod_image_url' => $this->getS3Url($this->prod_image),

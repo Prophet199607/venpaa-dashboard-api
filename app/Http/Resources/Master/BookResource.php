@@ -85,6 +85,7 @@ class BookResource extends JsonResource
             'weight'        => $this->weight,
             'pages'         => $this->pages,
             'barcode'       => $this->barcode,
+            'unconfirmed_price' => $this->unconfirm_price,
             'language'      => (string) $this->getRawOriginal('language'),
             'prod_image'    => $this->prod_image,
             // 'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
