@@ -21,11 +21,21 @@ class UserController extends Controller
 
         $query = User::with('roles');
         
-        // Hide super admins from non-super admins
-        if (!$isSuperAdmin) {
-            $query->whereDoesntHave('roles', function ($q) {
-                $q->where('name', 'super-admin');
-            });
+        // Filter users based on role
+        if ($currentUser) {
+            if ($currentUser->hasRole('super-admin')) {
+                // Super admin can see all users
+            } elseif ($currentUser->hasRole('admin')) {
+                // Admin can see all users except super-admin and admin
+                $query->whereDoesntHave('roles', function ($q) {
+                    $q->whereIn('name', ['super-admin', 'admin']);
+                });
+            } else {
+                // Others see no restricted roles by default if they have access
+                $query->whereDoesntHave('roles', function ($q) {
+                    $q->whereIn('name', ['super-admin', 'admin']);
+                });
+            }
         }
 
         $users = $query->get()->map(function ($user) {
@@ -69,6 +79,14 @@ class UserController extends Controller
         if ($request->role) {
             $role = Role::where('name', $request->role)->first();
             if ($role) {
+                /** @var \App\Models\User $currentUser */
+                $currentUser = auth()->user();
+                if (in_array(strtolower($role->name), ['super-admin', 'admin']) && (!$currentUser || !$currentUser->hasRole('super-admin'))) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted role.',
+                    ], 403);
+                }
                 $user->assignRole($role);
             }
         }
@@ -92,6 +110,21 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::with('roles')->findOrFail($id);
+
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        if (!$currentUser->hasRole('super-admin')) {
+            $isRestricted = $user->roles->contains(function ($role) {
+                return in_array(strtolower($role->name), ['super-admin', 'admin']);
+            });
+
+            if ($isRestricted) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to view this user.',
+                ], 403);
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -138,9 +171,17 @@ class UserController extends Controller
 
         // Update role if provided
         if ($request->has('role')) {
-            $user->roles()->detach();
             $role = Role::where('name', $request->role)->first();
             if ($role) {
+                /** @var \App\Models\User $currentUser */
+                $currentUser = auth()->user();
+                if (in_array(strtolower($role->name), ['super-admin', 'admin']) && (!$currentUser || !$currentUser->hasRole('super-admin'))) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted role.',
+                    ], 403);
+                }
+                $user->roles()->detach();
                 $user->assignRole($role);
             }
         }

@@ -16,8 +16,16 @@ class RolePermissionController extends Controller
         $currentUser = auth()->user();
         
         $query = Role::query();
-        if (!$currentUser || !$currentUser->hasRole('super-admin')) {
-            $query->where('name', '!=', 'super-admin');
+        if ($currentUser) {
+            if ($currentUser->hasRole('super-admin')) {
+                // Super admin can see all roles
+            } elseif ($currentUser->hasRole('admin')) {
+                // Admin can see all roles except super-admin and admin
+                $query->whereNotIn('name', ['super-admin', 'admin']);
+            } else {
+                // Other users see no restricted roles by default if they have access
+                $query->whereNotIn('name', ['super-admin', 'admin']);
+            }
         }
 
         return response()->json([
@@ -237,6 +245,19 @@ class RolePermissionController extends Controller
 
         $user = User::findOrFail($userId);
         $roles = Role::whereIn('id', $request->input('role_ids', []))->get();
+
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        if (!$currentUser || !$currentUser->hasRole('super-admin')) {
+            foreach ($roles as $role) {
+                if (in_array(strtolower($role->name), ['super-admin', 'admin'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted roles.',
+                    ], 403);
+                }
+            }
+        }
         
         $user->syncRoles($roles);
 
