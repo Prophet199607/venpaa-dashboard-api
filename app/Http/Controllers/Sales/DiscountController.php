@@ -25,7 +25,9 @@ class DiscountController extends Controller
             }
 
             if ($request->filled('sub_category') && $request->sub_category !== 'all') {
-                $query->where('sub_category', $request->sub_category);
+                $query->whereHas('subCategories', function ($q) use ($request) {
+                    $q->where('scat_code', $request->sub_category);
+                });
             }
 
             $perPage = $request->input('per_page', 10);
@@ -44,10 +46,24 @@ class DiscountController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Filter Products Error: ' . $e->getMessage());
+            $msg = $e->getMessage();
+            if (strpos($msg, 'SQLSTATE[45000]') !== false || strpos($msg, '1644') !== false) {
+                $cleanMsg = $msg;
+                if (preg_match('/1644\s+(.*?)\s+\(SQL/', $msg, $matches)) {
+                    $cleanMsg = $matches[1];
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => $cleanMsg,
+                    'error_code' => 1644
+                ], 400);
+            }
+
+            Log::error('Filter Products Error: ' . $msg);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch products'
+                'message' => 'Failed to fetch products',
+                'error' => $msg
             ], 500);
         }
     }
