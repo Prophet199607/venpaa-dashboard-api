@@ -18,7 +18,7 @@ class DashboardController extends Controller
         try {
             // Main Top Stats
             $totalBooks = Product::where('department', '10')->count();
-            $totalSalesCount = DB::table('tbl_OnlineStockFrom_Pos')->distinct('Receipt_No')->count();
+            $totalTransactions = TransactionHeader::count();
 
             // Extra Stats
             $totalAuthors = Author::count();
@@ -71,8 +71,8 @@ class DashboardController extends Controller
                         'total_books' => [
                             'value' => $totalBooks,
                         ],
-                        'total_sales' => [
-                            'value' => $totalSalesCount,
+                        'total_transactions' => [
+                            'value' => $totalTransactions,
                         ],
                     ],
                     'extra_stats' => [
