@@ -235,7 +235,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     Route::group(['prefix' => 'products', 'middleware' => ['can:view product']], function () {
         Route::get('/{prod_code}/check-open-stock', [ProductController::class, 'checkOpenStock']);
         Route::get('/{prod_code}/stock-by-location', [ProductController::class, 'stockByLocation']);
-        Route::get('/{prod_code}/bin-card/export', [ProductController::class, 'exportBinCard'])->middleware('can:export product');
+        Route::get('/{prod_code}/bin-card/export', [ProductController::class, 'exportBinCard'])->middleware('can:export bin-card');
         Route::get('/generate-code', [ProductController::class, 'generateProductCode']);
         Route::get('/{prod_code}/bin-card', [ProductController::class, 'binCard']);
         Route::get('/open-stocks', [ProductController::class, 'getOpenStocks']);
@@ -366,8 +366,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // transfer good return routes
-    Route::group(['prefix' => 'transfer-good-returns', 'middleware' => ['can:view transfer-good-return']], function () {
-        Route::post('/save-tgr', [TransferGoodReturnController::class, 'store'])->middleware('can:post transfer-good-return');
+    Route::group(['prefix' => 'transfer-good-returns'], function () {
+        Route::post('/save-tgr', [TransferGoodReturnController::class, 'store']);
     });
 
     // stock adjustments routes
@@ -384,35 +384,35 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // product discards routes
-    Route::group(['prefix' => 'product-discards', 'middleware' => ['can:view product-discard']], function () {
+    Route::group(['prefix' => 'product-discards'], function () {
         Route::get('/load-transaction-by-code/{doc_number}/{status}/{iid}', [ProductDiscardController::class, 'loadTransactionByCode']);
         Route::get('/load-all-transactions', [ProductDiscardController::class, 'loadAllTransactions']);
         Route::get('/unsaved-sessions', [ProductDiscardController::class, 'getUnsavedSessions']);
         Route::get('/discard-types', [ProductDiscardController::class, 'getDiscardTypes']);
 
-        Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct'])->middleware('can:edit product-discard');
+        Route::put('/update-product/{id}', [ProductDiscardController::class, 'updateProduct']);
 
-        Route::post('/add-product', [ProductDiscardController::class, 'addProduct'])->middleware('can:edit product-discard');
-        Route::post('/save-pd', [ProductDiscardController::class, 'store'])->middleware('can:post product-discard');
+        Route::post('/add-product', [ProductDiscardController::class, 'addProduct']);
+        Route::post('/save-pd', [ProductDiscardController::class, 'store']);
     });
 
     // payment voucher routes
-    Route::group(['prefix' => 'payment-vouchers', 'middleware' => ['can:view payment-voucher']], function () {
+    Route::group(['prefix' => 'payment-vouchers'], function () {
         Route::get('/pending-payments/{supplier_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingPaymentsVoucher']);
         Route::get('/available-set-offs/{supplier_code}/{loca_code}', [PaymentVoucherController::class, 'getAvailableSetOffs']);
 
-        Route::post('/save-pmt', [PaymentVoucherController::class, 'store'])->middleware('can:post payment-voucher');
+        Route::post('/save-pmt', [PaymentVoucherController::class, 'store']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getPmtNumber']);
         Route::get('/load-all-pmt', [PaymentVoucherController::class, 'loadAllPaymentVouchers']);
         Route::get('/load-payment-by-code/{doc_number}', [PaymentVoucherController::class, 'loadPaymentByCode']);
     });
 
     // customer receipt routes
-    Route::group(['prefix' => 'customer-receipts', 'middleware' => ['can:view customer-receipt']], function () {
+    Route::group(['prefix' => 'customer-receipts'], function () {
         Route::get('/pending-receipts/{customer_code}/{loca_code}/{iid}', [PaymentVoucherController::class, 'getPendingCustomerReceipts']);
         Route::get('/available-set-offs/{customer_code}/{loca_code}', [PaymentVoucherController::class, 'getAvailableSetOffsRec']);
 
-        Route::post('/save-rec', [PaymentVoucherController::class, 'receiptStore'])->middleware('can:post customer-receipt');
+        Route::post('/save-rec', [PaymentVoucherController::class, 'receiptStore']);
         Route::post('/generate-code', [PaymentVoucherController::class, 'getRecNumber']);
         Route::get('/load-all-rec', [PaymentVoucherController::class, 'loadAllCustomerReceipts']);
         Route::get('/load-receipt-by-code/{doc_number}', [PaymentVoucherController::class, 'loadPaymentByCode']);
