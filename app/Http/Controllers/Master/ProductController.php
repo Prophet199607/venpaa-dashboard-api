@@ -119,10 +119,9 @@ class ProductController extends Controller
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Check if Product code already exists
-            if (Product::where('prod_code', $data['prod_code'])->exists()) {
-                $docCode = DocNumber::where('type', 'Product')->first()->getDocCode();
-                $data['prod_code'] = $docCode['code'];
+            // Check if Product code already exists, if so, increment until unique
+            while (Product::where('prod_code', $data['prod_code'])->exists()) {
+                $data['prod_code']++;
             }
 
             // Handle suppliers data

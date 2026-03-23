@@ -30,7 +30,7 @@ class ProductRequest extends FormRequest
             'prod_code' => [
                 'required',
                 'string',
-                Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code'),
+                $prodCode ? Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code') : '',
             ],
             'prod_name' => [
                 'required',
