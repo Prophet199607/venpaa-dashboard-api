@@ -95,7 +95,6 @@ class BookImport implements ToCollection, WithHeadingRow
             'unit_name'      => 'NOS',
             'barcode'        => $bookCode,
             'category'       => null,
-            'sub_category'   => null,
             'alert_qty'      => null,
             'pack_size'      => '1',
         ];
