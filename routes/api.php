@@ -80,8 +80,9 @@ Route::group(['prefix' => 'Sales'], function () {
 Route::group(['prefix' => 'products'], function () {
     Route::get('/basic-search', [ProductController::class, 'searchBasic']);
 });
-
-
+Route::group(['prefix' => 'price-levels'], function () {
+    Route::get('/', [PriceLevelController::class, 'index']);
+});
 
 // Middleware doesn't work here
 // Route::group(['prefix' => 'v1'], function () {
