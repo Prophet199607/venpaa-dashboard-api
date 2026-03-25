@@ -121,6 +121,30 @@ class RolePermissionController extends Controller
         return response()->json(['message' => 'Permission deleted']);
     }
 
+    public function updatePermission(Request $request, $id)
+    {
+        $permission = Permission::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9_\-\s]+$/',
+                Rule::unique('permissions', 'name')->ignore($permission->id),
+            ],
+        ]);
+
+        $permission->name = strtolower($validated['name']);
+        $permission->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permission updated successfully',
+            'data' => $permission,
+        ]);
+    }
+
     /**
      * Get permissions for a specific role
      */

@@ -473,6 +473,7 @@ Route::middleware(['auth:sanctum', 'role:super-admin|admin'])
         // Permissions
         Route::get('/permissions', [RolePermissionController::class, 'getPermissions'])->middleware('permission:view permission|permission assign');
         Route::post('/permissions', [RolePermissionController::class, 'createPermission'])->middleware('can:create permission');
+        Route::put('/permissions/{id}', [RolePermissionController::class, 'updatePermission'])->middleware('can:edit permission');
         Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission'])->middleware('can:delete permission');
 
         // Role-Permission assignment
