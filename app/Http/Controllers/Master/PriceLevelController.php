@@ -31,10 +31,13 @@ class PriceLevelController extends Controller
             'prod_code' => 'required|string',
             'purchase_price' => 'required|numeric',
             'selling_price' => 'required|numeric',
+            'original_selling_price' => 'nullable|numeric',
             'wholesale_price' => 'required|numeric',
             'has_expiry' => 'boolean',
             'expiry_date' => 'nullable|date',
         ]);
+
+        $validated['original_selling_price'] = $validated['original_selling_price'] ?? 0;
 
         $priceLevel = PriceLevel::create($validated);
 
@@ -54,10 +57,15 @@ class PriceLevelController extends Controller
         $validated = $request->validate([
             'purchase_price' => 'sometimes|required|numeric',
             'selling_price' => 'sometimes|required|numeric',
+            'original_selling_price' => 'nullable|numeric',
             'wholesale_price' => 'sometimes|required|numeric',
             'has_expiry' => 'sometimes|boolean',
             'expiry_date' => 'nullable|date',
         ]);
+
+        if (array_key_exists('original_selling_price', $validated) && is_null($validated['original_selling_price'])) {
+            $validated['original_selling_price'] = 0;
+        }
 
         if (isset($validated['has_expiry']) && !$validated['has_expiry']) {
             $validated['expiry_date'] = null;
@@ -116,6 +124,7 @@ class PriceLevelController extends Controller
                 'price_levels' => 'required|array|min:1',
                 'price_levels.*.purchase_price' => 'required|numeric|min:0',
                 'price_levels.*.selling_price' => 'required|numeric|min:0',
+                'price_levels.*.original_selling_price' => 'nullable|numeric|min:0',
                 'price_levels.*.wholesale_price' => 'required|numeric|min:0',
                 'price_levels.*.has_expiry' => 'sometimes|boolean',
                 'price_levels.*.expiry_date' => 'nullable|date',
@@ -132,6 +141,7 @@ class PriceLevelController extends Controller
                     'prod_code' => $level['prod_code'] ?? $prod_code,
                     'purchase_price' => $level['purchase_price'],
                     'selling_price' => $level['selling_price'],
+                    'original_selling_price' => $level['original_selling_price'] ?? 0,
                     'wholesale_price' => $level['wholesale_price'],
                     'has_expiry' => $hasExpiry,
                     'expiry_date' => $expiryDate,
@@ -171,6 +181,7 @@ class PriceLevelController extends Controller
             'prod_code'       => $priceLevel->prod_code,
             'purchase_price'  => $priceLevel->purchase_price,
             'selling_price'   => $priceLevel->selling_price,
+            'original_selling_price' => $priceLevel->original_selling_price,
             'wholesale_price' => $priceLevel->wholesale_price,
             'modified_user'   => $priceLevel->modified_user,
             'has_expiry'      => $priceLevel->has_expiry,
