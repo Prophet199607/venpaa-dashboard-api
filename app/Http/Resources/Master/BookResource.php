@@ -59,6 +59,9 @@ class BookResource extends JsonResource
             'publisher'     => (string) $this->getRawOriginal('publisher'),
             'publisher_data' => $this->whenLoaded('publisher', function () {
                 $publisherRelation = $this->getRelation('publisher');
+                if (!$publisherRelation) {
+                    return null;
+                }
                 return [
                     'pub_code' => $publisherRelation->pub_code,
                     'pub_name' => $publisherRelation->pub_name,
