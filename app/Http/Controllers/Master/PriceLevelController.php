@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\PriceLevel;
 use Illuminate\Http\Request;
 use App\Models\PriceLevelLog;
@@ -111,9 +112,10 @@ class PriceLevelController extends Controller
     public function batchStore(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'prod_code' => 'required|string',
+            $request->validate([
+                'prod_code' => 'nullable|string',
                 'price_levels' => 'required|array|min:1',
+                'price_levels.*.prod_code' => 'required|string',
                 'price_levels.*.purchase_price' => 'required|numeric|min:0',
                 'price_levels.*.selling_price' => 'required|numeric|min:0',
                 'price_levels.*.wholesale_price' => 'required|numeric|min:0',
@@ -121,15 +123,38 @@ class PriceLevelController extends Controller
                 'price_levels.*.expiry_date' => 'nullable|date',
             ]);
 
-            $prod_code = $validated['prod_code'];
+            $price_levels = $request->input('price_levels');
             $savedCount = 0;
+            $checkedProds = [];
 
-            foreach ($validated['price_levels'] as $level) {
+            foreach ($price_levels as $level) {
+                $p_code = $level['prod_code'];
+
+                // Ensure the original price level row exists for this product (once per batch per product)
+                if (!in_array($p_code, $checkedProds)) {
+                    $exists = PriceLevel::where('prod_code', $p_code)->exists();
+                    if (!$exists) {
+                        $product = Product::where('prod_code', $p_code)->first();
+                        if ($product) {
+                            $originalPriceLevel = PriceLevel::create([
+                                'prod_code' => $product->prod_code,
+                                'purchase_price' => $product->purchase_price,
+                                'selling_price' => $product->selling_price,
+                                'wholesale_price' => $product->wholesale_price,
+                                'has_expiry' => false,
+                                'expiry_date' => null,
+                            ]);
+                            $this->logAction($originalPriceLevel, 'created');
+                        }
+                    }
+                    $checkedProds[] = $p_code;
+                }
+
                 $hasExpiry = isset($level['has_expiry']) ? (bool)$level['has_expiry'] : false;
                 $expiryDate = $hasExpiry ? ($level['expiry_date'] ?? null) : null;
 
                 $priceLevel = PriceLevel::create([
-                    'prod_code' => $level['prod_code'] ?? $prod_code,
+                    'prod_code' => $p_code,
                     'purchase_price' => $level['purchase_price'],
                     'selling_price' => $level['selling_price'],
                     'wholesale_price' => $level['wholesale_price'],
