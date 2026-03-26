@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ProductImage;
+use App\Models\PriceLevel;
 
 class Product extends Model
 {
@@ -66,6 +67,11 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class, 'prod_code', 'prod_code');
+    }
+
+    public function price_levels()
+    {
+        return $this->hasMany(PriceLevel::class, 'prod_code', 'prod_code');
     }
 
     protected static function booted()
