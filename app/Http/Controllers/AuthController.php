@@ -26,9 +26,14 @@ class AuthController extends Controller
             return response()->json(['message'=>'Invalid credentials'], 401);
         }
 
-        if ($request->has('location')) {
-            $user->location = $request->location;
-            $user->save();
+        // Restrict login to assigned location only (Admins and Super Admins can bypass)
+        if ($user->location && !$user->hasRole('super-admin') && !$user->hasRole('admin')) {
+            if ($request->location !== $user->location) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized location. You can only log in to your assigned location (' . $user->location . ').'
+                ], 403);
+            }
         }
 
         $token = $user->createToken('api_token')->plainTextToken;
@@ -36,7 +41,6 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
-            'location_updated' => $request->has('location')
         ]);
     }
 

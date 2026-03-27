@@ -44,6 +44,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'roles' => $user->roles->pluck('name')->toArray(),
+                'location' => $user->location,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
             ];
@@ -99,6 +100,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'location' => $user->location,
                 'roles' => $user->roles->pluck('name')->toArray(),
             ],
         ], 201);
@@ -133,6 +135,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'roles' => $user->roles->pluck('name')->toArray(),
+                'location' => $user->location,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
             ],
@@ -162,6 +165,7 @@ class UserController extends Controller
 
         $user->name = $request->input('name', $user->name);
         $user->email = $request->input('email', $user->email);
+        $user->location = $request->input('location', $user->location);
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
@@ -193,6 +197,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'location' => $user->location,
                 'roles' => $user->roles->pluck('name')->toArray(),
             ],
         ]);
