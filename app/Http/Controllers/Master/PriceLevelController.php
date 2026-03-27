@@ -37,6 +37,17 @@ class PriceLevelController extends Controller
             'expiry_date' => 'nullable|date',
         ]);
 
+        $product = Product::where('prod_code', $validated['prod_code'])->first();
+        if ($product && 
+            round((float)$validated['purchase_price'], 2) === round((float)$product->purchase_price, 2) &&
+            round((float)$validated['selling_price'], 2) === round((float)$product->selling_price, 2) &&
+            round((float)$validated['wholesale_price'], 2) === round((float)$product->wholesale_price, 2)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot manually create a price level that matches the original product prices.'
+            ], 422);
+        }
+
         $priceLevel = PriceLevel::create($validated);
 
         $this->logAction($priceLevel, 'created');
@@ -64,6 +75,17 @@ class PriceLevelController extends Controller
             $validated['expiry_date'] = null;
         }
 
+        $product = Product::where('prod_code', $priceLevel->prod_code)->first();
+        if ($product && 
+            (float)$priceLevel->purchase_price === (float)$product->purchase_price &&
+            (float)$priceLevel->selling_price === (float)$product->selling_price &&
+            (float)$priceLevel->wholesale_price === (float)$product->wholesale_price) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The original price level cannot be modified.'
+            ], 422);
+        }
+
         $priceLevel->update($validated);
 
         $this->logAction($priceLevel->fresh(), 'updated');
@@ -78,6 +100,17 @@ class PriceLevelController extends Controller
     public function destroy($id)
     {
         $priceLevel = PriceLevel::findOrFail($id);
+        $product = Product::where('prod_code', $priceLevel->prod_code)->first();
+        if ($product && 
+            (float)$priceLevel->purchase_price === (float)$product->purchase_price &&
+            (float)$priceLevel->selling_price === (float)$product->selling_price &&
+            (float)$priceLevel->wholesale_price === (float)$product->wholesale_price) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The original price level cannot be deleted.'
+            ], 422);
+        }
+
         $this->logAction($priceLevel, 'deleted');
         $priceLevel->delete();
 
@@ -98,14 +131,21 @@ class PriceLevelController extends Controller
 
         $priceLevels = $query->get();
         foreach ($priceLevels as $pl) {
+            $product = Product::where('prod_code', $pl->prod_code)->first();
+            if ($product && 
+                (float)$pl->purchase_price === (float)$product->purchase_price &&
+                (float)$pl->selling_price === (float)$product->selling_price &&
+                (float)$pl->wholesale_price === (float)$product->wholesale_price) {
+                // Skip deleting original
+                continue;
+            }
             $this->logAction($pl, 'deleted');
+            $pl->delete();
         }
-
-        $query->delete();
 
         return response()->json([
             'success' => true,
-            'message' => $prod_code ? "All price levels for product $prod_code deleted" : "All price levels deleted successfully"
+            'message' => $prod_code ? "Additional price levels for product $prod_code deleted (Original preserved)" : "All price levels deleted (Originals preserved)"
         ]);
     }
 
@@ -124,6 +164,26 @@ class PriceLevelController extends Controller
             ]);
 
             $price_levels = $request->input('price_levels');
+
+            // 1. PRE-VALIDATION: Check the entire batch for original price matches before saving anything
+            foreach ($price_levels as $index => $level) {
+                $p_code = $level['prod_code'];
+                $baseProduct = Product::where('prod_code', $p_code)->first();
+                
+                if ($baseProduct && 
+                    round((float)$level['purchase_price'], 2) === round((float)$baseProduct->purchase_price, 2) &&
+                    round((float)$level['selling_price'], 2) === round((float)$baseProduct->selling_price, 2) &&
+                    round((float)$level['wholesale_price'], 2) === round((float)$baseProduct->wholesale_price, 2)) {
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Item at index " . ($index + 1) . " for product {$p_code} matches original prices.",
+                        'errors' => ['price' => ["Original prices cannot be added as new price levels. They are automatically managed."]]
+                    ], 422);
+                }
+            }
+
+            // 2. STORAGE: At this point, we know the batch contains no originals
             $savedCount = 0;
             $checkedProds = [];
 
