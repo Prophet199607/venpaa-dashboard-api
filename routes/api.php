@@ -449,6 +449,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // Report routes
     Route::group(['prefix' => 'reports'], function () {
         Route::get('/current-stock-report', [ReportController::class, 'getCurrentStockReport'])->middleware('can:view current-stock-report');
+        Route::get('/current-stock-report/export', [ReportController::class, 'exportCurrentStockReport'])->middleware('can:view current-stock-report');
         Route::get('/pos-sales-summary-report', [ReportController::class, 'getPosSalesSummaryReport'])->middleware('can:view pos-sales-summary-report');
         Route::get('/pos-collection-summary-report', [ReportController::class, 'getPosCollectionSummaryReport'])->middleware('can:view daily-collection-report');
     });
