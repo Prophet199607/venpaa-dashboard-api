@@ -4,7 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Exports\CurrentStockExport;
+use Maatwebsite\Excel\Facades\Excel;
 
+/**
+ * Class ReportController
+ * Handles various application reports.
+ */
 class ReportController extends Controller
 {
     /**
@@ -193,7 +199,7 @@ class ReportController extends Controller
                 $row->Loca_Name = $locations[$row->Loca] ?? '';
             }
 
-            return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\CurrentStockExport($summary), 'Current_Stock_Report.xlsx');
+            return Excel::download(new CurrentStockExport($summary), 'Current_Stock_Report.xlsx');
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
