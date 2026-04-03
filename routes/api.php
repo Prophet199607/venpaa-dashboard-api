@@ -42,6 +42,7 @@ use App\Http\Controllers\Transaction\SupplierReturnNoteController;
 use App\Http\Controllers\Transaction\TransferGoodReturnController;
 
 use App\Http\Controllers\Payment\PaymentVoucherController;
+use App\Http\Controllers\Payment\CodManagementController;
 
 
 /*
@@ -417,6 +418,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/generate-code', [PaymentVoucherController::class, 'getRecNumber']);
         Route::get('/load-all-rec', [PaymentVoucherController::class, 'loadAllCustomerReceipts']);
         Route::get('/load-receipt-by-code/{doc_number}', [PaymentVoucherController::class, 'loadPaymentByCode']);
+    });
+
+    // cod management routes
+    Route::group(['prefix' => 'cod-management'], function () {
+        Route::get('/', [CodManagementController::class, 'index']);
     });
 
     // invoice routes
