@@ -9,6 +9,7 @@ class PaymentSummary extends Model
 {
     use HasFactory;
 
+    protected $guarded = [];
     /**
      * Get the customer associated with the payment summary.
      */
