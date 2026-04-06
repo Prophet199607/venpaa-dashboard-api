@@ -26,8 +26,13 @@ class AuthController extends Controller
             return response()->json(['message'=>'Invalid credentials'], 401);
         }
 
-        // Restrict login to assigned location only (Admins and Super Admins can bypass)
-        if ($user->location && !$user->hasRole('super-admin') && !$user->hasRole('admin')) {
+        // Restrict login to assigned location only (Admins and Super Admins can bypass and update their current location)
+        if ($user->hasRole('super-admin') || $user->hasRole('admin')) {
+            if ($request->location) {
+                $user->location = $request->location;
+                $user->save();
+            }
+        } elseif ($user->location) {
             if ($request->location !== $user->location) {
                 return response()->json([
                     'success' => false,
