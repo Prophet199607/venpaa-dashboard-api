@@ -8,8 +8,11 @@ use App\Models\Customer;
 use App\Models\Supplier;
 use App\Models\Category;
 use App\Models\Publisher;
+use Illuminate\Http\Request;
+use App\Models\CodValueCharge;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
+use App\Models\CourierWeightCharge;
 
 class DashboardController extends Controller
 {
@@ -90,6 +93,38 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch dashboard stats',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function calculateCharges(Request $request)
+    {
+        try {
+            $totalValue = $request->input('total_value', 0);
+            $totalWeight = $request->input('total_weight', 0);
+
+            // Find COD charge
+            $codCharge = CodValueCharge::where('value_from', '<=', $totalValue)
+                ->where('value_to', '>=', $totalValue)
+                ->first();
+
+            // Find Courier charge
+            $courierCharge = CourierWeightCharge::where('weight_from', '<=', $totalWeight)
+                ->where('weight_to', '>=', $totalWeight)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'cod_charge' => $codCharge ? $codCharge->charge : 0,
+                    'courier_charge' => $courierCharge ? $courierCharge->charge : 0,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to calculate charges',
                 'error' => $e->getMessage()
             ], 500);
         }
