@@ -213,7 +213,7 @@ class ReportController extends Controller
     {
         try {
             $locaRaw = $request->input('location', '');
-            $location = str_pad(ltrim($locaRaw, '0'), 2, '0', STR_PAD_LEFT);
+            $location = (trim($locaRaw) === '' || $locaRaw === 'ALL') ? " " : str_pad(ltrim($locaRaw, '0'), 2, '0', STR_PAD_LEFT);
             $dateFrom = $request->input('dateFrom', '');
             $dateTo = $request->input('dateTo', '');
             $viewType = strtoupper($request->input('viewType', 'PRODUCT'));
