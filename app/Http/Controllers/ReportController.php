@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Exports\SalesReportExport;
 use App\Exports\CurrentStockExport;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -282,6 +283,76 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch sales report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function exportSalesReport(Request $request)
+    {
+        try {
+            $locaRaw = $request->input('location', '');
+            $location = (trim($locaRaw) === '' || $locaRaw === 'ALL') ? " " : str_pad(ltrim($locaRaw, '0'), 2, '0', STR_PAD_LEFT);
+            $dateFrom = $request->input('dateFrom', '');
+            $dateTo = $request->input('dateTo', '');
+            $viewType = strtoupper($request->input('viewType', 'PRODUCT'));
+            $codeFrom = $request->input('codeFrom', '');
+            $codeTo = $request->input('codeTo', '');
+
+            // Ensure dates are in dd/mm/yyyy format for SP
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+                $dateFrom = date('d/m/Y', strtotime($dateFrom));
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+                $dateTo = date('d/m/Y', strtotime($dateTo));
+            }
+
+            $pdo = DB::getPdo();
+            $stmt = $pdo->prepare("CALL sp_SalesReport(@pErrorCode, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $location,
+                $dateFrom,
+                $dateTo,
+                $viewType,
+                $codeFrom,
+                $codeTo
+            ]);
+
+            // First Result Set: Report Header
+            $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            // Second Result Set: Main Data
+            if($stmt->nextRowset()){
+                $details = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                $details = [];
+            }
+
+            // Third Result Set: Totals
+            if($stmt->nextRowset()){
+                $totals = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                $totals = [];
+            }
+
+            $stmt->closeCursor();
+            
+            $errorCodeResult = DB::select('SELECT @pErrorCode as error_code');
+            $errorCode = !empty($errorCodeResult) ? $errorCodeResult[0]->error_code : 0;
+
+            if ($errorCode != 0) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'Stored procedure error',
+                    'error_code' => $errorCode
+                ], 400);
+            }
+
+            return Excel::download(new SalesReportExport($details, !empty($totals) ? $totals[0] : null), 'Sales_Report.xlsx');
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export sales report',
                 'error' => $e->getMessage()
             ], 500);
         }
