@@ -26,9 +26,11 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
             $rowObj = (object)$row;
             
             $formatted[] = [
+                $rowObj->BillDate ?? '',
                 $rowObj->Loca ?? '',
                 $rowObj->CODE ?? '',
                 $rowObj->Description ?? '',
+                $rowObj->Sale_Type ?? '',
                 $rowObj->Unit_Price ?? 0,
                 $rowObj->Qty ?? 0,
                 $rowObj->Order_Value ?? 0,
@@ -46,6 +48,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
             $t = (object)$this->totals;
             $formatted[] = [
                 'TOTAL',
+                '',
                 '',
                 '',
                 '',
@@ -67,9 +70,11 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
     public function headings(): array
     {
         return [
+            'Sale Date',
             'Location',
             'Code',
             'Description',
+            'Sale Type',
             'Unit Price',
             'Qty',
             'Order Value',
