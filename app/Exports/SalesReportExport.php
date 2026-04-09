@@ -27,7 +27,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
             
             $formatted[] = [
                 $rowObj->BillDate ?? '',
-                $rowObj->Loca ?? '',
+                $rowObj->Loca_Name ?? '',
                 $rowObj->CODE ?? '',
                 $rowObj->Description ?? '',
                 $rowObj->Sale_Type ?? '',
@@ -39,6 +39,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
                 $rowObj->Postal_Cost ?? 0,
                 $rowObj->Gross_Amount ?? 0,
                 $rowObj->Discount ?? 0,
+                $rowObj->Sales_After_Discount ?? 0,
                 $rowObj->VAT ?? 0,
                 $rowObj->Net_Amount ?? 0,
             ];
@@ -59,6 +60,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
                 $t->Postal_Cost ?? 0,
                 $t->Gross_Amount ?? 0,
                 $t->Discount ?? 0,
+                $t->Sales_After_Discount ?? 0,
                 $t->VAT ?? 0,
                 $t->Net_Amount ?? 0,
             ];
@@ -83,6 +85,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
             'Postal Cost',
             'Gross Amount',
             'Discount',
+            'Sales After Discount',
             'VAT',
             'Net Amount',
         ];

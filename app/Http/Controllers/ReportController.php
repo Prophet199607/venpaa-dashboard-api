@@ -348,6 +348,20 @@ class ReportController extends Controller
                 ], 400);
             }
 
+            // Inject Location names
+            $uniqueLocas = array_values(array_unique(array_column($details, 'Loca')));
+            $uniqueLocas = array_map(function ($loca) {
+                return str_pad($loca, 3, '0', STR_PAD_LEFT);
+            }, $uniqueLocas);
+            $locations = DB::table('locations')
+                ->whereIn('loca_code', $uniqueLocas)
+                ->pluck('loca_name', 'loca_code');
+
+            foreach ($details as &$row) {
+                $lookupKey = str_pad($row['Loca'], 3, '0', STR_PAD_LEFT);
+                $row['Loca_Name'] = $locations[$lookupKey] ?? $row['Loca'];
+            }
+
             return Excel::download(new SalesReportExport($details, !empty($totals) ? $totals[0] : null), 'Sales_Report.xlsx');
         } catch (\Exception $e) {
             return response()->json([
