@@ -358,13 +358,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
 
     // accept good note routes
     Route::group(['prefix' => 'accept-good-notes', 'middleware' => ['can:view accept-good-note']], function () {
-        Route::get('/load-agn-by-code/{doc_number}/{status}/{iid}', [AcceptGoodNoteController::class, 'loadAgnByCode']);
-        Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns']);
+        Route::get('/load-agn-by-code/{doc_number}/{status}/{iid}', [AcceptGoodNoteController::class, 'loadAgnByCode'])->middleware('can:view accept-good-note');
+        Route::get('/load-all-agn', [AcceptGoodNoteController::class, 'loadAllAgns'])->middleware('can:view accept-good-note');
 
-        Route::put('/update-product/{id}', [AcceptGoodNoteController::class, 'updateProduct'])->middleware('can:create accept-good-note');
+        Route::put('/update-product/{id}', [AcceptGoodNoteController::class, 'updateProduct'])->middleware('can:edit accept-good-note');
 
-        Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn'])->middleware('can:create accept-good-note');
-        Route::post('/save-agn', [AcceptGoodNoteController::class, 'store'])->middleware('can:post accept-good-note');
+        Route::post('/draft-agn', [AcceptGoodNoteController::class, 'draftAgn'])->middleware('can:edit accept-good-note');
+        Route::post('/save-agn', [AcceptGoodNoteController::class, 'store'])->middleware('can:edit accept-good-note');
     });
 
     // transfer good return routes
