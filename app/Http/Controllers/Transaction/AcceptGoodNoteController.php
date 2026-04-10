@@ -244,7 +244,7 @@ class AcceptGoodNoteController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $data = $request->validated();
-                $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['delivery_location']);
+                $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['location']);
 
                 $headerData = $data;
                 unset($headerData['id']);
@@ -271,8 +271,8 @@ class AcceptGoodNoteController extends Controller
 
                 foreach ($transactionDetails as $detail) {
                     StockMaster::create([
-                        'location' => $data['delivery_location'],
-                        'transaction_date' => $data['document_date'],
+                        'location' => $data['location'],
+                        'transaction_date' => now()->format('Y-m-d'),
                         'doc_no' => $agnNumber,
                         'prod_code' => $detail->prod_code,
                         'iid' => $data['iid'] ?? 'AGN',
