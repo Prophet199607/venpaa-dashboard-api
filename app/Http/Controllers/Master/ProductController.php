@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\Location;
 use App\Models\DocNumber;
+use App\Models\PriceLevel;
 use App\Models\StockMaster;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
@@ -690,7 +691,7 @@ class ProductController extends Controller
         try {
             $userLocation = $request->user()?->location;
             $perPage = $request->input('per_page', 10);
-            
+
             $query = StockMaster::where('iid', 'OPS')
                 ->select('stock_masters.*', 'products.prod_name', 'units.unit_type')
                 ->leftJoin('products', 'stock_masters.prod_code', '=', 'products.prod_code')
@@ -700,7 +701,7 @@ class ProductController extends Controller
             if ($userLocation) {
                 $query->where('location', $userLocation);
             }
-                
+
             $openStocks = $query->paginate($perPage);
 
             return response()->json([
@@ -850,6 +851,14 @@ class ProductController extends Controller
     public function stockByLocation($prod_code)
     {
         try {
+            $product = Product::where('prod_code', $prod_code)->first();
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
             $locations = Location::where('is_active', 1)->get()->keyBy('loca_code');
 
             $stocks = StockMaster::select('location', DB::raw('SUM(qty) as total_qty'))
@@ -858,15 +867,15 @@ class ProductController extends Controller
                 ->groupBy('location')
                 ->get();
 
-            $data = $locations->map(function ($loc) use ($stocks, $prod_code) {
+            $locationData = $locations->map(function ($loc) use ($stocks, $prod_code) {
                 $stock = $stocks->firstWhere('location', $loc->loca_code);
-                
+
                 $latestStock = StockMaster::where('prod_code', $prod_code)
                     ->where('location', $loc->loca_code)
                     ->where('iid', '!=', 'CREATE')
                     ->orderByDesc('id')
                     ->first();
-                
+
                 return [
                     'loca_code' => $loc->loca_code,
                     'loca_name' => $loc->loca_name,
@@ -875,9 +884,111 @@ class ProductController extends Controller
                 ];
             })->values();
 
+            $rawPriceLevels = PriceLevel::where('prod_code', $prod_code)
+                ->orderBy('id')
+                ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
+
+            $hasOriginalLevel = $rawPriceLevels->contains(function ($level) use ($product) {
+                return round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+            });
+
+            $priceLevels = [];
+            $additionalLevelNo = 1;
+
+            if (!$hasOriginalLevel) {
+                $priceLevels[] = [
+                    'id' => null,
+                    'level_key' => 'original',
+                    'label' => 'Original',
+                    'purchase_price' => (float) $product->purchase_price,
+                    'selling_price' => (float) $product->selling_price,
+                    'wholesale_price' => (float) $product->wholesale_price,
+                    'has_expiry' => false,
+                    'expiry_date' => null,
+                ];
+            }
+
+            foreach ($rawPriceLevels as $level) {
+                $isOriginal = round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+
+                $priceLevels[] = [
+                    'id' => $level->id,
+                    'level_key' => $isOriginal ? 'original' : ('level_' . $level->id),
+                    'label' => $isOriginal ? 'Original' : ('Level ' . $additionalLevelNo++),
+                    'purchase_price' => (float) $level->purchase_price,
+                    'selling_price' => (float) $level->selling_price,
+                    'wholesale_price' => (float) $level->wholesale_price,
+                    'has_expiry' => (bool) $level->has_expiry,
+                    'expiry_date' => $level->expiry_date,
+                ];
+            }
+
+            $stockRows = StockMaster::where('prod_code', $prod_code)
+                ->where('iid', '!=', 'CREATE')
+                ->get(['location', 'qty', 'purchase_price', 'selling_price']);
+
+            $levelLocationStockMap = [];
+            foreach ($locations as $loc) {
+                foreach ($priceLevels as $level) {
+                    $levelLocationStockMap[$loc->loca_code][$level['level_key']] = 0;
+                }
+            }
+
+            foreach ($stockRows as $stockRow) {
+                $matchedLevelKey = null;
+                foreach ($priceLevels as $level) {
+                    if (
+                        round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                        round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
+                    ) {
+                        $matchedLevelKey = $level['level_key'];
+                        break;
+                    }
+                }
+
+                if ($matchedLevelKey === null) {
+                    $matchedLevelKey = 'original';
+                    if (!isset($levelLocationStockMap[$stockRow->location][$matchedLevelKey])) {
+                        $levelLocationStockMap[$stockRow->location][$matchedLevelKey] = 0;
+                    }
+                }
+
+                if (!isset($levelLocationStockMap[$stockRow->location])) {
+                    $levelLocationStockMap[$stockRow->location] = [];
+                }
+                if (!isset($levelLocationStockMap[$stockRow->location][$matchedLevelKey])) {
+                    $levelLocationStockMap[$stockRow->location][$matchedLevelKey] = 0;
+                }
+
+                $levelLocationStockMap[$stockRow->location][$matchedLevelKey] += (float) $stockRow->qty;
+            }
+
+            $levelLocationStocks = [];
+            foreach ($locations as $loc) {
+                foreach ($priceLevels as $level) {
+                    $levelLocationStocks[] = [
+                        'loca_code' => $loc->loca_code,
+                        'loca_name' => $loc->loca_name,
+                        'level_key' => $level['level_key'],
+                        'label' => $level['label'],
+                        'purchase_price' => $level['purchase_price'],
+                        'selling_price' => $level['selling_price'],
+                        'qty' => (float) ($levelLocationStockMap[$loc->loca_code][$level['level_key']] ?? 0),
+                    ];
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => [
+                    'locations' => $locationData,
+                    'price_levels' => $priceLevels,
+                    'level_location_stocks' => $levelLocationStocks,
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
