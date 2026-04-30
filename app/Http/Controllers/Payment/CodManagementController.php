@@ -14,4 +14,15 @@ class CodManagementController extends Controller
 
         return response()->json($codData);
     }
+
+    public function markAsReceived($id)
+    {
+        $cod = CodManagement::findOrFail($id);
+
+        $cod->status = 'Received';
+        $cod->received_amount = $cod->transaction_amount;
+        $cod->save();
+
+        return response()->json($cod);
+    }
 }

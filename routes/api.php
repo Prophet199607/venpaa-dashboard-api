@@ -423,6 +423,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // cod management routes
     Route::group(['prefix' => 'cod-management'], function () {
         Route::get('/', [CodManagementController::class, 'index']);
+        Route::put('/{id}/received', [CodManagementController::class, 'markAsReceived']);
     });
 
     // invoice routes
