@@ -3,18 +3,15 @@
 namespace App\Http\Controllers\Payment;
 
 use App\Http\Controllers\Controller;
-use App\Models\PaymentSummary;
+use App\Models\CodManagement;
 use Illuminate\Http\Request;
 
 class CodManagementController extends Controller
 {
     public function index()
     {
-        $pendingCod = PaymentSummary::with('customer')
-            ->where('iid', 'COD')
-            ->where('balance_amount', '>', 0)
-            ->get();
+        $codData = CodManagement::orderBy('transaction_date', 'desc')->get();
 
-        return response()->json($pendingCod);
+        return response()->json($codData);
     }
 }
