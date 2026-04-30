@@ -14,7 +14,7 @@ class DiscountController extends Controller
     public function filter(Request $request)
     {
         try {
-            $query = Product::query();
+            $query = Product::query()->where('status', 1);
 
             if ($request->filled('department') && $request->department !== 'all') {
                 $query->where('department', $request->department);
@@ -30,8 +30,26 @@ class DiscountController extends Controller
                 });
             }
 
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('prod_code', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('prod_name', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
+                        ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
+                });
+
+                $query->orderByRaw("CASE 
+                    WHEN prod_code = ? THEN 1
+                    WHEN barcode = ? THEN 1
+                    WHEN isbn = ? THEN 1
+                    WHEN prod_name = ? THEN 2
+                    ELSE 3
+                END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+            }
+
             $perPage = $request->input('per_page', 10);
-            $products = $query->select('prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per', 'dis_start_date', 'dis_end_date')
+            $products = $query->select('id', 'prod_code', 'prod_name', 'selling_price', 'discount', 'dis_per', 'dis_start_date', 'dis_end_date')
                               ->orderBy('prod_code')
                               ->paginate($perPage);
 
