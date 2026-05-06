@@ -17,11 +17,11 @@ class CodManagementController extends Controller
         return response()->json($codData);
     }
 
-    public function markAsReceived($id)
+    public function markAsReceived(Request $request, $id)
     { 
 
         
-        $cod = DB::transaction(function () use ($id) {
+        $cod = DB::transaction(function () use ($request, $id) {
             $cod = CodManagement::findOrFail($id);
 
             $cod->status = 'Received';
@@ -29,7 +29,7 @@ class CodManagementController extends Controller
             $cod->save();
 
             PaymentSummary::where('iid', 'COD')
-                ->where('ref_doc_no', $cod->doc_no)
+                ->where('ref_doc_no', $request->input('orderNo'))
                 ->update(['balance_amount' => 0]);
 
             return $cod;
