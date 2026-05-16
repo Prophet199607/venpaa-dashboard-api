@@ -111,7 +111,9 @@ class RolePermissionSeeder extends Seeder
             'manage discount',
             'process day-end',
             'manage-pending-item-request',
-            'manage-open-stock'
+            'manage-open-stock',
+            'view order',
+            'update order'
         ];
 
         $allPermissionsList = array_merge($allPermissionsList, $otherPermissions);
