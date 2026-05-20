@@ -774,7 +774,8 @@ class InvoiceController extends Controller
                 'status' => 'applied',
                 'data' => $transactionHeaders
             ]);
-        } elseif ($status == 'drafted') {
+
+        } elseif ($status == 'pending') {
             $tempTransactionHeaders = TempTransactionSaleHeader::with([
                 'customer',
                 'location',
@@ -790,9 +791,16 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction loaded successfully!',
-                'status' => 'drafted',
+                'status' => $status, // ← return actual status back
                 'data' => $tempTransactionHeaders
             ]);
+
+        } else {
+            // ← add a fallback so you never get a silent empty response again
+            return response()->json([
+                'success' => false,
+                'message' => "Unknown status: $status"
+            ], 400);
         }
     }
 
