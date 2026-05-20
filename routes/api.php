@@ -442,7 +442,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::post('/unsave/{doc_no}', [InvoiceController::class, 'removeUnsaved'])->middleware('can:create invoice');
         Route::post('/add-product', [InvoiceController::class, 'addProduct'])->middleware('can:create invoice');
         Route::post('/draft-inv', [InvoiceController::class, 'draftInvoice'])->middleware('can:create invoice');
-        Route::post('/save-inv', [InvoiceController::class, 'store'])->middleware('can:post invoice');
+        Route::post('/save-inv', [InvoiceController::class, 'store'])->middleware('can:create invoice');
 
         Route::delete('/delete-detail/{doc_no}/{line_no}', [InvoiceController::class, 'deleteTempDetail'])->middleware('can:create invoice');
     });
