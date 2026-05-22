@@ -27,7 +27,7 @@ class ReportController extends Controller
             $dateTo = $request->input('dateTo', '');
 
             DB::statement('SET @pErrorCode = 0');
-            $summary = DB::select('CALL sp_PosSalesSummaryReport(@pErrorCode, ?, ?, ?)', [
+            $summary = DB::select('CALL sp_PosSalesSummaryReport_v2(@pErrorCode, ?, ?, ?)', [
                 $location,
                 $dateFrom,
                 $dateTo
@@ -230,7 +230,7 @@ class ReportController extends Controller
             }
 
             $pdo = DB::getPdo();
-            $stmt = $pdo->prepare("CALL sp_SalesReport_v3(@pErrorCode, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("CALL sp_SalesReport_v4(@pErrorCode, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $location,
                 $dateFrom,
