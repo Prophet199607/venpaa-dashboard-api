@@ -129,4 +129,63 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    public function getBills(Request $request)
+    {
+        try {
+            $locaRaw  = $request->input('location', $request->input('Loca', ''));
+            $location = $locaRaw !== '' ? str_pad(ltrim((string) $locaRaw, '0'), 2, '0', STR_PAD_LEFT) : '';
+            $date     = trim($request->input('date', ''));
+            $unit     = trim($request->input('unit', ''));
+
+            // ── Map frontend pay_type values to what the SP expects ───────────────
+            $payTypeRaw = $request->input('pay_type', null);
+            $payType    = (isset($payTypeRaw) && $payTypeRaw !== '' && $payTypeRaw !== 'ALL')
+                            ? strtoupper(trim($payTypeRaw))
+                            : null;
+
+            // ── Validation ────────────────────────────────────────────────────────
+            if ($location === '' || $date === '' || $unit === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing required parameters: location, date, and unit are required.',
+                ], 400);
+            }
+
+            // ── Normalise date: yyyy-MM-dd  →  dd/MM/yyyy (SP format) ─────────────
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $date = date('d/m/Y', strtotime($date));
+            } elseif (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid date format. Expected yyyy-MM-dd or dd/MM/yyyy.',
+                ], 400);
+            }
+
+            $bills = DB::select('CALL sp_GetBills(?, ?, ?, ?)', [
+                $location,
+                $date,
+                (string) (int) $unit,
+                $payType,
+            ]);
+
+            $parsed = collect($bills)->map(function ($row) {
+                $row->items = json_decode($row->items ?? '[]', true) ?? [];
+                return $row;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data'    => $parsed,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch bills.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+

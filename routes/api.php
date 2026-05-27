@@ -466,6 +466,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     // Dashboard routes
     Route::group(['prefix' => 'dashboard'], function () {
         Route::get('/stats', [DashboardController::class, 'getStats'])->middleware('can:view dashboard stats');
+        Route::get('/bills', [DashboardController::class, 'getBills'])->middleware('can:view dashboard stats');
         Route::post('/calculate-charges', [DashboardController::class, 'calculateCharges']);
     });
 });
