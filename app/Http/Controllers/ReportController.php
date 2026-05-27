@@ -230,7 +230,7 @@ class ReportController extends Controller
             }
 
             $pdo = DB::getPdo();
-            $stmt = $pdo->prepare("CALL sp_SalesReport_v4(@pErrorCode, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("CALL sp_SalesReport_v3(@pErrorCode, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $location,
                 $dateFrom,
