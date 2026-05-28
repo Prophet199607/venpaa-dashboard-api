@@ -133,40 +133,73 @@ class DashboardController extends Controller
     public function getBills(Request $request)
     {
         try {
+            // ── Location ──────────────────────────────────────────────────────────
             $locaRaw  = $request->input('location', $request->input('Loca', ''));
-            $location = $locaRaw !== '' ? str_pad(ltrim((string) $locaRaw, '0'), 2, '0', STR_PAD_LEFT) : '';
-            $date     = trim($request->input('date', ''));
-            $unit     = trim($request->input('unit', ''));
+            $location = $locaRaw !== ''
+                ? str_pad(ltrim((string) $locaRaw, '0'), 2, '0', STR_PAD_LEFT)
+                : '';
 
-            // ── Map frontend pay_type values to what the SP expects ───────────────
-            $payTypeRaw = $request->input('pay_type', null);
-            $payType    = (isset($payTypeRaw) && $payTypeRaw !== '' && $payTypeRaw !== 'ALL')
-                            ? strtoupper(trim($payTypeRaw))
-                            : null;
+            // ── Dates ─────────────────────────────────────────────────────────────
+            $dateFrom = trim($request->input('date_from', ''));
+            $dateTo   = trim($request->input('date_to',   ''));
+            $unit     = trim($request->input('unit',      ''));
 
             // ── Validation ────────────────────────────────────────────────────────
-            if ($location === '' || $date === '' || $unit === '') {
+            if ($location === '' || $dateFrom === '' || $unit === '') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Missing required parameters: location, date, and unit are required.',
+                    'message' => 'Missing required parameters: location, date_from, and unit are required.',
                 ], 400);
             }
 
-            // ── Normalise date: yyyy-MM-dd  →  dd/MM/yyyy (SP format) ─────────────
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                $date = date('d/m/Y', strtotime($date));
-            } elseif (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            if (!ctype_digit($unit) || (int) $unit < 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid date format. Expected yyyy-MM-dd or dd/MM/yyyy.',
+                    'message' => 'Invalid unit value. Must be a positive integer.',
                 ], 400);
             }
 
-            $bills = DB::select('CALL sp_GetBills(?, ?, ?, ?)', [
+            // ── Normalise dates: yyyy-MM-dd → dd/MM/yyyy (SP format) ─────────────
+            $dateFrom = self::normaliseDateForSP($dateFrom);
+            if ($dateFrom === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid date_from format. Expected yyyy-MM-dd or dd/MM/yyyy.',
+                ], 400);
+            }
+
+            // date_to defaults to date_from (single-day query) when omitted
+            if ($dateTo === '') {
+                $dateTo = $dateFrom;
+            } else {
+                $dateTo = self::normaliseDateForSP($dateTo);
+                if ($dateTo === null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid date_to format. Expected yyyy-MM-dd or dd/MM/yyyy.',
+                    ], 400);
+                }
+            }
+
+            // ── PaymentCategory  NULL | 'CASH' | 'CREDIT' ────────────────────────
+            $payTypeRaw  = $request->input('pay_type', null);
+            $payCategory = (isset($payTypeRaw) && $payTypeRaw !== '' && $payTypeRaw !== 'ALL')
+                ? strtoupper(trim($payTypeRaw))
+                : null;
+
+            // ── PaymentType  NULL | exact Item_Descrip e.g. 'VISA', 'BANK TRANSFER'
+            $paymentMethodRaw = $request->input('payment_method', null);
+            $paymentMethod    = (isset($paymentMethodRaw) && $paymentMethodRaw !== '' && $paymentMethodRaw !== 'ALL')
+                ? strtoupper(trim($paymentMethodRaw))
+                : null;
+
+            $bills = DB::select('CALL sp_GetBills(?, ?, ?, ?, ?, ?)', [
                 $location,
-                $date,
-                (string) (int) $unit,
-                $payType,
+                $dateFrom,
+                $dateTo,
+                (string)(int) $unit,
+                $payCategory,
+                $paymentMethod,
             ]);
 
             $parsed = collect($bills)->map(function ($row) {
@@ -186,6 +219,21 @@ class DashboardController extends Controller
                 'error'   => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Accept yyyy-MM-dd or dd/MM/yyyy, always return dd/MM/yyyy.
+     * Returns null on unrecognised format.
+     */
+    private static function normaliseDateForSP(string $date): ?string
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return date('d/m/Y', strtotime($date));
+        }
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            return $date;
+        }
+        return null;
     }
 }
 
