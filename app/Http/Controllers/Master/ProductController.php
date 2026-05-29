@@ -929,7 +929,9 @@ class ProductController extends Controller
 
             $stockRows = StockMaster::where('prod_code', $prod_code)
                 ->where('iid', '!=', 'CREATE')
-                ->get(['location', 'qty', 'purchase_price', 'selling_price']);
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get(['id', 'location', 'qty', 'purchase_price', 'selling_price', 'transaction_date']);
 
             $levelLocationStockMap = [];
             foreach ($locations as $loc) {
@@ -938,33 +940,64 @@ class ProductController extends Controller
                 }
             }
 
-            foreach ($stockRows as $stockRow) {
-                $matchedLevelKey = null;
-                foreach ($priceLevels as $level) {
-                    if (
-                        round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
-                        round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
-                    ) {
-                        $matchedLevelKey = $level['level_key'];
-                        break;
+            foreach ($stockRows->groupBy('location') as $location => $locationRows) {
+                if (!isset($levelLocationStockMap[$location])) {
+                    $levelLocationStockMap[$location] = [];
+                    foreach ($priceLevels as $level) {
+                        $levelLocationStockMap[$location][$level['level_key']] = 0;
                     }
                 }
 
-                if ($matchedLevelKey === null) {
-                    $matchedLevelKey = 'original';
-                    if (!isset($levelLocationStockMap[$stockRow->location][$matchedLevelKey])) {
-                        $levelLocationStockMap[$stockRow->location][$matchedLevelKey] = 0;
+                $fifoQueue = [];
+
+                foreach ($locationRows as $stockRow) {
+                    $qty = (float) $stockRow->qty;
+
+                    if ($qty > 0) {
+                        // Inward: match to a price level
+                        $matchedLevelKey = null;
+
+                        foreach ($priceLevels as $level) {
+                            if (
+                                round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                                round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
+                            ) {
+                                $matchedLevelKey = $level['level_key'];
+                                break;
+                            }
+                        }
+
+                        if ($matchedLevelKey === null) {
+                            foreach ($priceLevels as $level) {
+                                if (round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2)) {
+                                    $matchedLevelKey = $level['level_key'];
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($matchedLevelKey === null) {
+                            $matchedLevelKey = 'original';
+                        }
+
+                        $levelLocationStockMap[$location][$matchedLevelKey] += $qty;
+                        $fifoQueue[] = ['level_key' => $matchedLevelKey, 'qty' => $qty];
+                    } elseif ($qty < 0) {
+                        // Outward: consume from FIFO queue (oldest positive batches first)
+                        $remaining = abs($qty);
+                        while ($remaining > 0 && !empty($fifoQueue)) {
+                            $batch = &$fifoQueue[0];
+                            $consume = min($remaining, $batch['qty']);
+                            $batch['qty'] -= $consume;
+                            $levelLocationStockMap[$location][$batch['level_key']] -= $consume;
+                            $remaining -= $consume;
+                            if ($batch['qty'] <= 0) {
+                                array_shift($fifoQueue);
+                            }
+                        }
+                        unset($batch);
                     }
                 }
-
-                if (!isset($levelLocationStockMap[$stockRow->location])) {
-                    $levelLocationStockMap[$stockRow->location] = [];
-                }
-                if (!isset($levelLocationStockMap[$stockRow->location][$matchedLevelKey])) {
-                    $levelLocationStockMap[$stockRow->location][$matchedLevelKey] = 0;
-                }
-
-                $levelLocationStockMap[$stockRow->location][$matchedLevelKey] += (float) $stockRow->qty;
             }
 
             $levelLocationStocks = [];
