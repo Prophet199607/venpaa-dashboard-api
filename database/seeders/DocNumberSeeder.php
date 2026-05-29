@@ -25,6 +25,8 @@ class DocNumberSeeder extends Seeder
             ['type' => 'Product', 'prefix' => 'P', 'last_id' => 0, 'length' => 8],
             ['type' => 'Author', 'prefix' => 'AUT', 'last_id' => 0, 'length' => 3],
             ['type' => 'Customer', 'prefix' => 'C', 'last_id' => 0, 'length' => 5],
+            ['type' => 'Salesman', 'prefix' => 'S', 'last_id' => 0, 'length' => 4],
+            ['type' => 'Cashier', 'prefix' => 'CA', 'last_id' => 0, 'length' => 4],
             ['type' => 'TempPO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
             ['type' => 'PO', 'prefix' => 'PO', 'last_id' => 0, 'length' => 8],
             ['type' => 'TempIR', 'prefix' => 'IR', 'last_id' => 0, 'length' => 8],
@@ -52,7 +54,9 @@ class DocNumberSeeder extends Seeder
             ['type' => 'SupAdavance', 'prefix' => 'SADV', 'last_id' => 0, 'length' => 8],
             ['type' => 'CashRefund', 'prefix' => 'CAR', 'last_id' => 0, 'length' => 8],
             ['type' => 'CustomerSetOff', 'prefix' => 'CSOF', 'last_id' => 0, 'length' => 8],
-            ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SupplierSetOff', 'prefix' => 'SSOF', 'last_id' => 0, 'length' => 8],   
+            ['type' => 'OpenStock', 'prefix' => 'OPS', 'last_id' => 0, 'length' => 8],
+            ['type' => 'SubCategoryL2', 'prefix' => 'SC2', 'last_id' => 0, 'length' => 3],
         ];
 
         foreach ($default as $key => $value) {

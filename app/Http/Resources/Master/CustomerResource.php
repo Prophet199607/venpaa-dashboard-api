@@ -20,6 +20,13 @@ class CustomerResource extends JsonResource
             'mobile'          => $this->mobile,
             'nic'             => $this->nic,
             'dob'             => $this->dob,
+            'is_active'       => $this->is_active,
+            'is_credit'       => $this->is_credit,
+            'credit_limit'    => $this->credit_limit,
+            'credit_period'   => $this->credit_period,
+            'address'         => $this->address,
+            'is_vat'          => $this->is_vat,
+            'vat_number'      => $this->vat_number,
         ];
     }
 }

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use Illuminate\Http\Request;
 use App\Models\PosTransactionApi;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class SalesController extends Controller
 {
@@ -17,7 +18,7 @@ class SalesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'Details' => 'required|array|min:1',
-            'Details.*.R_No' => 'required|string|max:1000',
+            'Details.*.R_No' => 'required|string|max:1000|distinct',
         ]);
 
         if ($validator->fails()) {
@@ -31,7 +32,9 @@ class SalesController extends Controller
         $details = $request->input('Details');
 
         try {
+
             $rNos = collect($details)->pluck('R_No')->unique()->toArray();
+
             $existingRNos = PosTransactionApi::whereIn('R_No', $rNos)
                 ->pluck('R_No')
                 ->toArray();
@@ -39,15 +42,23 @@ class SalesController extends Controller
             DB::beginTransaction();
 
             $records = [];
+            $processedRNos = [];
+
             foreach ($details as $item) {
+
+                // Skip if exists in DB
                 if (in_array($item['R_No'], $existingRNos)) {
                     continue;
                 }
-                if (collect($records)->pluck('R_No')->contains($item['R_No'])) {
+
+                // Skip if already processed in this loop
+                if (in_array($item['R_No'], $processedRNos)) {
                     continue;
                 }
 
                 $records[] = $this->storeRecord($item);
+
+                $processedRNos[] = $item['R_No'];
             }
 
             DB::commit();
@@ -61,7 +72,9 @@ class SalesController extends Controller
             ], 200);
 
         } catch (Exception $e) {
+
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process transactions',
@@ -106,5 +119,141 @@ class SalesController extends Controller
         ];
 
         return PosTransactionApi::create($mapped);
+    }
+
+    public function getPosSalesSummary(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'Loca' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $loca = str_pad(substr($request->input('Loca'), -2), 2, '0', STR_PAD_LEFT);
+        try {
+            DB::statement("SET @pErrorCode = 0");
+            $results = DB::select("CALL sp_PosSalesSummaryReportProcess(@pErrorCode, ?)", [
+                $loca
+            ]);
+
+            $errorCodeResult = DB::select("SELECT @pErrorCode as error_code");
+            $errorCode = $errorCodeResult[0]->error_code ?? 0;
+
+            if ($errorCode != 0 && $errorCode != 50020) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'Stored procedure error',
+                    'error_code' => $errorCode
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'error_code' => $errorCode
+            ], 200);
+
+        } catch (Exception $e) {
+            $msg = $e->getMessage();            
+            if (strpos($msg, 'SQLSTATE[45000]') !== false || strpos($msg, '1644') !== false) {
+                $cleanMsg = $msg;
+                if (preg_match('/1644\s+(.*?)\s+\(SQL/', $msg, $matches)) {
+                    $cleanMsg = $matches[1];
+                }
+                if (strpos($cleanMsg, 'No POS rows') !== false) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [],
+                        'message' => $cleanMsg,
+                        'error_code' => 50020
+                    ], 200);
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $cleanMsg,
+                    'error_code' => 1644
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch POS sales summary',
+                'error' => $msg
+            ], 500);
+        }
+    }
+    
+    public function processDayEnd(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'Loca' => 'required|string',
+            'BillDate_d' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $loca = str_pad(ltrim($request->input('Loca'), '0'), 2, '0', STR_PAD_LEFT);
+        $userName = $request->user() ? $request->user()->name : 'System';
+        $reportDate = $request->input('BillDate_d');
+
+        try {
+            DB::statement("SET @pErr_x = 0");
+            
+            DB::select("CALL sp_DayEndProcess(@pErr_x, ?, ?, ?)", [
+                $userName,
+                $loca,
+                $reportDate
+            ]);
+
+            $errorResult = DB::select("SELECT @pErr_x as error_code");
+            $errorCode = $errorResult[0]->error_code ?? 0;
+
+            if ($errorCode != 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Day end process error',
+                    'error_code' => $errorCode
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Day end process completed successfully',
+                'error_code' => $errorCode
+            ], 200);
+
+        } catch (Exception $e) {
+            $msg = $e->getMessage();
+            if (strpos($msg, 'SQLSTATE[45000]') !== false || strpos($msg, '1644') !== false) {
+                $cleanMsg = $msg;
+                if (preg_match('/1644\s+(.*?)\s+\(SQL/', $msg, $matches)) {
+                    $cleanMsg = $matches[1];
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => $cleanMsg,
+                    'error_code' => 1644
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process day end',
+                'error' => $msg
+            ], 500);
+        }
     }
 }

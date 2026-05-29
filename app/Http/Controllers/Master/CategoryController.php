@@ -35,7 +35,7 @@ class CategoryController extends Controller
     public function index()
     {
         try {
-            $categories = Category::with('subCategories')->where('status', 1)->get();
+            $categories = Category::with(['subCategories', 'department'])->where('status', 1)->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Categories fetched successfully',
@@ -71,27 +71,30 @@ class CategoryController extends Controller
     public function store(CategoryRequest $request)
     {
         try {
-            DB::beginTransaction();
-            $data = $request->validated();
-            $data['created_by'] = auth()->id();
+            $category = DB::transaction(function () use ($request) {
+                $data = $request->validated();
+                $data['created_by'] = auth()->id();
 
-            // Check if category code already exists
-            if (Category::where('cat_code', $data['cat_code'])->exists()) {
-                $docCode = DocNumber::where('type', 'Category')->first()->getDocCode();
-                $data['cat_code'] = $docCode['code'];
-            }
+                // Ensure key exists
+                $data['department'] = (string) ($data['department'] ?? $request->input('department', ''));
 
-            // Handle image upload
-            if ($request->hasFile('cat_image')) {
-                $image = $request->file('cat_image');
-                $filename = $data['cat_code'] . '.' . $image->getClientOriginalExtension();
-                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
-            } else {
-                $data['cat_image'] = $data['cat_code'];
-            }
+                // Check if category code already exists
+                if (Category::where('cat_code', $data['cat_code'])->exists()) {
+                    $docCode = DocNumber::where('type', 'Category')->first()->getDocCode();
+                    $data['cat_code'] = $docCode['code'];
+                }
 
-            $category = Category::create($data);
-            DB::commit();
+                // Handle image upload
+                if ($request->hasFile('cat_image')) {
+                    $image = $request->file('cat_image');
+                    $filename = $data['cat_code'] . '.' . $image->getClientOriginalExtension();
+                    $data['cat_image'] = $image->storeAs('categories', $filename, 's3');
+                } else {
+                    $data['cat_image'] = $data['cat_code'];
+                }
+
+                return Category::create($data);
+            });
 
             return response()->json([
                 'success' => true,
@@ -115,20 +118,23 @@ class CategoryController extends Controller
             $category = Category::where('cat_code', $cat_code)->first();
             $data = $request->validated();
             $data['updated_by'] = auth()->id();
+            $data['department'] = (string) ($data['department'] ?? $request->input('department', ''));
 
             $new_cat_code = $data['cat_code'] ?? $cat_code;
 
             // If cat_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['cat_code']) && $data['cat_code'] !== $cat_code) || $request->hasFile('cat_image')) {
                 if ($category->cat_image) {
-                    Storage::disk('public')->delete($category->cat_image);
+                    // Storage::disk('public')->delete($category->cat_image);
+                    Storage::disk('s3')->delete($category->cat_image);
                 }
             }
 
             if ($request->hasFile('cat_image')) {
                 $image = $request->file('cat_image');
                 $filename = $new_cat_code . '.' . $image->getClientOriginalExtension();
-                $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                // $data['cat_image'] = $image->storeAs('categories', $filename, 'public');
+                $data['cat_image'] = $image->storeAs('categories', $filename, 's3');
             } else {
                 unset($data['cat_image']);
             }
@@ -155,7 +161,7 @@ class CategoryController extends Controller
     {
         try {
             $category = Category::where('cat_code', $cat_code)->firstOrFail();
-            $subCategories = $category->subCategories;
+            $subCategories = $category->subCategories()->with(['department', 'category'])->get();
 
             return response()->json([
                 'success' => true,

@@ -31,6 +31,12 @@ class DatabaseSeeder extends Seeder
             StatusSeeder::class,
             RolePermissionSeeder::class,
             PaymentTypeSeeder::class,
+            DiscardTypeSeeder::class,
+            SecLevelSeeder::class,
+            CourierWeightChargeSeeder::class,
+            CodValueChargeSeeder::class,
+            CompanyHeaderSeeder::class,
+            IidSeeder::class,
         ]);
     }
 }

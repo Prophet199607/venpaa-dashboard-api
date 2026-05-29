@@ -30,13 +30,17 @@ class BookRequest extends FormRequest
             'prod_code' => [
                 'required',
                 'string',
-                Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code'),
+                $prodCode ? Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code') : '',
             ],
-            'prod_name' => 'required|string',
+            'prod_name' => [
+                'required',
+                'string',
+                Rule::unique('products', 'prod_name')->ignore($prodCode, 'prod_code'),
+            ],
             'short_description' => 'nullable|string',
             'department' => 'required|exists:departments,dep_code',
             'category' => 'required|exists:categories,cat_code',
-            'sub_category' => 'required|exists:sub_categories,scat_code',
+            'sub_category' => 'required|string',
 
             'pack_size' => 'nullable|string',
             'purchase_price' => 'nullable|numeric',
@@ -44,28 +48,49 @@ class BookRequest extends FormRequest
             'marked_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
 
-            'title_in_other_language' => 'nullable|string',
-            'book_type' => 'nullable|exists:book_types,bkt_code',
-            'publisher' => 'nullable|exists:publishers,pub_code',
-            'supplier' => 'nullable|string',
-            'author' => 'nullable|string',
 
-            'isbn' => 'nullable|string',
+            'title_in_other_language' => 'required|string',
+            'tamil_description' => 'required|string',
+            'book_type' => 'nullable|exists:book_types,bkt_code',
+            'publisher' => 'required|exists:publishers,pub_code',
+            'supplier' => 'nullable|string',
+            'author' => 'required|string',
+
+            'isbn' => [
+                'nullable',
+                'string',
+                Rule::unique('products', 'isbn')
+                    ->ignore($prodCode, 'prod_code')
+                    ->whereNotNull('isbn'),
+            ],
             'publish_year' => 'nullable|digits:4',
             'alert_qty' => 'nullable|integer',
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',
-            'weight' => 'nullable|numeric',
+            'weight' => 'nullable|integer',
             'pages' => 'nullable|integer',
             'barcode' => 'nullable|string',
             'language' => 'nullable|string',
-            'prod_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'prod_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
             'unit_name' => 'nullable|string',
+            'unconfirm_price' => 'nullable|boolean',
+        ];
+    }
+
+    /**
+     * Get custom error messages for validation rules.
+     *
+     * @return array
+     */
+    public function messages()
+    {
+        return [
+            'isbn.unique' => 'This ISBN is already in use by another book.',
         ];
     }
 
@@ -79,6 +104,16 @@ class BookRequest extends FormRequest
         if ($this->has('supplier') && is_array($this->supplier)) {
             $this->merge([
                 'supplier' => implode(',', $this->supplier)
+            ]);
+        }
+        if ($this->has('sub_category') && is_array($this->sub_category)) {
+            $this->merge([
+                'sub_category' => implode(',', $this->sub_category)
+            ]);
+        }
+        if ($this->has('unconfirmed_price')) {
+            $this->merge([
+                'unconfirm_price' => $this->boolean('unconfirmed_price')
             ]);
         }
     }

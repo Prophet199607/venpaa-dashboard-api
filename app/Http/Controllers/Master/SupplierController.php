@@ -88,7 +88,8 @@ class SupplierController extends Controller
             if ($request->hasFile('sup_image')) {
                 $image = $request->file('sup_image');
                 $filename = $data['sup_code'] . '.' . $image->getClientOriginalExtension();
-                $data['sup_image'] = $image->storeAs('suppliers', $filename, 'public');
+                // $data['sup_image'] = $image->storeAs('suppliers', $filename, 'public');
+                $data['sup_image'] = $image->storeAs('suppliers', $filename, 's3');
             } else {
                 $data['sup_image'] = $data['sup_code'];
             }
@@ -124,14 +125,16 @@ class SupplierController extends Controller
             // If sup_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['sup_code']) && $data['sup_code'] !== $sup_code) || $request->hasFile('sup_image')) {
                 if ($supplier->sup_image) {
-                    Storage::disk('public')->delete($supplier->sup_image);
+                    // Storage::disk('public')->delete($supplier->sup_image);
+                    Storage::disk('s3')->delete($supplier->sup_image);
                 }
             }
 
             if ($request->hasFile('sup_image')) {
                 $image = $request->file('sup_image');
                 $filename = $new_sup_code . '.' . $image->getClientOriginalExtension();
-                $data['sup_image'] = $image->storeAs('suppliers', $filename, 'public');
+                // $data['sup_image'] = $image->storeAs('suppliers', $filename, 'public');
+                $data['sup_image'] = $image->storeAs('suppliers', $filename, 's3');
             } else {
                 unset($data['sup_image']);
             }

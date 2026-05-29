@@ -5,14 +5,15 @@ namespace App\Http\Controllers\Master;
 use App\Models\DocNumber;
 use App\Models\Publisher;
 use Illuminate\Http\Request;
+use App\Imports\PublisherImport;
+use App\Exports\PublisherExport;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Maatwebsite\Excel\Facades\Excel;    
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\PublisherRequest;
 use App\Http\Resources\Master\PublisherResource;
-use App\Imports\PublisherImport;
-use App\Exports\PublisherExport;
-use Maatwebsite\Excel\Facades\Excel;
+
 
 class PublisherController extends Controller
 {
@@ -88,7 +89,8 @@ class PublisherController extends Controller
             if ($request->hasFile('pub_image')) {
                 $image = $request->file('pub_image');
                 $filename = $data['pub_code'] . '.' . $image->getClientOriginalExtension();
-                $data['pub_image'] = $image->storeAs('publishers', $filename, 'public');
+                // $data['pub_image'] = $image->storeAs('publishers', $filename, 'public');
+                $data['pub_image'] = $image->storeAs('publishers', $filename, 's3');
             } else {
                 $data['pub_image'] = $data['pub_code'];
             }
@@ -124,14 +126,16 @@ class PublisherController extends Controller
             // If pub_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['pub_code']) && $data['pub_code'] !== $pub_code) || $request->hasFile('pub_image')) {
                 if ($publisher->pub_image) {
-                    Storage::disk('public')->delete($publisher->pub_image);
+                    // Storage::disk('public')->delete($publisher->pub_image);
+                    Storage::disk('s3')->delete($publisher->pub_image);
                 }
             }
 
             if ($request->hasFile('pub_image')) {
                 $image = $request->file('pub_image');
                 $filename = $new_pub_code . '.' . $image->getClientOriginalExtension();
-                $data['pub_image'] = $image->storeAs('publishers', $filename, 'public');
+                // $data['pub_image'] = $image->storeAs('publishers', $filename, 'public');
+                $data['pub_image'] = $image->storeAs('publishers', $filename, 's3');
             } else {
                 unset($data['pub_image']);
             }

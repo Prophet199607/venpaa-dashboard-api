@@ -9,8 +9,12 @@ class PaymentSummary extends Model
 {
     use HasFactory;
 
-    /**
-     * Allow mass assignment for dynamic payloads built in controllers.
-     */
     protected $guarded = [];
+    /**
+     * Get the customer associated with the payment summary.
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'acc_code', 'customer_code');
+    }
 }

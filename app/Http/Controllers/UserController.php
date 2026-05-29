@@ -15,12 +15,36 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with('roles')->get()->map(function ($user) {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        $isSuperAdmin = $currentUser->hasRole('super-admin');
+
+        $query = User::with('roles');
+        
+        // Filter users based on role
+        if ($currentUser) {
+            if ($currentUser->hasRole('super-admin')) {
+                // Super admin can see all users
+            } elseif ($currentUser->hasRole('admin')) {
+                // Admin can see all users except super-admin and admin
+                $query->whereDoesntHave('roles', function ($q) {
+                    $q->whereIn('name', ['super-admin', 'admin']);
+                });
+            } else {
+                // Others see no restricted roles by default if they have access
+                $query->whereDoesntHave('roles', function ($q) {
+                    $q->whereIn('name', ['super-admin', 'admin']);
+                });
+            }
+        }
+
+        $users = $query->get()->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'roles' => $user->roles->pluck('name')->toArray(),
+                'location' => $user->location,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
             ];
@@ -37,6 +61,7 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
@@ -48,15 +73,25 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'location' => $request->location,
         ]);
 
         // Assign role to user
         if ($request->role) {
             $role = Role::where('name', $request->role)->first();
             if ($role) {
+                /** @var \App\Models\User $currentUser */
+                $currentUser = auth()->user();
+                if (in_array(strtolower($role->name), ['super-admin', 'admin']) && (!$currentUser || !$currentUser->hasRole('super-admin'))) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted role.',
+                    ], 403);
+                }
                 $user->assignRole($role);
             }
         }
+
 
         return response()->json([
             'success' => true,
@@ -65,6 +100,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'location' => $user->location,
                 'roles' => $user->roles->pluck('name')->toArray(),
             ],
         ], 201);
@@ -77,6 +113,21 @@ class UserController extends Controller
     {
         $user = User::with('roles')->findOrFail($id);
 
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        if (!$currentUser->hasRole('super-admin')) {
+            $isRestricted = $user->roles->contains(function ($role) {
+                return in_array(strtolower($role->name), ['super-admin', 'admin']);
+            });
+
+            if ($isRestricted) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to view this user.',
+                ], 403);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -84,6 +135,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'roles' => $user->roles->pluck('name')->toArray(),
+                'location' => $user->location,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
             ],
@@ -113,6 +165,7 @@ class UserController extends Controller
 
         $user->name = $request->input('name', $user->name);
         $user->email = $request->input('email', $user->email);
+        $user->location = $request->input('location', $user->location);
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
@@ -122,9 +175,17 @@ class UserController extends Controller
 
         // Update role if provided
         if ($request->has('role')) {
-            $user->roles()->detach();
             $role = Role::where('name', $request->role)->first();
             if ($role) {
+                /** @var \App\Models\User $currentUser */
+                $currentUser = auth()->user();
+                if (in_array(strtolower($role->name), ['super-admin', 'admin']) && (!$currentUser || !$currentUser->hasRole('super-admin'))) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted role.',
+                    ], 403);
+                }
+                $user->roles()->detach();
                 $user->assignRole($role);
             }
         }
@@ -136,6 +197,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'location' => $user->location,
                 'roles' => $user->roles->pluck('name')->toArray(),
             ],
         ]);

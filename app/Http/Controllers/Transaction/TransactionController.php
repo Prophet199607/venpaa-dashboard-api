@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Transaction;
 
 use App\Models\Product;
 use App\Models\Location;
+use App\Models\Supplier;
+use App\Models\Customer;
 use App\Models\DocNumber;
 use Illuminate\Http\Request;
 use App\Models\PaymentSummary;
@@ -130,7 +132,6 @@ class TransactionController extends Controller
                 'message' => 'Code generated successfully',
                 'code' => $generatedCode,
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -189,18 +190,17 @@ class TransactionController extends Controller
             })->get();
 
             $formatted = $recallTransactions->map(function ($item) {
-                    return [
-                        'doc_no' => $item->doc_no,
-                        'sup_name' => isset($item->supplier) ? $item->supplier->sup_name : 'N/A',
-                    ];
-                });
+                return [
+                    'doc_no' => $item->doc_no,
+                    'sup_name' => isset($item->supplier) ? $item->supplier->sup_name : 'N/A',
+                ];
+            });
 
             return response()->json([
-                    'success' => true,
-                    'message' => 'Applied transactions loaded successfully!',
-                    'data' => $formatted
-                ]);
-
+                'success' => true,
+                'message' => 'Applied transactions loaded successfully!',
+                'data' => $formatted
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -222,48 +222,51 @@ class TransactionController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'drafted') {
             $tempTransactionData = TempTransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $tempTransactionData->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($tempTransactionData->items())->map(function ($transaction) {
+                $data = $transaction->toArray();
+                $data['supplier_name'] = $transaction->supplier ? $transaction->supplier->sup_name : null;
                 return $data;
             });
-
-            $tempTransactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Draft transactions loaded successfully!',
                 'status' => 'drafted',
-                'data' => $tempTransactionData->items()
+                'data' => $formattedData,
             ]);
         } else {
             $transactionData = TransactionHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $transactionData->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($transactionData->items())->map(function ($transaction) {
+                $data = $transaction->toArray();
+                $data['supplier_name'] = $transaction->supplier ? $transaction->supplier->sup_name : null;
                 return $data;
             });
-
-            $transactionData->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied transactions loaded successfully!',
                 'status' => 'applied',
-                'data' => $transactionData->items()
+                'data' => $formattedData,
             ]);
         }
     }
@@ -280,8 +283,8 @@ class TransactionController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -299,8 +302,8 @@ class TransactionController extends Controller
                     $query->orderBy('line_no');
                 }
             ])
-            ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
-            ->first();
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -325,6 +328,7 @@ class TransactionController extends Controller
                     'temp_transaction_header_id' => 0,
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
+                    'whole_sale' => $data['wholesale_price'] ?? 0,
                     'created_by' => auth()->id(),
                 ]);
                 $existingProduct->increment('pack_qty', $data['pack_qty']);
@@ -345,6 +349,7 @@ class TransactionController extends Controller
                     'prod_name' => $data['prod_name'],
                     'purchase_price' => $data['purchase_price'],
                     'selling_price' => $data['selling_price'],
+                    'whole_sale' => $data['wholesale_price'] ?? 0,
                     'pack_size' => $data['pack_size'],
                     'pack_qty' => $data['pack_qty'],
                     'unit_qty' => $data['unit_qty'],
@@ -389,6 +394,7 @@ class TransactionController extends Controller
             $productToUpdate->update([
                 'purchase_price' => $data['purchase_price'],
                 'selling_price' => $data['selling_price'],
+                'whole_sale' => $data['wholesale_price'] ?? 0,
                 'pack_size' => $data['pack_size'],
                 'pack_qty' => $data['pack_qty'],
                 'unit_qty' => $data['unit_qty'],
@@ -397,11 +403,11 @@ class TransactionController extends Controller
                 'line_wise_discount_value' => $data['line_wise_discount_value'],
                 'amount' => $data['amount'],
                 'updated_by' => auth()->user()->id,
-           ]);
+            ]);
 
-           $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
+            $response_detail = TempTransactionDetail::where('doc_no',  $productToUpdate->doc_no)->orderBy('line_no')->get();
 
-           return response()->json([
+            return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully!',
                 'data' => TempTransactionDetailResource::collection($response_detail),
@@ -598,6 +604,88 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to store advance payment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function loadAllAdvances(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
+        $type = $request->input('type');
+
+        $iid = $type === 'supplier' ? 'SADV' : 'CADV';
+
+        $advances = PaymentSummary::where('iid', $iid)
+            ->where('location', $userLocation)
+            ->whereDate('document_date', '>=', $startDate)
+            ->whereDate('document_date', '<=', $endDate)
+            ->orderBy('id', 'desc')
+            ->paginate($perPage);
+
+        $formattedData = collect($advances->items())->map(function ($advance) use ($type) {
+            $data = $advance->toArray();
+            if ($type === 'supplier') {
+                $supplier = Supplier::where('sup_code', $advance['acc_code'])->first();
+                $data['name'] = $supplier ? $supplier->sup_name : $advance['acc_code'];
+            } else {
+                $customer = Customer::where('customer_code', $advance['acc_code'])->first();
+                $data['name'] = $customer ? $customer->customer_name : $advance['acc_code'];
+            }
+            return $data;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Advances loaded successfully!',
+            'data' => $formattedData,
+            'current_page' => $advances->currentPage(),
+            'last_page' => $advances->lastPage(),
+            'total' => $advances->total(),
+        ]);
+    }
+
+    public function loadAdvanceByCode($doc_number)
+    {
+        try {
+            $advance = PaymentSummary::where('doc_no', $doc_number)->first();
+
+            if (!$advance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Advance not found.'
+                ], 404);
+            }
+
+            if ($advance->acc_type === 'supplier') {
+                $account = Supplier::where('sup_code', $advance->acc_code)->first();
+            } else {
+                $account = Customer::where('customer_code', $advance->acc_code)->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'advance' => $advance,
+                    'account' => $account,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load advance',
                 'error' => $e->getMessage()
             ], 500);
         }

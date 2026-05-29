@@ -20,7 +20,7 @@ class PaymentTypeSeeder extends Seeder
             ['name' => 'Bank Transfer', 'status' => 1, 'mandatory' => 1],
             ['name' => 'Credit Card', 'status' => 1, 'mandatory' => 1],
             ['name' => 'Debit Card', 'status' => 1, 'mandatory' => 1],
-            ['name' => 'KoKo Pay', 'status' => 1, 'mandatory' => 1],
+            ['name' => 'KoKo Pay', 'status' => 1, 'mandatory' => 0],
         ];
 
         foreach ($default as $key => $value) {

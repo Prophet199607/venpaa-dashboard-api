@@ -12,7 +12,26 @@ class RolePermissionController extends Controller
 {
     public function getRoles()
     {
-        return response()->json(Role::all());
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        
+        $query = Role::query();
+        if ($currentUser) {
+            if ($currentUser->hasRole('super-admin')) {
+                // Super admin can see all roles
+            } elseif ($currentUser->hasRole('admin')) {
+                // Admin can see all roles except super-admin and admin
+                $query->whereNotIn('name', ['super-admin', 'admin']);
+            } else {
+                // Other users see no restricted roles by default if they have access
+                $query->whereNotIn('name', ['super-admin', 'admin']);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get()
+        ]);
     }
 
     public function createRole(Request $request)
@@ -35,10 +54,10 @@ class RolePermissionController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        if (strtolower($role->name) === 'admin') {
+        if (strtolower($role->name) === 'admin' || strtolower($role->name) === 'super-admin') {
             return response()->json([
                 'success' => false,
-                'message' => 'The admin role cannot be deleted.',
+                'message' => 'The ' . $role->name . ' role cannot be deleted.',
             ], 403);
         }
 
@@ -50,15 +69,16 @@ class RolePermissionController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9_]+$/',
-                Rule::unique('roles', 'name')->ignore($role->id),
-            ],
-        ]);
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        $isSuperAdmin = $currentUser->hasRole('super-admin');
+
+        if (strtolower($role->name) === 'super-admin' && !$isSuperAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to edit super-admin role.',
+            ], 403);
+        }
 
         $newName = strtolower($request->name);
 
@@ -81,7 +101,10 @@ class RolePermissionController extends Controller
 
     public function getPermissions()
     {
-        return response()->json(Permission::all());
+        return response()->json([
+            'success' => true,
+            'data' => Permission::all()
+        ]);
     }
 
     public function createPermission(Request $request)
@@ -96,6 +119,30 @@ class RolePermissionController extends Controller
         $permission = Permission::findOrFail($id);
         $permission->delete();
         return response()->json(['message' => 'Permission deleted']);
+    }
+
+    public function updatePermission(Request $request, $id)
+    {
+        $permission = Permission::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9_\-\s]+$/',
+                Rule::unique('permissions', 'name')->ignore($permission->id),
+            ],
+        ]);
+
+        $permission->name = strtolower($validated['name']);
+        $permission->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permission updated successfully',
+            'data' => $permission,
+        ]);
     }
 
     /**
@@ -118,12 +165,12 @@ class RolePermissionController extends Controller
     public function assignPermissionsToRole(Request $request, $roleId)
     {
         $request->validate([
-            'permission_ids' => 'required|array',
+            'permission_ids' => 'present|array',
             'permission_ids.*' => 'exists:permissions,id',
         ]);
 
         $role = Role::findOrFail($roleId);
-        $permissions = Permission::whereIn('id', $request->permission_ids)->get();
+        $permissions = Permission::whereIn('id', $request->input('permission_ids', []))->get();
         
         $role->syncPermissions($permissions);
 
@@ -194,12 +241,12 @@ class RolePermissionController extends Controller
     public function assignPermissionsToUser(Request $request, $userId)
     {
         $request->validate([
-            'permission_ids' => 'required|array',
+            'permission_ids' => 'present|array',
             'permission_ids.*' => 'exists:permissions,id',
         ]);
 
         $user = User::findOrFail($userId);
-        $permissions = Permission::whereIn('id', $request->permission_ids)->get();
+        $permissions = Permission::whereIn('id', $request->input('permission_ids', []))->get();
         
         $user->syncPermissions($permissions);
 
@@ -216,12 +263,25 @@ class RolePermissionController extends Controller
     public function assignRolesToUser(Request $request, $userId)
     {
         $request->validate([
-            'role_ids' => 'required|array',
+            'role_ids' => 'present|array',
             'role_ids.*' => 'exists:roles,id',
         ]);
 
         $user = User::findOrFail($userId);
-        $roles = Role::whereIn('id', $request->role_ids)->get();
+        $roles = Role::whereIn('id', $request->input('role_ids', []))->get();
+
+        /** @var \App\Models\User $currentUser */
+        $currentUser = auth()->user();
+        if (!$currentUser || !$currentUser->hasRole('super-admin')) {
+            foreach ($roles as $role) {
+                if (in_array(strtolower($role->name), ['super-admin', 'admin'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to assign restricted roles.',
+                    ], 403);
+                }
+            }
+        }
         
         $user->syncRoles($roles);
 

@@ -15,6 +15,11 @@ class TempTransactionSaleHeader extends Model
         'invoice_date' => 'datetime',
     ];
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_code', 'customer_code');
+    }
+
     public function tempTransactionSaleDetails()
     {
         return $this->hasMany(TempTransactionSaleDetail::class);
@@ -23,5 +28,10 @@ class TempTransactionSaleHeader extends Model
     public function location()
     {
         return $this->belongsTo(Location::class, 'location', 'loca_code');
+    }
+
+    public function deliveryLocation()
+    {
+        return $this->belongsTo(Location::class, 'delivery_location', 'loca_code');
     }
 }

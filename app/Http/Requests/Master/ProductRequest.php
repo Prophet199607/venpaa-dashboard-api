@@ -30,13 +30,17 @@ class ProductRequest extends FormRequest
             'prod_code' => [
                 'required',
                 'string',
-                Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code'),
+                $prodCode ? Rule::unique('products', 'prod_code')->ignore($prodCode, 'prod_code') : '',
             ],
-            'prod_name' => 'required|string',
+            'prod_name' => [
+                'required',
+                'string',
+                Rule::unique('products', 'prod_name')->ignore($prodCode, 'prod_code'),
+            ],
             'short_description' => 'nullable|string',
             'department' => 'required|exists:departments,dep_code',
             'category' => 'required|exists:categories,cat_code',
-            'sub_category' => 'required|exists:sub_categories,scat_code',
+            'sub_category' => 'required|string',
 
             'pack_size' => 'nullable|string',
             'purchase_price' => 'nullable|numeric',
@@ -49,14 +53,15 @@ class ProductRequest extends FormRequest
             'width' => 'nullable|numeric',
             'height' => 'nullable|numeric',
             'depth' => 'nullable|numeric',
-            'weight' => 'nullable|numeric',
+            'weight' => 'nullable|integer',
             'barcode' => 'nullable|string',
-            'prod_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'prod_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
-            'unit_name' => 'nullable|string',
+            'unit_name' => 'required|string',
+            'unconfirm_price' => 'nullable|boolean',
         ];
     }
 
@@ -65,6 +70,16 @@ class ProductRequest extends FormRequest
         if ($this->has('supplier') && is_array($this->supplier)) {
             $this->merge([
                 'supplier' => implode(',', $this->supplier)
+            ]);
+        }
+        if ($this->has('sub_category') && is_array($this->sub_category)) {
+            $this->merge([
+                'sub_category' => implode(',', $this->sub_category)
+            ]);
+        }
+        if ($this->has('unconfirmed_price')) {
+            $this->merge([
+                'unconfirm_price' => $this->boolean('unconfirmed_price')
             ]);
         }
     }

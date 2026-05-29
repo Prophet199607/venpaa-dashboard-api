@@ -28,9 +28,9 @@ class PaymentVoucherRequest extends FormRequest
             'receipt.location' => 'required|string',
             'receipt.date' => 'required|date',
             'receipt.over_payment' => 'numeric',
-            
+
             'supplier.supplier_code' => 'required|string',
-            
+
             'payments' => 'required|array|min:1',
             'payments.*.mode' => 'required|string',
             'payments.*.amount' => 'required|numeric',
@@ -40,13 +40,13 @@ class PaymentVoucherRequest extends FormRequest
             'payments.*.chequeDate' => 'nullable|date',
             'payments.*.cardType' => 'nullable|string',
             'payments.*.cardNumber' => 'nullable|string',
-            
+
             'allocations' => 'required|array',
             'allocations.*.doc_no' => 'required|string',
             'allocations.*.transaction_amount' => 'required|numeric',
             'allocations.*.balance_amount' => 'required|numeric',
             'allocations.*.paid_amount' => 'required|numeric',
-            
+
             'setoff.selectedDocs' => 'nullable|array',
             'setoff.selectedDocs.*.doc_no' => 'required_with:setoff.selectedDocs|string',
             'setoff.selectedDocs.*.transaction_amount' => 'required_with:setoff.selectedDocs|numeric',

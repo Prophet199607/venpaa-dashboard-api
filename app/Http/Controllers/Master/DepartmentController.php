@@ -84,7 +84,8 @@ class DepartmentController extends Controller
             if ($request->hasFile('dep_image')) {
                 $image = $request->file('dep_image');
                 $filename = $data['dep_code'] . '.' . $image->getClientOriginalExtension();
-                $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+                // $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+                $data['dep_image'] = $image->storeAs('departments', $filename, 's3');
             } else {
                 $data['dep_image'] = $data['dep_code'];
             }
@@ -120,14 +121,16 @@ class DepartmentController extends Controller
             // If dep_code is changing, or if a new image is uploaded, the old image is invalid.
             if ((isset($data['dep_code']) && $data['dep_code'] !== $dep_code) || $request->hasFile('dep_image')) {
                 if ($department->dep_image) {
-                    Storage::disk('public')->delete($department->dep_image);
+                    // Storage::disk('public')->delete($department->dep_image);
+                    Storage::disk('s3')->delete($department->dep_image);
                 }
             }
 
             if ($request->hasFile('dep_image')) {
                 $image = $request->file('dep_image');
                 $filename = $new_dep_code . '.' . $image->getClientOriginalExtension();
-                $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+                // $data['dep_image'] = $image->storeAs('departments', $filename, 'public');
+                $data['dep_image'] = $image->storeAs('departments', $filename, 's3');
             } else {
                 unset($data['dep_image']);
             }
@@ -154,6 +157,13 @@ class DepartmentController extends Controller
     {
         try {
             $department = Department::where('dep_code', $dep_code)->first();
+            if (!$department) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Department not found',
+                    'error' => 'Invalid department code'
+                ], 404);
+            }
             $categories = $department->categories;
 
             return response()->json([

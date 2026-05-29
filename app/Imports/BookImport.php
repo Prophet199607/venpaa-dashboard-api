@@ -35,11 +35,12 @@ class BookImport implements ToCollection, WithHeadingRow
 
         $bookCode      = $row['book_code'] ?? null;
         $bookName      = $row['book_name'];
+        $tamilDesc     = $row['tamil_description'] ?? null;
+        $otherLang     = $row['title_in_other_language'] ?? null;
         $publisherCode = $row['publisher_code'] ?? null;
         $supplierCode  = $row['supplier_code'] ?? null;
         $authorCode    = $row['authors_code'] ?? null;
         $typeInput     = $row['type'] ?? null;
-        $quantity      = $row['quantity'] ?? 0;
         $cost          = $row['cost'] ?? 0;
         $sellingPrice  = $row['selling_price'] ?? 0;
 
@@ -89,11 +90,13 @@ class BookImport implements ToCollection, WithHeadingRow
             'department'     => '10',
             'book_type'      => $bookTypeCode,
             'publisher'      => $publisherCode,
+            'tamil_description' => $tamilDesc,
+            'title_in_other_language' => $otherLang,
             'unit_name'      => 'NOS',
             'barcode'        => $bookCode,
             'category'       => null,
-            'sub_category'   => null,
             'alert_qty'      => null,
+            'pack_size'      => '1',
         ];
 
         // 3. Create or Update Product
@@ -168,7 +171,6 @@ class BookImport implements ToCollection, WithHeadingRow
 
             if ($stock) {
                 $stock->update([
-                    'qty' => $quantity,
                     'purchase_price' => $cost,
                     'selling_price' => $sellingPrice,
                     'updated_at' => now(),
@@ -180,7 +182,7 @@ class BookImport implements ToCollection, WithHeadingRow
                     'doc_no' => '',
                     'prod_code' => $product->prod_code,
                     'iid' => 'CREATE',
-                    'qty' => $quantity,
+                    'qty' => 0.000,
                     'purchase_price' => $cost,
                     'selling_price' => $sellingPrice,
                     'amount' => 0.00,

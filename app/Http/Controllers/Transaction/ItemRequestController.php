@@ -150,12 +150,11 @@ class ItemRequestController extends Controller
 
                 $headerData = $data;
                 unset($headerData['id']);
-                $itemReqTransHeader = ItemReqTransHeader::create([
-                    ...$headerData,
+                $itemReqTransHeader = ItemReqTransHeader::create(array_merge($headerData, [
                     'doc_no'      => $irNumber,
                     'temp_doc_no' => $data['doc_no'],
                     'created_by'  => auth()->id(),
-                ]);
+                ]));
 
                 // Load temp products for this temp doc
                 $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
@@ -165,12 +164,11 @@ class ItemRequestController extends Controller
                 foreach ($tempProducts as $temp) {
                     $tempData = $temp->toArray();
                     unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    ItemReqTransDetail::create([
-                        ...$tempData,
+                    ItemReqTransDetail::create(array_merge($tempData, [
                         'item_transaction_header_id'    => $itemReqTransHeader->id,
                         'doc_no'       => $irNumber,
                         'created_by'   => auth()->id(),
-                    ]);
+                    ]));
                 }
 
                 // Clean up temp details for this doc
@@ -203,45 +201,61 @@ class ItemRequestController extends Controller
 
     public function loadAllItemRequests(Request $request)
     {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
+
         if ($request->status == 'drafted') {
             $itemRequests = TempTransactionHeader::where('iid', $request->iid)
+                ->where('location', $userLocation) // Added lately 2026/02/14
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $itemRequests->getCollection()->map(function ($ir) {
+            $formattedData = collect($itemRequests->items())->map(function ($ir) {
                 $data = $ir->toArray();
                 $data['supplier_name'] = $ir->supplier ? $ir->supplier->sup_name : null;
                 return $data;
             });
 
-            $itemRequests->setCollection($formattedData);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Draft item requests loaded successfully!',
                 'status' => 'drafted',
-                'data' => $itemRequests->items()
+                'data' => $formattedData,
             ]);
         } else {
             $itemRequests = ItemReqTransHeader::where('iid', $request->iid)
+                ->where('location', $userLocation) // Added lately 2026/02/14
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->with('supplier')
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $itemRequests->getCollection()->map(function ($po) {
-                $data = $po->toArray();
-                $data['supplier_name'] = $po->supplier ? $po->supplier->sup_name : null;
+            $formattedData = collect($itemRequests->items())->map(function ($ir) {
+                $data = $ir->toArray();
+                $data['supplier_name'] = $ir->supplier ? $ir->supplier->sup_name : null;
                 return $data;
             });
-
-            $itemRequests->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied item requests loaded successfully!',
                 'status' => 'applied',
-                'data' => $itemRequests->items()
+                'data' => $formattedData,
             ]);
         }
     }
@@ -296,6 +310,7 @@ class ItemRequestController extends Controller
         try {
             $status = $request->get('approval_status', 'all');
             $docNo = $request->get('doc_no');
+            $perPage = $request->input('per_page', 10);
 
             $query = ItemReqTransHeader::where('iid', 'IR')
                 ->orderBy('id', 'desc');
@@ -308,7 +323,7 @@ class ItemRequestController extends Controller
                 $query->where('doc_no', 'like', '%' . $docNo . '%');
             }
 
-            $itemRequests = $query->paginate(10);
+            $itemRequests = $query->paginate($perPage);
 
             return response()->json([
                 'success' => true,
@@ -618,7 +633,7 @@ class ItemRequestController extends Controller
                 'delivery_address' => $data['delivery_address'],
                 'delivery_location' => $data['delivery_location'],
                 'remarks_ref' => $data['remarks_ref'],
-                'payment_mode' => $data['payment_mode'],
+                'payment_mode' => 'credit',
                 'subtotal' => $data['subtotal'] ?? 0,
                 'net_total' => $data['net_total'] ?? 0,
                 'discount' => $data['discount'] ?? 0,

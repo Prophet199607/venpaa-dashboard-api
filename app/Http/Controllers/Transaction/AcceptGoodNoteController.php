@@ -30,6 +30,9 @@ class AcceptGoodNoteController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'pending') {
             $usedDocNos = TransactionHeader::where('iid', 'AGN')
@@ -39,43 +42,57 @@ class AcceptGoodNoteController extends Controller
 
             $pendingAgn = TransactionHeader::where('iid', $request->iid)
                 ->where('delivery_location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->whereNotIn('doc_no', $usedDocNos)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $pendingAgn->getCollection()->map(function ($agn) {
+            $formattedData = collect($pendingAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();
                 return $data;
             });
 
-            $pendingAgn->setCollection($formattedData);
+            // $formattedData = $pendingAgn->getCollection()->map(function ($agn) {
+            //     $data = $agn->toArray();
+            //     return $data;
+            // });
+
+            // $pendingAgn->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Pending AGN loaded successfully!',
                 'status' => 'pending',
                 'user_location' => $userLocation,
-                'data' => $pendingAgn->items()
+                'data' => $formattedData,
             ]);
         } else {
             $appliedAgn = TransactionHeader::where('iid', $request->iid)
                 ->where('delivery_location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
-            $formattedData = $appliedAgn->getCollection()->map(function ($agn) {
+            $formattedData = collect($appliedAgn->items())->map(function ($agn) {
                 $data = $agn->toArray();
                 return $data;
             });
 
-            $appliedAgn->setCollection($formattedData);
+            // $formattedData = $appliedAgn->getCollection()->map(function ($agn) {
+            //     $data = $agn->toArray();
+            //     return $data;
+            // });
+
+            // $appliedAgn->setCollection($formattedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied AGN loaded successfully!',
                 'status' => 'applied',
                 'user_location' => $userLocation,
-                'data' => $appliedAgn->items()
+                'data' => $formattedData,    
             ]);
         }
     }
@@ -227,16 +244,15 @@ class AcceptGoodNoteController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $data = $request->validated();
-                $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['delivery_location']);
+                $agnNumber = DocNumber::generate('AGN', 'AGN', 8, $data['location']);
 
                 $headerData = $data;
                 unset($headerData['id']);
-                $transactionHeader = TransactionHeader::create([
-                    ...$headerData,
+                $transactionHeader = TransactionHeader::create(array_merge($headerData, [
                     'doc_no'      => $agnNumber,
                     'temp_doc_no' => $data['doc_no'],
                     'created_by'  => auth()->id(),
-                ]);
+                ]));
 
                 $tempProducts = TempTransactionDetail::where('doc_no', $data['doc_no'])
                     ->orderBy('line_no')
@@ -246,18 +262,17 @@ class AcceptGoodNoteController extends Controller
                 foreach ($tempProducts as $temp) {
                     $tempData = $temp->toArray();
                     unset($tempData['temp_transaction_header_id'], $tempData['id']);
-                    $transactionDetail = TransactionDetail::create([
-                        ...$tempData,
+                    $transactionDetail = TransactionDetail::create(array_merge($tempData, [
                         'transaction_header_id' => $transactionHeader->id,
                         'doc_no'                => $agnNumber,
-                    ]);
+                    ]));
                     $transactionDetails[] = $transactionDetail;
                 }
 
                 foreach ($transactionDetails as $detail) {
                     StockMaster::create([
-                        'location' => $data['delivery_location'],
-                        'transaction_date' => $data['document_date'],
+                        'location' => $data['location'],
+                        'transaction_date' => now()->format('Y-m-d'),
                         'doc_no' => $agnNumber,
                         'prod_code' => $detail->prod_code,
                         'iid' => $data['iid'] ?? 'AGN',

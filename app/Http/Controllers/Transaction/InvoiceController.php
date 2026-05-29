@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Location;
 use App\Models\DocNumber;
 use App\Models\StockMaster;
+use App\Models\CompanyHeader;
 use Illuminate\Http\Request;
 use App\Models\PaymentSummary;
 use App\Models\PaidPaymentDetail;
@@ -184,71 +185,39 @@ class InvoiceController extends Controller
         }
 
         $userLocation = $user->location;
+        $startDate = $request->input('start_date') ?: now()->format('Y-m-d');
+        $endDate = $request->input('end_date') ?: now()->format('Y-m-d');
+        $perPage = $request->input('per_page', 10);
 
         if ($request->status == 'pending') {
             $tempTransactionSaleHeaders = TempTransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Draft invoice loaded successfully!',
                 'status' => 'pending',
-                'data' => $tempTransactionSaleHeaders->items()
+                'data' => $tempTransactionSaleHeaders->items(),
             ]);
         } else {
             $transactionSaleHeaders = TransactionSaleHeader::where('iid', $request->iid)
                 ->where('location', $userLocation)
+                ->whereDate('document_date', '>=', $startDate)
+                ->whereDate('document_date', '<=', $endDate)
                 ->orderBy('id', 'desc')
-                ->paginate(10);
+                ->paginate($perPage);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Applied invoice loaded successfully!',
                 'status' => 'applied',
-                'data' => $transactionSaleHeaders->items()
+                'data' => $transactionSaleHeaders->items(),
             ]);
         }
-    }
-
-    public function loadInvoiceByCode($doc_number, $status, $iid)
-    {
-            if ($status == 'applied') {
-                $transactionSaleHeaders = TransactionSaleHeader::with([
-                    'location',
-                    'transactionSaleDetails.product.unit',
-                    'transactionSaleDetails' => function ($query) {
-                        $query->orderBy('line_no');
-                    }
-                ])
-                ->where(['doc_no' => $doc_number, 'iid' => $iid])
-                ->first();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Invoice loaded successfully!',
-                    'status' => 'applied',
-                    'data' => $transactionSaleHeaders
-                ]);
-            } elseif ($status == 'pending') {
-                $tempTransactionSaleHeaders = TempTransactionSaleHeader::with([
-                    'location',
-                    'tempTransactionSaleDetails.product.unit',
-                    'tempTransactionSaleDetails' => function ($query) {
-                        $query->orderBy('line_no');
-                    }
-                ])
-                ->where(['doc_no' => $doc_number, 'iid' => $iid])
-                ->first();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Invoice loaded successfully!',
-                    'status' => 'pending',
-                    'data' => $tempTransactionSaleHeaders
-                ]);
-            }
     }
 
     public function addProduct(TempTransactionSaleDetailRequest $request)
@@ -419,6 +388,11 @@ class InvoiceController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = auth()->user()->id;
+
+            if (isset($data['is_vat']) && $data['is_vat'] == true) {
+                $data['vat_percent'] = 18;
+            }
+
             $data = $this->processDiscountAndTax($data);
 
             $tempHeader = TempTransactionSaleHeader::create($data);
@@ -461,6 +435,11 @@ class InvoiceController extends Controller
 
             $data = $request->validated();
             $data['updated_by'] = auth()->user()->id;
+
+            if (isset($data['is_vat']) && $data['is_vat'] == true) {
+                $data['vat_percent'] = 18;
+            }
+
             $data = $this->processDiscountAndTax($data);
 
             $transactionDetail->update($data);
@@ -488,6 +467,7 @@ class InvoiceController extends Controller
 
     public function store(TempTransactionSaleHeaderRequest $request)
     {
+
         try {
             DB::beginTransaction();
 
@@ -496,8 +476,21 @@ class InvoiceController extends Controller
             // ---------------------------------------------------------
             $data = $request->validated();
             $payments = $request->input('payments', []);
+            $location_code = $data['location'] ?? '';
 
-            $invNumber = DocNumber::generate('INV', 'INV', 8, $data['location']);
+            $invNumber = DocNumber::generate('INV', 'INV', 8, $location_code);
+
+            // Read refund flag from payload (supports both root and inv nodes)
+            $refund = strtolower($request->input('refund', $request->inv['refund'] ?? ''));
+            $isRefundYes = ($refund === 'yes');
+            $type = strtolower($data['type'] ?? 'sales');
+
+            $org_pmt_doc_no = null;
+
+            // Generate CAR number for Return with Refund Yes
+            if ($type === 'return' && $isRefundYes) {
+                $org_pmt_doc_no = DocNumber::generate('CashRefund', 'CAR', 8, $location_code);
+            }
 
             // ---------------------------------------------------------
             // 2. Create Transaction Sale Header
@@ -505,81 +498,160 @@ class InvoiceController extends Controller
             $headerData = $data;
             unset($headerData['id']); // Remove ID if present from request/validated data
 
-            $transactionSaleHeader = TransactionSaleHeader::create([
-                ...$headerData,
-                'doc_no'      => $invNumber,
-                'temp_doc_no' => $data['doc_no'],
-                'created_by'  => auth()->id(),
-                'iid'         => 'INV'
-            ]);
+            if (isset($headerData['is_vat']) && $headerData['is_vat'] == true) {
+                $headerData['vat_percent'] = 18;
+            }
+
+            if ($type === 'return') {
+                $headerData['subtotal'] = abs($headerData['subtotal'] ?? 0);
+                $headerData['net_total'] = abs($headerData['net_total'] ?? 0);
+                $headerData['tax'] = abs($headerData['tax'] ?? 0);
+                $headerData['discount'] = abs($headerData['discount'] ?? 0);
+            }
+
+            $transactionSaleHeader = TransactionSaleHeader::create(
+                array_merge(
+                    $headerData,
+                    [
+                        'doc_no'      => $invNumber,
+                        'temp_doc_no' => $data['doc_no'] ?? '',
+                        'created_by'  => auth()->id(),
+                        'iid'         => 'INV',
+                    ]
+                )
+            );
+
+            $payments = $request->payments ?? [];
+
+            foreach ($payments as $paymentDetails) {
+
+                $method = strtoupper($paymentDetails['method'] ?? '');
+
+                $isAdvanceMode = $method === 'ADVANCE' && isset($paymentDetails['advanceId']);
+                $isOverPaymentMode = ($method === 'OVER PAYMENT' || $method === 'OVERPAYMENT') && (isset($paymentDetails['overPaymentId']) || isset($paymentDetails['overDocNo']));
+                $isReturn = $method === 'RETURN' && isset($paymentDetails['returnId']);
+
+                // Detect document number
+                if ($isAdvanceMode) {
+                    $advanceLikeDocNo = $paymentDetails['advanceId'];
+                } elseif ($isOverPaymentMode) {
+                    $advanceLikeDocNo = $paymentDetails['overPaymentId'];
+                } elseif ($isReturn) {
+                    $advanceLikeDocNo = $paymentDetails['returnId'];
+                } else {
+                    $advanceLikeDocNo = null;
+                }
+
+                // Get amount (frontend sends 'amount')
+                $advanceLikeAmount = (float)($paymentDetails['amount'] ?? 0);
+
+                // Save logic
+                if ($advanceLikeDocNo) {
+
+                    $advanceRecord = PaymentSummary::where([
+                        'doc_no' => $advanceLikeDocNo,
+                        'acc_code' => $request->customer_code,
+                        'iid' => $paymentDetails['IID'],
+                    ])->first();
+
+                    if ($advanceRecord) {
+
+                        $deductAmount = min($advanceRecord->balance_amount, $advanceLikeAmount);
+
+                        $advanceRecord->balance_amount -= $deductAmount;
+
+                        $advanceRecord->save();
+                    }
+                }
+            }
+
 
             // ---------------------------------------------------------
             // 3. Handle Payments & Receipts
             // ---------------------------------------------------------
 
-            // 3.1 Generate Receipt Number
-            $rec_doc = DocNumber::firstOrCreate(
-                ['type' => 'Receipt'],
-                ['prefix' => 'REC', 'last_id' => 0, 'created_at' => now(), 'updated_at' => now()]
-            );
-            $rec_doc->last_id += 1;
-            $rec_doc->save();
-            $org_pmt_doc_no = 'REC-' . str_pad($rec_doc->last_id, 8, '0', STR_PAD_LEFT);
-
-            // 3.2 Process Each Payment
             $totalPaid = 0;
             if (!empty($payments)) {
                 foreach ($payments as $payment) {
-                    $amount = (float)($payment['amount'] ?? 0);
-                    $totalPaid += $amount;
-
-                    PaidPaymentSummary::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
-                        'location'      => $data['location'],
-                        'temp_doc_no'   => $data['doc_no'],
-                        'org_doc_no'    => $org_pmt_doc_no,
-                        'doc_no'        => $invNumber,
-                        'payment_mode'  => $payment['method'] ?? $payment['mode'] ?? 'CASH',
-                        'amount'        => $amount,
-                        'iid'           => 'REC',
-                        'acc_code'      => $data['customer_code'],
-                        'transaction_date' => $payment['date'] ?? now(),
-                        'document_date' => $data['document_date'] ?? now(),
-                        'bank_name'     => $payment['bank'] ?? null,
-                        'branch'        => $payment['branch'] ?? null,
-                        'cheque_no'     => $payment['chequeNo'] ?? null,
-                    ]);
+                    $totalPaid += (float)($payment['amount'] ?? 0);
                 }
             }
 
-            // 3.3 Create Paid Payment Link (Invoice <-> Payment)
             $netAmount = (float)($data['net_total'] ?? 0);
-            $balanceAmount = max(0, $netAmount - $totalPaid);
 
-            PaidPaymentDetail::create([
-                'org_doc_no' => $org_pmt_doc_no,
-                'doc_no'     => $invNumber,
-                'location'   => $data['location'],
-                'transaction_amount' => $netAmount,
-                'transaction_date'   => $data['document_date'] ?? now(),
-                'balance_amount'     => $balanceAmount,
-                'paid_amount'        => $totalPaid,
-                'temp_doc_no'        => $data['doc_no'],
-                'iid'                => 'REC',
-                'acc_code'           => $data['customer_code'],
-                'document_date'      => $data['document_date'] ?? now(),
-                'setoff_sr_doc'      => 0,
-            ]);
+            // For negative net with refund yes, we effectively "paid" the customer
+            if ($type === 'return' && $isRefundYes && $netAmount < 0 && empty($payments)) {
+                $totalPaid = $netAmount;
+            }
+
+            $balanceAmount = $netAmount - $totalPaid;
+
+            if ($type === 'return') {
+                $netAmount = abs($netAmount);
+                $totalPaid = abs($totalPaid);
+                $balanceAmount = abs($balanceAmount);
+            }
+
+            // If it's a return "no", no need to save in PaidPaymentSummary or PaidPaymentDetail
+            if ($type === 'return' && !$isRefundYes) {
+                // Skip payment entries for credit returns
+            } elseif ($org_pmt_doc_no || $totalPaid != 0) {
+                if (!$org_pmt_doc_no) {
+                    // Generate Receipt Number if not already set (e.g. not a CAR)
+                    $org_pmt_doc_no = DocNumber::generate('Receipt', 'REC', 8, $location_code);
+                }
+
+                // If it's a return "yes", no need to save in PaidPaymentSummaries table
+                if ($type === 'return' && $isRefundYes) {
+                    // Skip saving in PaidPaymentSummaries table per user request
+                } else {
+                    foreach ($payments as $payment) {
+                        $amount = abs((float)($payment['amount'] ?? 0));
+                        if ($amount == 0) continue;
+
+                        PaidPaymentSummary::create([
+                            'location'      => $location_code,
+                            'temp_doc_no'   => $data['doc_no'] ?? '',
+                            'org_doc_no'    => $org_pmt_doc_no,
+                            'doc_no'        => $invNumber,
+                            'payment_mode'  => $payment['method'] ?? $payment['mode'] ?? 'CASH',
+                            'amount'        => $amount,
+                            'iid'           => 'REC',
+                            'acc_code'      => $data['customer_code'],
+                            'transaction_date' => $payment['date'] ?? now(),
+                            'document_date' => $data['document_date'] ?? now(),
+                            'bank_name'     => $payment['bank'] ?? null,
+                            'branch'        => $payment['branch'] ?? null,
+                            'cheque_no'     => $payment['chequeNo'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Create Paid Payment Link (Invoice <-> Payment)
+                PaidPaymentDetail::create([
+                    'org_doc_no' => $org_pmt_doc_no,
+                    'doc_no'     => $invNumber,
+                    'location'   => $location_code,
+                    'transaction_amount' => $netAmount,
+                    'transaction_date'   => $data['document_date'] ?? now(),
+                    'balance_amount'     => $balanceAmount,
+                    'paid_amount'        => $totalPaid,
+                    'temp_doc_no'        => $data['doc_no'] ?? '',
+                    'iid'                => ($type === 'return' && $isRefundYes) ? 'CAR' : 'REC',
+                    'acc_code'           => $data['customer_code'],
+                    'document_date'      => $data['document_date'] ?? now(),
+                    'setoff_sr_doc'      => 0,
+                ]);
+            }
 
             // 3.4 Update Customer Ledger (Payment Summary)
             // If there's a transaction amount, record it against the customer
             if ($netAmount != 0) {
                 PaymentSummary::create([
-                    'industry_code' => auth()->user()->industry_code ?? 1,
                     'acc_code'      => $data['customer_code'],
-                    'location'      => $data['location'],
+                    'location'      => $location_code,
                     'acc_type'      => 'customer',
-                    'iid'           => 'INV',
+                    'iid'           => ($type === 'return') ? 'CUR' : 'INV',
                     'doc_no'        => $invNumber,
                     'transaction_amount' => $netAmount,
                     'document_date' => $data['document_date'] ?? now(),
@@ -597,23 +669,22 @@ class InvoiceController extends Controller
                 foreach ($products as $product) {
                     // 4.1 Create Transaction Detail
                     TransactionSaleDetail::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'transaction_sale_header_id' => $transactionSaleHeader->id,
                         'doc_no'        => $invNumber,
                         'line_no'       => $product->line_no,
                         'iid'           => 'INV',
-                        'amount'        => $product->amount,
+                        'amount'        => abs($product->amount),
                         'prod_code'     => $product->prod_code,
                         'prod_name'     => $product->prod_name,
                         'type'          => $product->type ?? 'Sales',
-                        'qty'           => $product->qty ?? $product->total_qty,
                         'purchase_price' => $product->purchase_price,
                         'marked_price'  => $product->marked_price ?? 0,
                         'selling_price' => $product->selling_price,
                         'line_wise_discount_value' => $product->line_wise_discount_value,
-                        'free_qty'      => $product->free_qty,
-                        'pack_qty'      => $product->pack_qty,
-                        'total_qty'     => $product->total_qty,
+                        'free_qty'      => abs($product->free_qty),
+                        'unit_qty'      => abs($product->unit_qty),
+                        'pack_qty'      => abs($product->pack_qty),
+                        'total_qty'     => abs($product->total_qty),
                     ]);
 
                     // 4.2 Update Stock Master
@@ -621,13 +692,12 @@ class InvoiceController extends Controller
                     $qtyChange = -abs($product->total_qty);
                     $amountChange = -abs($product->amount); // Stock Value Impact
 
-                    if (($product->type ?? 'Sales') === 'Return') {
+                    if ($type === 'return' || ($product->type ?? 'Sales') === 'Return') {
                         $qtyChange = abs($product->total_qty);
                         $amountChange = abs($product->amount);
                     }
 
                     StockMaster::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'location'      => $data['location'],
                         'transaction_date' => $data['document_date'] ?? now(),
                         'doc_no'        => $invNumber,
@@ -641,19 +711,17 @@ class InvoiceController extends Controller
 
                     // 4.3 Product Sale Summary
                     ProductSaleSummary::create([
-                        'industry_code' => auth()->user()->industry_code ?? 1,
                         'location'      => $data['location'],
                         'doc_no'        => $invNumber,
                         'iid'           => 'INV',
-                        'free_qty'      => $product->free_qty,
+                        'free_qty'      => abs($product->free_qty),
                         'product_code'  => $product->prod_code,
                         'product_name'  => $product->prod_name,
-                        'pack_qty'      => $product->pack_qty,
+                        'pack_qty'      => abs($product->pack_qty),
                         'selling_price' => $product->selling_price,
                         'purchase_price' => $product->purchase_price,
                         'sale_date'     => $data['document_date'] ?? now(),
-                        'qty'           => $product->total_qty,
-                        'amount'        => $product->amount,
+                        'amount'        => abs($product->amount),
                     ]);
                 }
             }
@@ -674,7 +742,6 @@ class InvoiceController extends Controller
                     'header_id' => $transactionSaleHeader->id
                 ]
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -682,6 +749,117 @@ class InvoiceController extends Controller
                 'message' => 'Failed to create invoice: ' . $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile()
+            ], 500);
+        }
+    }
+
+    public function loadInvoiceByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'transactionSaleDetails.product.unit',
+                'transactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+
+        } elseif ($status == 'pending') {
+            $tempTransactionHeaders = TempTransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'tempTransactionSaleDetails.product.unit',
+                'tempTransactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => $status, // ← return actual status back
+                'data' => $tempTransactionHeaders
+            ]);
+
+        } else {
+            // ← add a fallback so you never get a silent empty response again
+            return response()->json([
+                'success' => false,
+                'message' => "Unknown status: $status"
+            ], 400);
+        }
+    }
+
+    public function loadVatInvoiceByCode($doc_number, $status, $iid)
+    {
+        if ($status == 'applied') {
+            $transactionHeaders = TransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'transactionSaleDetails.product.unit',
+                'transactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'applied',
+                'data' => $transactionHeaders
+            ]);
+        } elseif ($status == 'drafted') {
+            $tempTransactionHeaders = TempTransactionSaleHeader::with([
+                'customer',
+                'location',
+                'deliveryLocation',
+                'tempTransactionSaleDetails.product.unit',
+                'tempTransactionSaleDetails' => function ($query) {
+                    $query->orderBy('line_no');
+                }
+            ])
+                ->where(['doc_no' => $doc_number, 'iid' => "$iid"])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction loaded successfully!',
+                'status' => 'drafted',
+                'data' => $tempTransactionHeaders
+            ]);
+        }
+    }
+
+    public function getCompanyHeader()
+    {
+        try {
+            $company = CompanyHeader::first();
+            return response()->json([
+                'success' => true,
+                'data' => $company
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch company details',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

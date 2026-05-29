@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ProductResource extends JsonResource
 {
@@ -19,16 +20,32 @@ class ProductResource extends JsonResource
             'prod_code'     => $this->prod_code,
             'prod_name'     => $this->prod_name,
             'short_description'     => $this->short_description,
-            'department'    => $this->department,
-            'category'      => $this->category,
-            'sub_category'  => new SubCategoryResource($this->whenLoaded('subCategory')),
-            'suppliers'       => $this->whenLoaded('suppliers', function () {
-                return $this->suppliers->map(function ($supplier) {
+            'department'    => (string) $this->getRawOriginal('department'),
+            'department_categories' => $this->whenLoaded('department', function() {
+                $depRelation = $this->resource->getRelationValue('department');
+                if (!$depRelation) {
+                    return [];
+                }
+                return $depRelation->categories->map(function($cat) {
                     return [
-                        'value' => $supplier->sup_code,
-                        'label' => $supplier->sup_name
+                        'cat_code' => (string) $cat->cat_code,
+                        'cat_name' => $cat->cat_name,
+                        'department' => (string) $cat->department
                     ];
                 });
+            }),
+            'category'      => (string) $this->getRawOriginal('category'),
+            'sub_categories'  => $this->subCategories->map(function ($sub) {
+                return [
+                    'value' => (string) $sub->scat_code,
+                    'label' => $sub->scat_name
+                ];
+            }),
+            'suppliers'       => $this->suppliers->map(function ($supplier) {
+                return [
+                    'value' => (string) $supplier->sup_code,
+                    'label' => $supplier->sup_name
+                ];
             }),
             'pack_size'     => $this->pack_size,
             'purchase_price'=> $this->purchase_price,
@@ -41,11 +58,14 @@ class ProductResource extends JsonResource
             'depth'         => $this->depth,
             'weight'        => $this->weight,
             'barcode'       => $this->barcode,
+            'unconfirmed_price' => $this->unconfirm_price,
             'prod_image'    => $this->prod_image,
-            'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
+            // 'prod_image_url' => $this->prod_image ? asset('storage/' . $this->prod_image) : null,
+            'prod_image_url' => $this->getS3Url($this->prod_image),
             'image_urls'     => $this->whenLoaded('images', function () {
                 return $this->images->map(function ($Image) {
-                    return asset('storage/' . $Image->image);
+                    // return asset('storage/' . $Image->image);
+                    return $this->getS3Url($Image->image);
                 });
             }),
             'description'   => $this->description,
@@ -58,6 +78,25 @@ class ProductResource extends JsonResource
             }),
             'created_by'    => $this->created_by,
             'updated_by'    => $this->updated_by,
+            'current_stock' => $this->current_stock ?? 0,
         ];
+    }
+
+    /**
+     * Get S3 URL with proper type hinting for Intelephense
+     * 
+     * @param string|null $imagePath
+     * @return string|null
+     */
+    private function getS3Url($imagePath)
+    {
+        if (!$imagePath) {
+            return null;
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
+        return $disk->temporaryUrl($imagePath, now()->addMinutes(60));
     }
 }

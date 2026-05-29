@@ -11,9 +11,11 @@ use App\Models\StockMaster;
 use App\Exports\BookExport;
 use App\Imports\BookImport;
 use Illuminate\Http\Request;
+use App\Models\SubCategory;
 use App\Models\ProductImage;
 use App\Models\ProductAuthor;
 use App\Models\ProductSupplier;
+use App\Models\ProductSubCategory;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Controller;
@@ -42,13 +44,29 @@ class BookController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $userLocation = $request->user()->location ?? null;
+
             $products = Product::where('status', 1)
                 ->where('department', '10')
-                ->with(['authors', 'category', 'subCategory', 'department', 'bookType', 'publisher', 'suppliers', 'images'])
+                ->with(['authors', 'category', 'subCategories', 'department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation', 'unit'])
                 ->get();
+
+            if ($userLocation) {
+                // Get stock sum per product for the user's location
+                $stocks = StockMaster::whereIn('prod_code', $products->pluck('prod_code'))
+                    ->where('location', $userLocation)
+                    ->where('iid', '!=', 'CREATE')
+                    ->groupBy('prod_code')
+                    ->select('prod_code', DB::raw('SUM(qty) as total_qty'))
+                    ->pluck('total_qty', 'prod_code');
+
+                foreach ($products as $product) {
+                    $product->current_stock = (float) ($stocks[$product->prod_code] ?? 0);
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -68,7 +86,7 @@ class BookController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['authors', 'subCategory.category.department', 'bookType', 'publisher', 'suppliers', 'images'])
+                ->with(['authors', 'subCategories.category.department', 'department.categories', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation'])
                 ->first();
 
             if (!$product) {
@@ -82,7 +100,7 @@ class BookController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Book fetched successfully',
-                'data' => new BookResource($product->load('images'))
+                'data' => new BookResource($product)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -96,14 +114,14 @@ class BookController extends Controller
     public function store(BookRequest $request)
     {
         try {
+            
             DB::beginTransaction();
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Check if Book code already exists
-            if (Product::where('prod_code', $data['prod_code'])->exists()) {
-                $docCode = DocNumber::where('type', 'Product')->first()->getDocCode();
-                $data['prod_code'] = $docCode['code'];
+            // Check if Book code already exists, if so, increment until unique
+            while (Product::where('prod_code', $data['prod_code'])->exists()) {
+                $data['prod_code']++;
             }
 
             // Handle authors data
@@ -138,6 +156,22 @@ class BookController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
@@ -146,7 +180,8 @@ class BookController extends Controller
             if ($request->hasFile('prod_image')) {
                 $prodImage = $request->file('prod_image');
                 $filename = $data['prod_code'] . '.' . $prodImage->getClientOriginalExtension();
-                $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                // $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                $prodImagePath = $prodImage->storeAs('products/main', $filename, 's3');
                 $data['prod_image'] = $prodImagePath;
             } else {
                 $data['prod_image'] = $data['prod_code'];
@@ -154,6 +189,7 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            unset($data['sub_category']);
 
             $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
@@ -186,12 +222,27 @@ class BookController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            if (!empty($subCategoryCodes)) {
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             // Handle multiple images upload
             if ($images) {
                 foreach ($images as $image) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $product->prod_code . '-' . $timestamp . '.' . $image->getClientOriginalExtension();
-                    $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    // $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    $imagePath = $image->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $product->prod_code,
                         'image' => $imagePath,
@@ -221,7 +272,7 @@ class BookController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'authors', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategories', 'publisher', 'suppliers', 'authors', 'images', 'languageRelation']);
 
             return response()->json([
                 'success' => true,
@@ -281,6 +332,22 @@ class BookController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from book data
             $images = $request->file('images');
             unset($data['images']);
@@ -289,11 +356,13 @@ class BookController extends Controller
             if ($request->hasFile('prod_image')) {
                 // Delete old image if exists
                 if ($product->prod_image) {
-                    Storage::disk('public')->delete($product->prod_image);
+                    // Storage::disk('public')->delete($product->prod_image);
+                    Storage::disk('s3')->delete($product->prod_image);
                 }
                 $prodImage = $request->file('prod_image');
                 $filename = $new_prod_code . '.' . $prodImage->getClientOriginalExtension();
-                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                // $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 's3');
             } else {
                 unset($data['prod_image']);
             }
@@ -302,7 +371,8 @@ class BookController extends Controller
             if ($images) {
                 // Delete old images
                 foreach ($product->images as $image) {
-                    Storage::disk('public')->delete($image->image);
+                    // Storage::disk('public')->delete($image->image);
+                    Storage::disk('s3')->delete($image->image);
                     $image->delete();
                 }
 
@@ -310,7 +380,8 @@ class BookController extends Controller
                 foreach ($images as $imagefile) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $new_prod_code . '-' . $timestamp . '.' . $imagefile->getClientOriginalExtension();
-                    $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    // $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    $path = $imagefile->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $new_prod_code,
                         'image' => $path,
@@ -321,6 +392,10 @@ class BookController extends Controller
 
             unset($data['author']);
             unset($data['supplier']);
+            unset($data['sub_category']);
+            if (isset($data['prod_code'])) {
+                $data['barcode'] = $data['prod_code'];
+            }
             $product->update($data);
 
             // Sync authors - delete existing and create new rows
@@ -361,10 +436,29 @@ class BookController extends Controller
                 }
             }
 
+            // Sync sub_categories - delete existing and create new rows
+            if ($subCategoryCodes !== null) {
+                // Delete existing sub category relationships
+                ProductSubCategory::where('prod_code', $product->prod_code)->delete();
+
+                // Create new sub category relationships
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['bookType', 'department', 'category', 'subCategory', 'publisher', 'suppliers', 'suppliers', 'images']);
+            $product->load(['bookType', 'department', 'category', 'subCategories', 'publisher', 'suppliers', 'authors', 'images', 'languageRelation']);
 
             return response()->json([
                 'success' => true,

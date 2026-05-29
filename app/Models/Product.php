@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ProductImage;
+use App\Models\PriceLevel;
 
 class Product extends Model
 {
@@ -27,9 +28,19 @@ class Product extends Model
         return $this->belongsTo(Category::class, 'category', 'cat_code');
     }
 
-    public function subCategory()
+    public function subCategories()
     {
-        return $this->belongsTo(SubCategory::class, 'sub_category', 'scat_code');
+        return $this->belongsToMany(SubCategory::class, 'product_sub_categories', 'prod_code', 'sub_category_id', 'prod_code', 'id');
+    }
+
+    public function subCategoryL2s()
+    {
+        return $this->belongsToMany(SubCategoryL2::class, 'product_sub_category_l2s', 'prod_code', 'sub_category_l2_id', 'prod_code', 'id');
+    }
+
+    public function languageRelation()
+    {
+        return $this->belongsTo(Language::class, 'language', 'lang_code');
     }
 
     public function department()
@@ -56,6 +67,11 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class, 'prod_code', 'prod_code');
+    }
+
+    public function price_levels()
+    {
+        return $this->hasMany(PriceLevel::class, 'prod_code', 'prod_code');
     }
 
     protected static function booted()

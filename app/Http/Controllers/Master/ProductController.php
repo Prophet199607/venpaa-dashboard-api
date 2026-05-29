@@ -2,17 +2,25 @@
 
 namespace App\Http\Controllers\Master;
 
+use App\Models\Iid;
 use App\Models\Unit;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\Location;
 use App\Models\DocNumber;
+use App\Models\PriceLevel;
 use App\Models\StockMaster;
+use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
+use App\Exports\BinCardExport;
 use App\Models\ProductSupplier;
+use App\Models\TransactionDetail;
+use App\Models\TransactionHeader;
+use App\Models\ProductSubCategory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\ProductRequest;
 use App\Http\Resources\Master\ProductResource;
@@ -38,13 +46,29 @@ class ProductController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $userLocation = $request->user()->location ?? null;
+
             $products = Product::where('status', 1)
-                ->where('department', '!=', '10')
-                ->with(['category', 'subCategory', 'department', 'suppliers', 'images'])
+                ->whereNotIn('department', [10, 15])
+                ->with(['category', 'subCategories', 'department', 'suppliers', 'images', 'unit'])
                 ->get();
+
+            if ($userLocation) {
+                // Get stock sum per product for the user's location
+                $stocks = StockMaster::whereIn('prod_code', $products->pluck('prod_code'))
+                    ->where('location', $userLocation)
+                    ->where('iid', '!=', 'CREATE')
+                    ->groupBy('prod_code')
+                    ->select('prod_code', DB::raw('SUM(qty) as total_qty'))
+                    ->pluck('total_qty', 'prod_code');
+
+                foreach ($products as $product) {
+                    $product->current_stock = (float) ($stocks[$product->prod_code] ?? 0);
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -64,7 +88,7 @@ class ProductController extends Controller
     {
         try {
             $product = Product::where('prod_code', $prod_code)
-                ->with(['subCategory.category.department', 'suppliers', 'images'])
+                ->with(['department.categories', 'subCategories.category.department', 'suppliers', 'images', 'languageRelation', 'unit'])
                 ->first();
 
             if (!$product) {
@@ -78,7 +102,7 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Product fetched successfully',
-                'data' => new ProductResource($product->load('images'))
+                'data' => new ProductResource($product)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -96,10 +120,9 @@ class ProductController extends Controller
             $data = $request->validated();
             $data['created_by'] = auth()->id();
 
-            // Check if Product code already exists
-            if (Product::where('prod_code', $data['prod_code'])->exists()) {
-                $docCode = DocNumber::where('type', 'Product')->first()->getDocCode();
-                $data['prod_code'] = $docCode['code'];
+            // Check if Product code already exists, if so, increment until unique
+            while (Product::where('prod_code', $data['prod_code'])->exists()) {
+                $data['prod_code']++;
             }
 
             // Handle suppliers data
@@ -118,6 +141,22 @@ class ProductController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from product data
             $images = $request->file('images');
             unset($data['images']);
@@ -126,11 +165,14 @@ class ProductController extends Controller
             if ($request->hasFile('prod_image')) {
                 $prodImage = $request->file('prod_image');
                 $filename = $data['prod_code'] . '.' . $prodImage->getClientOriginalExtension();
-                $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                // $prodImagePath = $prodImage->storeAs('products/main', $filename, 'public');
+                $prodImagePath = $prodImage->storeAs('products/main', $filename, 's3');
                 $data['prod_image'] = $prodImagePath;
             }
 
             unset($data['supplier']);
+            unset($data['sub_category']);
+            $data['barcode'] = $data['prod_code'];
             $product = Product::create($data);
 
             // Handle suppliers data
@@ -147,12 +189,27 @@ class ProductController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            if (!empty($subCategoryCodes)) {
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             // Handle multiple images upload
             if ($images) {
                 foreach ($images as $image) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $product->prod_code . '-' . $timestamp . '.' . $image->getClientOriginalExtension();
-                    $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    // $imagePath = $image->storeAs('products/images', $filename, 'public');
+                    $imagePath = $image->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $product->prod_code,
                         'image' => $imagePath,
@@ -182,7 +239,7 @@ class ProductController extends Controller
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
+            $product->load(['department', 'category', 'subCategories', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -226,6 +283,22 @@ class ProductController extends Controller
                 }
             }
 
+            // Handle sub_categories data
+            $subCategoryCodes = [];
+            if ($request->has('sub_category') && !empty($request->input('sub_category'))) {
+                $subCategoryCodes = explode(',', $request->input('sub_category'));
+                // Validate that all sub_category codes exist
+                $existingSubCategories = SubCategory::whereIn('scat_code', $subCategoryCodes)->pluck('scat_code')->toArray();
+                $nonExistingSubCategories = array_diff($subCategoryCodes, $existingSubCategories);
+
+                if (!empty($nonExistingSubCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Some sub categories do not exist: ' . implode(', ', $nonExistingSubCategories)
+                    ], 422);
+                }
+            }
+
             // Separate image data from product data
             $images = $request->file('images');
             unset($data['images']);
@@ -234,11 +307,13 @@ class ProductController extends Controller
             if ($request->hasFile('prod_image')) {
                 // Delete old image if exists
                 if ($product->prod_image) {
-                    Storage::disk('public')->delete($product->prod_image);
+                    // Storage::disk('public')->delete($product->prod_image);
+                    Storage::disk('s3')->delete($product->prod_image);
                 }
                 $prodImage = $request->file('prod_image');
                 $filename = $new_prod_code . '.' . $prodImage->getClientOriginalExtension();
-                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                // $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 'public');
+                $data['prod_image'] = $prodImage->storeAs('products/main', $filename, 's3');
             } else {
                 unset($data['prod_image']);
             }
@@ -247,7 +322,8 @@ class ProductController extends Controller
             if ($images) {
                 // Delete old images
                 foreach ($product->images as $image) {
-                    Storage::disk('public')->delete($image->image);
+                    // Storage::disk('public')->delete($image->image);
+                    Storage::disk('s3')->delete($image->image);
                     $image->delete();
                 }
 
@@ -255,7 +331,8 @@ class ProductController extends Controller
                 foreach ($images as $imagefile) {
                     $timestamp = now()->format('YmdHisu');
                     $filename = $new_prod_code . '-' . $timestamp . '.' . $imagefile->getClientOriginalExtension();
-                    $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    // $path = $imagefile->storeAs('products/images', $filename, 'public');
+                    $path = $imagefile->storeAs('products/images', $filename, 's3');
                     ProductImage::create([
                         'prod_code' => $new_prod_code,
                         'image' => $path,
@@ -265,6 +342,7 @@ class ProductController extends Controller
             }
 
             unset($data['supplier']);
+            unset($data['sub_category']);
             $product->update($data);
             DB::commit();
 
@@ -287,10 +365,29 @@ class ProductController extends Controller
                 }
             }
 
+            // Sync sub_categories - delete existing and create new rows
+            if ($subCategoryCodes !== null) {
+                // Delete existing sub category relationships
+                ProductSubCategory::where('prod_code', $product->prod_code)->delete();
+
+                // Create new sub category relationships
+                foreach ($subCategoryCodes as $subCategoryCode) {
+                    $subCategory = SubCategory::where('scat_code', $subCategoryCode)->first();
+                    if ($subCategory) {
+                        ProductSubCategory::create([
+                            'prod_code' => $product->prod_code,
+                            'sub_category_id' => $subCategory->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Load relationships for the resource
-            $product->load(['department', 'category', 'subCategory', 'suppliers', 'images']);
+            $product->load(['department', 'category', 'subCategories', 'suppliers', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -327,6 +424,7 @@ class ProductController extends Controller
             if ($supplier) {
                 $query->whereHas('suppliers', function ($q) use ($supplier) {
                     $q->where('sup_code', $supplier);
+                    // $q->where('suppliers.sup_code', $supplier);
                 });
             }
 
@@ -336,6 +434,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+             ->orderByRaw("CASE
+                WHEN prod_code = ? THEN 1
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 
@@ -374,6 +479,13 @@ class ProductController extends Controller
                     ->orWhere('isbn', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('barcode', 'LIKE', '%' . $searchTerm . '%');
             })
+            ->orderByRaw("CASE
+                WHEN prod_code = ? THEN 1
+                WHEN barcode = ? THEN 1
+                WHEN isbn = ? THEN 1
+                WHEN prod_name = ? THEN 2
+                ELSE 3
+            END", [$searchTerm, $searchTerm, $searchTerm, $searchTerm])
             ->limit(100)
             ->get();
 
@@ -405,6 +517,516 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch unit types',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // public function importOpenStock(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'file' => 'required|file|mimes:xlsx,xls,csv',
+    //             'location' => 'required|string'
+    //         ]);
+
+    //         Excel::import(new OpenStockImport($request->location), $request->file('file'));
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Open stock imported successfully',
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to import open stock',
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    // public function exportOpenStockTemplate()
+    // {
+    //     return Excel::download(new OpenStockTemplateExport, 'open_stock_template.xlsx');
+    // }
+
+    public function binCard(Request $request, $prod_code)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            if ($userLocation === null || $userLocation === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Logged-in location is required to view bin card.',
+                ], 400);
+            }
+
+            $location = Location::where('loca_code', $userLocation)->first();
+            $locationName = $location?->loca_name ?? '';
+
+            $product = Product::where('prod_code', $prod_code)->first();
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
+
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
+
+            $balance = 0;
+            $transactions = [];
+            foreach ($rows as $row) {
+                $qty = (float) $row->qty;
+                $balance += $qty;
+                $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
+                $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
+                $transactions[] = [
+                    'transaction' => $row->iid_name ?? $row->iid,
+                    'date'        => $row->transaction_date,
+                    'document'    => $row->doc_no,
+                    'reference'   => $row->doc_no,
+                    'cost'        => number_format((float) $row->purchase_price, 2, '.', ''),
+                    'stock_in'    => $stockIn,
+                    'stock_out'   => $stockOut,
+                    'balance'     => (string) round($balance, 3),
+                ];
+            }
+
+            $purchasePrice = $rows->isEmpty() ? 0 : (float) $rows->first()->purchase_price;
+            $locationCode = $userLocation;
+            $currentBalance = (string) round((float) $balance, 3);
+
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'product'      => [
+                        'prod_code' => $product->prod_code,
+                        'prod_name' => $product->prod_name ?? '',
+                    ],
+                    'location'     => $locationCode,
+                    'stores'       => $locationName,
+                    'purchase_price' => number_format($purchasePrice, 2, '.', ''),
+                    'current_balance' => $currentBalance,
+                    'transactions' => $transactions,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load bin card',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function exportBinCard(Request $request, $prod_code)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            if ($userLocation === null || $userLocation === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Logged-in location is required to view bin card.',
+                ], 400);
+            }
+
+            $product = Product::where('prod_code', $prod_code)->first();
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            $query = StockMaster::where('stock_masters.prod_code', $prod_code)
+                ->where('stock_masters.location', $userLocation)
+                ->where('stock_masters.iid', '!=', 'CREATE')
+                ->orderBy('stock_masters.transaction_date')
+                ->orderBy('stock_masters.id');
+
+            $rows = $query->leftJoin('iids', 'iids.iid', '=', 'stock_masters.iid')
+                ->select('stock_masters.*', 'iids.name as iid_name')
+                ->get();
+
+            $balance = 0;
+            $transactions = [];
+            foreach ($rows as $row) {
+                $qty = (float) $row->qty;
+                $balance += $qty;
+                $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
+                $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
+                $transactions[] = [
+                    'transaction' => $row->iid_name ?? $row->iid,
+                    'date'        => (string) $row->transaction_date,
+                    'document'    => $row->doc_no,
+                    'reference'   => $row->doc_no,
+                    'cost'        => number_format((float) $row->purchase_price, 2, '.', ''),
+                    'stock_in'    => $stockIn,
+                    'stock_out'   => $stockOut,
+                    'balance'     => (string) round($balance, 3),
+                ];
+            }
+
+            return Excel::download(new BinCardExport($transactions), "bin_card_{$prod_code}.xlsx");
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export bin card',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getOpenStocks(Request $request)
+    {
+        try {
+            $userLocation = $request->user()?->location;
+            $perPage = $request->input('per_page', 10);
+
+            $query = StockMaster::where('iid', 'OPS')
+                ->select('stock_masters.*', 'products.prod_name', 'units.unit_type')
+                ->leftJoin('products', 'stock_masters.prod_code', '=', 'products.prod_code')
+                ->leftJoin('units', 'products.unit_name', '=', 'units.unit_name')
+                ->orderBy('stock_masters.id', 'desc');
+
+            if ($userLocation) {
+                $query->where('location', $userLocation);
+            }
+
+            $openStocks = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $openStocks
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load open stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function storeOpenStock(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $items = $request->input('items', []);
+
+            if (empty($items)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items provided',
+                ], 400);
+            }
+
+            $itemsByLocation = collect($items)->groupBy('loca_code');
+
+            // Check if any product already has Open Stock stored in the requested locations
+            foreach ($itemsByLocation as $locaCode => $locationItems) {
+                foreach ($locationItems as $item) {
+                    $exists = StockMaster::where('prod_code', $item['prod_code'])
+                        ->where('location', $locaCode)
+                        ->where('iid', 'OPS')
+                        ->exists();
+
+                    if ($exists) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Open stock already stored for product {$item['prod_code']} and location {$locaCode}.",
+                        ], 400);
+                    }
+                }
+            }
+
+            $createdDocs = [];
+
+            foreach ($itemsByLocation as $locaCode => $locationItems) {
+                $generated = DocNumber::generate('OpenStock', 'OPS', 8, $locaCode);
+                $docNo = is_array($generated) ? $generated['code'] : $generated;
+
+                $netTotal = $locationItems->sum(function ($item) {
+                     return (float) $item['amount'];
+                });
+
+                $header = TransactionHeader::create([
+                    'doc_no' => $docNo,
+                    'iid' => 'OPS',
+                    'transaction_date' => now(),
+                    'location' => $locaCode,
+                    'remarks_ref' => 'Open Stock',
+                    'created_by' => auth()->id(),
+                    'subtotal' => $netTotal,
+                    'net_total' => $netTotal,
+                    'document_date' => now(),
+                ]);
+
+                $lineNo = 1;
+                foreach ($locationItems as $item) {
+                    TransactionDetail::create([
+                        'line_no' => $lineNo++,
+                        'doc_no' => $docNo,
+                        'iid' => 'OPS',
+                        'transaction_header_id' => $header->id,
+                        'prod_code' => $item['prod_code'],
+                        'prod_name' => $item['prod_name'],
+                        'pack_size' => $item['pack_size'],
+                        'pack_qty' => $item['pack_qty'],
+                        'unit_qty' => $item['unit_qty'],
+                        'total_qty' => $item['total_qty'],
+                        'purchase_price' => $item['purchase_price'],
+                        'selling_price' => $item['selling_price'],
+                        'amount' => $item['amount'],
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    StockMaster::create([
+                        'location' => $locaCode,
+                        'transaction_date' => now(),
+                        'doc_no' => $docNo,
+                        'prod_code' => $item['prod_code'],
+                        'iid' => 'OPS',
+                        'qty' => $item['total_qty'],
+                        'purchase_price' => $item['purchase_price'],
+                        'selling_price' => $item['selling_price'],
+                        'amount' => $item['amount'],
+                    ]);
+                }
+
+                $createdDocs[] = $docNo;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Open stock stored successfully',
+                'docs' => $createdDocs
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store open stock',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function checkOpenStock($prod_code)
+    {
+        try {
+            $existingLocations = StockMaster::where('prod_code', $prod_code)
+                ->where('iid', 'OPS')
+                ->pluck('location')
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'existing_locations' => $existingLocations
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check open stock status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function stockByLocation($prod_code)
+    {
+        try {
+            $product = Product::where('prod_code', $prod_code)->first();
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            $locations = Location::where('is_active', 1)->get()->keyBy('loca_code');
+
+            $stocks = StockMaster::select('location', DB::raw('SUM(qty) as total_qty'))
+                ->where('prod_code', $prod_code)
+                ->where('iid', '!=', 'CREATE')
+                ->groupBy('location')
+                ->get();
+
+            $locationData = $locations->map(function ($loc) use ($stocks, $prod_code) {
+                $stock = $stocks->firstWhere('location', $loc->loca_code);
+
+                $latestStock = StockMaster::where('prod_code', $prod_code)
+                    ->where('location', $loc->loca_code)
+                    ->where('iid', '!=', 'CREATE')
+                    ->orderByDesc('id')
+                    ->first();
+
+                return [
+                    'loca_code' => $loc->loca_code,
+                    'loca_name' => $loc->loca_name,
+                    'qty' => $stock ? $stock->total_qty : 0,
+                    'selling_price' => $latestStock ? $latestStock->selling_price : 0,
+                ];
+            })->values();
+
+            $rawPriceLevels = PriceLevel::where('prod_code', $prod_code)
+                ->orderBy('id')
+                ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
+
+            $hasOriginalLevel = $rawPriceLevels->contains(function ($level) use ($product) {
+                return round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+            });
+
+            $priceLevels = [];
+            $additionalLevelNo = 1;
+
+            if (!$hasOriginalLevel) {
+                $priceLevels[] = [
+                    'id' => null,
+                    'level_key' => 'original',
+                    'label' => 'Original',
+                    'purchase_price' => (float) $product->purchase_price,
+                    'selling_price' => (float) $product->selling_price,
+                    'wholesale_price' => (float) $product->wholesale_price,
+                    'has_expiry' => false,
+                    'expiry_date' => null,
+                ];
+            }
+
+            foreach ($rawPriceLevels as $level) {
+                $isOriginal = round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+
+                $priceLevels[] = [
+                    'id' => $level->id,
+                    'level_key' => $isOriginal ? 'original' : ('level_' . $level->id),
+                    'label' => $isOriginal ? 'Original' : ('Level ' . $additionalLevelNo++),
+                    'purchase_price' => (float) $level->purchase_price,
+                    'selling_price' => (float) $level->selling_price,
+                    'wholesale_price' => (float) $level->wholesale_price,
+                    'has_expiry' => (bool) $level->has_expiry,
+                    'expiry_date' => $level->expiry_date,
+                ];
+            }
+
+            $stockRows = StockMaster::where('prod_code', $prod_code)
+                ->where('iid', '!=', 'CREATE')
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get(['id', 'location', 'qty', 'purchase_price', 'selling_price', 'transaction_date']);
+
+            $levelLocationStockMap = [];
+            foreach ($locations as $loc) {
+                foreach ($priceLevels as $level) {
+                    $levelLocationStockMap[$loc->loca_code][$level['level_key']] = 0;
+                }
+            }
+
+            foreach ($stockRows->groupBy('location') as $location => $locationRows) {
+                if (!isset($levelLocationStockMap[$location])) {
+                    $levelLocationStockMap[$location] = [];
+                    foreach ($priceLevels as $level) {
+                        $levelLocationStockMap[$location][$level['level_key']] = 0;
+                    }
+                }
+
+                $fifoQueue = [];
+
+                foreach ($locationRows as $stockRow) {
+                    $qty = (float) $stockRow->qty;
+
+                    if ($qty > 0) {
+                        // Inward: match to a price level
+                        $matchedLevelKey = null;
+
+                        foreach ($priceLevels as $level) {
+                            if (
+                                round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                                round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
+                            ) {
+                                $matchedLevelKey = $level['level_key'];
+                                break;
+                            }
+                        }
+
+                        if ($matchedLevelKey === null) {
+                            foreach ($priceLevels as $level) {
+                                if (round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2)) {
+                                    $matchedLevelKey = $level['level_key'];
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($matchedLevelKey === null) {
+                            $matchedLevelKey = 'original';
+                        }
+
+                        $levelLocationStockMap[$location][$matchedLevelKey] += $qty;
+                        $fifoQueue[] = ['level_key' => $matchedLevelKey, 'qty' => $qty];
+                    } elseif ($qty < 0) {
+                        // Outward: consume from FIFO queue (oldest positive batches first)
+                        $remaining = abs($qty);
+                        while ($remaining > 0 && !empty($fifoQueue)) {
+                            $batch = &$fifoQueue[0];
+                            $consume = min($remaining, $batch['qty']);
+                            $batch['qty'] -= $consume;
+                            $levelLocationStockMap[$location][$batch['level_key']] -= $consume;
+                            $remaining -= $consume;
+                            if ($batch['qty'] <= 0) {
+                                array_shift($fifoQueue);
+                            }
+                        }
+                        unset($batch);
+                    }
+                }
+            }
+
+            $levelLocationStocks = [];
+            foreach ($locations as $loc) {
+                foreach ($priceLevels as $level) {
+                    $levelLocationStocks[] = [
+                        'loca_code' => $loc->loca_code,
+                        'loca_name' => $loc->loca_name,
+                        'level_key' => $level['level_key'],
+                        'label' => $level['label'],
+                        'purchase_price' => $level['purchase_price'],
+                        'selling_price' => $level['selling_price'],
+                        'qty' => (float) ($levelLocationStockMap[$loc->loca_code][$level['level_key']] ?? 0),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'locations' => $locationData,
+                    'price_levels' => $priceLevels,
+                    'level_location_stocks' => $levelLocationStocks,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch stock by location.',
                 'error' => $e->getMessage()
             ], 500);
         }
