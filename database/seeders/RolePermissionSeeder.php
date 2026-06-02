@@ -42,7 +42,8 @@ class RolePermissionSeeder extends Seeder
         ];
 
         $reportModules = [
-            'pos-sales-summary-report', 'daily-collection-report', 'current-stock-report'
+            'pos-sales-summary-report', 'daily-collection-report', 'current-stock-report',
+            'sales-report', 'web-sales-report',
         ];
 
         $allPermissionsList = [];
