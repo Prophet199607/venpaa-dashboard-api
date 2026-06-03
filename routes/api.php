@@ -462,6 +462,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/sales-report', [ReportController::class, 'getSalesReport'])->middleware('can:view sales-report');
         Route::get('/sales-report/export', [ReportController::class, 'exportSalesReport'])->middleware('can:view sales-report');
         Route::get('/web-sales-report', [ReportController::class, 'getWebSalesReport'])->middleware('can:view web-sales-report');
+        Route::get('/web-sales-report/export', [ReportController::class, 'exportWebSalesReport'])->middleware('can:view web-sales-report');
     });
 
     // Dashboard routes
