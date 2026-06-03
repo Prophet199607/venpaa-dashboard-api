@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Exports\SalesReportExport;
 use App\Exports\CurrentStockExport;
+use App\Exports\WebSalesReportExport;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -289,8 +290,9 @@ class ReportController extends Controller
     }
 
     /**
-     * Get Web Sales Report from venpaa-cart.checkouts, pick_and_collects,
-     * users, and venpaa_new.products.
+     * Get Web Sales Report — order-level only from checkouts and pick_and_collects.
+     * No product-level details. Shows product_value, discount, sub_total,
+     * courier_charge, cod_charge, net_total, and payment_type.
      */
     public function getWebSalesReport(Request $request)
     {
@@ -300,90 +302,38 @@ class ReportController extends Controller
             $dateFrom = $request->input('dateFrom', '');
             $dateTo = $request->input('dateTo', '');
             $type = strtoupper($request->input('type', ''));
+            $paymentType = $request->input('payment_type', '');
 
             $cartDb = 'venpaa-cart';
-            $mainDb = env('DB_DATABASE', 'venpaa_new');
 
-            // 1. Build Query for stock_masters as the primary source of online transactions (iid = 'WEB' or 'APP')
-            $smWhere = "sm.iid IN ('WEB', 'APP')";
-            $smBindings = [];
+            // ---- Date clause helper ----
+            $buildDateClause = function ($col) use ($dateFrom, $dateTo) {
+                $clause = '';
+                $bindings = [];
+                if ($dateFrom && $dateTo) {
+                    $clause = "AND DATE({$col}) >= ? AND DATE({$col}) <= ?";
+                    $bindings = [$dateFrom, $dateTo];
+                } elseif ($dateFrom) {
+                    $clause = "AND DATE({$col}) >= ?";
+                    $bindings = [$dateFrom];
+                } elseif ($dateTo) {
+                    $clause = "AND DATE({$col}) <= ?";
+                    $bindings = [$dateTo];
+                }
+                return [$clause, $bindings];
+            };
 
-            if ($type && $type !== 'ALL') {
-                $smWhere .= " AND sm.iid = ?";
-                $smBindings[] = $type;
-            }
+            [$coDateClause, $coBindings] = $buildDateClause('co.created_at');
+            [$pcDateClause, $pcBindings] = $buildDateClause('pc.created_at');
 
-            if ($location !== '') {
-                $smWhere .= " AND sm.location = ?";
-                $smBindings[] = $location;
-            }
-
-            if ($dateFrom && $dateTo) {
-                $smWhere .= " AND sm.transaction_date >= ? AND sm.transaction_date <= ?";
-                $smBindings[] = $dateFrom;
-                $smBindings[] = $dateTo;
-            } elseif ($dateFrom) {
-                $smWhere .= " AND sm.transaction_date >= ?";
-                $smBindings[] = $dateFrom;
-            } elseif ($dateTo) {
-                $smWhere .= " AND sm.transaction_date <= ?";
-                $smBindings[] = $dateTo;
-            }
-
-            $smSql = "
-                SELECT
-                    sm.id,
-                    sm.transaction_date,
-                    sm.doc_no,
-                    sm.location,
-                    sm.prod_code,
-                    sm.iid,
-                    ABS(sm.qty) AS qty,
-                    sm.selling_price,
-                    ABS(sm.amount) AS amount,
-                    p.prod_name,
-                    sm.created_at
-                FROM `{$mainDb}`.stock_masters sm
-                LEFT JOIN `{$mainDb}`.products p ON sm.prod_code = p.prod_code
-                WHERE {$smWhere}
-                ORDER BY sm.created_at DESC
-            ";
-
-            $smRows = DB::select($smSql, $smBindings);
-
-            // 2a. Enrich with Location names
-            $uniqueLocas = array_values(array_unique(array_map(function ($sm) {
-                return $sm->location !== '' ? str_pad(ltrim($sm->location, '0'), 3, '0', STR_PAD_LEFT) : '';
-            }, $smRows)));
-            $uniqueLocas = array_values(array_filter($uniqueLocas));
-            $locationNames = [];
-            if (!empty($uniqueLocas)) {
-                $locationNames = DB::table('locations')
-                    ->whereIn('loca_code', $uniqueLocas)
-                    ->pluck('loca_name', 'loca_code')
-                    ->toArray();
-            }
-
-            // 2. Fetch parallel checkouts (delivery orders) within the date range
-            $coBindings = [];
-            $coDateClause = '';
-            if ($dateFrom && $dateTo) {
-                $coDateClause = 'AND DATE(co.created_at) >= ? AND DATE(co.created_at) <= ?';
-                $coBindings[] = $dateFrom;
-                $coBindings[] = $dateTo;
-            } elseif ($dateFrom) {
-                $coDateClause = 'AND DATE(co.created_at) >= ?';
-                $coBindings[] = $dateFrom;
-            } elseif ($dateTo) {
-                $coDateClause = 'AND DATE(co.created_at) <= ?';
-                $coBindings[] = $dateTo;
-            }
-
+            // ---- 1. Fetch checkouts (delivery orders) ----
             $checkoutSql = "
                 SELECT
                     co.id,
                     co.order_id           AS doc_no,
                     co.created_at          AS transaction_date,
+                    co.type,
+                    co.type_name,
                     co.payload,
                     co.status              AS order_status,
                     COALESCE(co.payment_status, 'pending') AS payment_status,
@@ -401,32 +351,19 @@ class ReportController extends Controller
             ";
             $checkoutRows = DB::select($checkoutSql, $coBindings);
 
-            // 3. Fetch parallel pick & collect orders within the date range
-            $pcBindings = [];
-            $pcDateClause = '';
-            if ($dateFrom && $dateTo) {
-                $pcDateClause = 'AND DATE(pc.created_at) >= ? AND DATE(pc.created_at) <= ?';
-                $pcBindings[] = $dateFrom;
-                $pcBindings[] = $dateTo;
-            } elseif ($dateFrom) {
-                $pcDateClause = 'AND DATE(pc.created_at) >= ?';
-                $pcBindings[] = $dateFrom;
-            } elseif ($dateTo) {
-                $pcDateClause = 'AND DATE(pc.created_at) <= ?';
-                $pcBindings[] = $dateTo;
-            }
-
+            // ---- 2. Fetch pick & collect orders (grouped by pick_and_collect_id) ----
             $pcSql = "
                 SELECT
-                    pc.id,
                     pc.pick_and_collect_id AS doc_no,
-                    pc.created_at           AS transaction_date,
-                    pc.prod_code,
-                    pc.picked_qty           AS qty,
-                    pc.net_amount           AS amount,
+                    pc.type,
+                    pc.type_name,
                     pc.location,
                     pc.location_name,
-                    pc.status               AS order_status,
+                    pc.created_at           AS transaction_date,
+                    COUNT(*)                AS item_count,
+                    SUM(pc.picked_qty)      AS total_qty,
+                    SUM(pc.discount_amount) AS discount_amount,
+                    SUM(pc.net_amount)      AS net_amount,
                     COALESCE(pc.payment_status, 'pending') AS payment_status,
                     u.id                    AS user_id,
                     u.fname,
@@ -438,199 +375,191 @@ class ReportController extends Controller
                 JOIN `{$cartDb}`.users u ON pc.user_id = u.id
                 WHERE pc.payment_status = 'success'
                 {$pcDateClause}
+                GROUP BY pc.pick_and_collect_id, pc.type, pc.type_name, pc.location, pc.location_name, pc.created_at, pc.payment_status, u.id, u.fname, u.lname, u.email, u.phone, u.platform
                 ORDER BY pc.created_at DESC
             ";
             $pcRows = DB::select($pcSql, $pcBindings);
 
-            // 4. Map checkout items and pick & collect items by prod_code + location + date
-            $checkoutItems = [];
+            // ---- Helper: resolve payment type label ----
+            $paymentTypeLabel = function ($t) {
+                $map = [1 => 'COD', 2 => 'Card payment', 3 => 'Mintpay'];
+                return $map[(int) $t] ?? 'Unknown';
+            };
+
+            // ---- Helper: resolve iid from platform ----
+            $resolveIid = function ($platform) {
+                return (in_array($platform, ['3', 'WEB', 'website', 'web'], true)) ? 'WEB' : 'APP';
+            };
+
+            // ---- 3. Build orders from checkouts ----
+            $orders = [];
+            $locationNamesPool = [];
+
             foreach ($checkoutRows as $co) {
                 $payload = json_decode($co->payload, true);
+                $totals = $payload['totals'] ?? [];
+
                 $coLocRaw = $payload['location'] ?? '';
                 $locationVal = $coLocRaw !== '' ? str_pad(ltrim($coLocRaw, '0'), 3, '0', STR_PAD_LEFT) : '';
                 $platform = $co->platform ?? '';
-                $coIid = (in_array($platform, ['3', 'WEB', 'website', 'web'], true)) ? 'WEB' : 'APP';
+                $iid = $resolveIid($platform);
 
-                $items = $payload['items'] ?? [];
-                $customerName = trim(($co->fname ?? '') . ' ' . ($co->lname ?? ''));
-                $coDate = date('Y-m-d', strtotime($co->transaction_date));
+                $items = $totals['items'] ?? $payload['items'] ?? [];
 
-                foreach ($items as $item) {
-                    $product = $item['product'] ?? [];
-                    $prodCode = $product['prod_code'] ?? '';
-                    $qty = (float) ($item['quantity'] ?? 0);
-                    
-                    $key = "{$prodCode}_{$locationVal}_{$coDate}";
-                    $checkoutItems[$key][] = [
-                        'doc_no' => (string) $co->doc_no,
-                        'customer_name' => $customerName ?: '-',
-                        'email' => $co->email ?? '',
-                        'phone' => $co->phone ?? '',
-                        'source' => 'CHECKOUT',
-                        'order_total' => (float) ($payload['totals']['netTotalWithCod'] ?? $payload['totals']['subTotal'] ?? 0),
-                        'item_count' => count($items),
-                        'total_qty' => array_sum(array_column($items, 'quantity')),
-                        'total_amount' => (float) ($payload['totals']['subTotal'] ?? 0),
-                    ];
+                $isCod = ((int) $co->type === 1);
+                $productValue = (float) ($totals['originalSubTotal'] ?? $totals['subTotal'] ?? 0);
+                $productDiscount = (float) ($totals['productDiscountTotal'] ?? 0);
+                $couponDiscount = (float) ($totals['discountAmount'] ?? 0);
+                $subTotal = (float) ($totals['subTotal'] ?? 0);
+                $courierCharge = (float) ($totals['courierCharge'] ?? 0);
+                $codCharge = $isCod ? (float) ($totals['codCharge'] ?? 0) : 0;
+                $netTotal = $isCod
+                    ? (float) ($totals['netTotalWithCod'] ?? $subTotal + $courierCharge + $codCharge)
+                    : (float) ($totals['netTotalWithoutCod'] ?? $subTotal + $courierCharge);
+
+                $customerName = trim(($co->fname ?? '') . ' ' . ($co->lname ?? '')) ?: '-';
+
+                // Filter by type (WEB/APP)
+                if ($type && $type !== 'ALL' && $iid !== $type) {
+                    continue;
+                }
+
+                // Filter by payment_type
+                if ($paymentType !== '' && $paymentType !== 'ALL' && (string) $co->type !== $paymentType) {
+                    continue;
+                }
+
+                // Filter by location
+                if ($location !== '' && $locationVal !== $location) {
+                    continue;
+                }
+
+                $orders[] = [
+                    'doc_no'            => (string) $co->doc_no,
+                    'date'              => $co->transaction_date,
+                    'customer_name'     => $customerName,
+                    'email'             => $co->email ?? '',
+                    'phone'             => $co->phone ?? '',
+                    'source'            => 'CHECKOUT',
+                    'location'          => $locationVal,
+                    'payment_type'      => (int) $co->type,
+                    'payment_type_name' => $paymentTypeLabel($co->type),
+                    'iid'               => $iid,
+                    'product_value'     => $productValue,
+                    'discount'          => $productDiscount + $couponDiscount,
+                    'sub_total'         => $subTotal,
+                    'courier_charge'    => $courierCharge,
+                    'cod_charge'        => $codCharge,
+                    'net_total'         => $netTotal,
+                    'item_count'        => count($items),
+                    'total_qty'         => array_sum(array_column($items, 'quantity')),
+                ];
+
+                if ($locationVal && !isset($locationNamesPool[$locationVal])) {
+                    $locationNamesPool[$locationVal] = true;
                 }
             }
 
-            $pcItems = [];
+            // ---- 4. Build orders from pick & collect ----
             foreach ($pcRows as $pc) {
                 $pcLocRaw = $pc->location ?? '';
                 $locationVal = $pcLocRaw !== '' ? str_pad(ltrim($pcLocRaw, '0'), 3, '0', STR_PAD_LEFT) : '';
                 $platform = $pc->platform ?? '';
-                $pcIid = (in_array($platform, ['3', 'WEB', 'website', 'web'], true)) ? 'WEB' : 'APP';
+                $iid = $resolveIid($platform);
 
-                $customerName = trim(($pc->fname ?? '') . ' ' . ($pc->lname ?? ''));
-                $pcDate = date('Y-m-d', strtotime($pc->transaction_date));
-                $prodCode = $pc->prod_code ?? '';
+                $netAmount = (float) ($pc->net_amount ?? 0);
+                $discountAmount = (float) ($pc->discount_amount ?? 0);
+                $subTotal = $netAmount + $discountAmount;
+                $customerName = trim(($pc->fname ?? '') . ' ' . ($pc->lname ?? '')) ?: '-';
 
-                $key = "{$prodCode}_{$locationVal}_{$pcDate}";
-                $pcItems[$key][] = [
-                    'doc_no' => (string) $pc->doc_no,
-                    'customer_name' => $customerName ?: '-',
-                    'email' => $pc->email ?? '',
-                    'phone' => $pc->phone ?? '',
-                    'source' => 'PICK_AND_COLLECT',
-                    'order_total' => (float) $pc->amount,
-                    'item_count' => 1,
-                    'total_qty' => (float) $pc->qty,
-                    'total_amount' => (float) $pc->amount,
-                ];
-            }
-
-            // 5. Build details and orders list from stock_masters primary list and enrich from matches
-            $details = [];
-            $orderMap = [];
-
-            foreach ($smRows as $sm) {
-                $prodCode = $sm->prod_code;
-                $smLocRaw = $sm->location ?? '';
-                $locationVal = $smLocRaw !== '' ? str_pad(ltrim($smLocRaw, '0'), 3, '0', STR_PAD_LEFT) : '';
-                $smDate = date('Y-m-d', strtotime($sm->transaction_date));
-                $qty = (float) $sm->qty;
-                $price = (float) $sm->selling_price;
-                $amount = (float) $sm->amount;
-                $iid = $sm->iid;
-
-                // Attempt to match with checkout or pick_and_collect items (with timezone flexibility +/- 1 day)
-                $match = null;
-                $datesToTry = [
-                    $smDate,
-                    date('Y-m-d', strtotime($smDate . ' -1 day')),
-                    date('Y-m-d', strtotime($smDate . ' +1 day')),
-                ];
-
-                foreach ($datesToTry as $tryDate) {
-                    $tryKey = "{$prodCode}_{$locationVal}_{$tryDate}";
-                    if (!empty($checkoutItems[$tryKey])) {
-                        $match = array_shift($checkoutItems[$tryKey]);
-                        break;
-                    } elseif (!empty($pcItems[$tryKey])) {
-                        $match = array_shift($pcItems[$tryKey]);
-                        break;
-                    }
+                // Filter by type (WEB/APP)
+                if ($type && $type !== 'ALL' && $iid !== $type) {
+                    continue;
                 }
 
-                if ($match) {
-                    $docNo = $match['doc_no'];
-                    $customerName = $match['customer_name'];
-                    $customerEmail = $match['email'];
-                    $phone = $match['phone'];
-                    $source = $match['source'];
-                    $docKey = ($source === 'CHECKOUT' ? 'CHK-' : 'PC-') . $docNo;
-
-                    if (!isset($orderMap[$docKey])) {
-                        $orderMap[$docKey] = [
-                            'doc_no'        => $docNo,
-                            'date'          => $sm->transaction_date,
-                            'customer_name' => $customerName,
-                            'email'         => $customerEmail,
-                            'phone'         => $phone,
-                            'iid'           => $iid,
-                            'source'        => $source,
-                            'location'      => $locationVal,
-                            'location_name' => $locationNames[$locationVal] ?? '',
-                            'order_total'   => $match['order_total'],
-                            'item_count'    => 0,
-                            'total_qty'     => 0,
-                            'total_amount'  => 0,
-                        ];
-                    }
-                } else {
-                    $docNo = $sm->doc_no ?: ($iid === 'WEB' ? 'WEB_ORDER' : 'APP_ORDER');
-                    $customerName = '-';
-                    $customerEmail = '';
-                    $phone = '';
-                    $source = $iid === 'WEB' ? 'CHECKOUT' : 'PICK_AND_COLLECT';
-                    $docKey = 'SM-' . $docNo . '-' . $smDate . '-' . $locationVal;
-
-                    if (!isset($orderMap[$docKey])) {
-                        $orderMap[$docKey] = [
-                            'doc_no'        => $docNo,
-                            'date'          => $sm->transaction_date,
-                            'customer_name' => $customerName,
-                            'email'         => $customerEmail,
-                            'phone'         => $phone,
-                            'iid'           => $iid,
-                            'source'        => $source,
-                            'location'      => $locationVal,
-                            'location_name' => $locationNames[$locationVal] ?? '',
-                            'order_total'   => 0.0,
-                            'item_count'    => 0,
-                            'total_qty'     => 0,
-                            'total_amount'  => 0,
-                        ];
-                    }
+                // Filter by payment_type
+                if ($paymentType !== '' && $paymentType !== 'ALL' && (string) $pc->type !== $paymentType) {
+                    continue;
                 }
 
-                $details[] = [
-                    'doc_no'           => $docNo,
-                    'transaction_date' => $sm->transaction_date,
-                    'prod_code'        => $prodCode,
-                    'prod_name'        => $sm->prod_name ?? '',
-                    'qty'              => $qty,
-                    'selling_price'    => $price,
-                    'amount'           => $amount,
-                    'iid'              => $iid,
-                    'location'         => $locationVal,
-                    'location_name'    => $locationNames[$locationVal] ?? '',
-                    'customer_name'    => $customerName,
-                    'customer_email'   => $customerEmail,
-                    'phone'            => $phone,
-                    'source'           => $source,
+                // Filter by location
+                if ($location !== '' && $locationVal !== $location) {
+                    continue;
+                }
+
+                $orders[] = [
+                    'doc_no'            => (string) $pc->doc_no,
+                    'date'              => $pc->transaction_date,
+                    'customer_name'     => $customerName,
+                    'email'             => $pc->email ?? '',
+                    'phone'             => $pc->phone ?? '',
+                    'source'            => 'PICK_AND_COLLECT',
+                    'location'          => $locationVal,
+                    'location_name'     => $pc->location_name ?? '',
+                    'payment_type'      => (int) $pc->type,
+                    'payment_type_name' => $paymentTypeLabel($pc->type),
+                    'iid'               => $iid,
+                    'product_value'     => $subTotal,
+                    'discount'          => $discountAmount,
+                    'sub_total'         => $subTotal,
+                    'courier_charge'    => 0,
+                    'cod_charge'        => 0,
+                    'net_total'         => $netAmount,
+                    'item_count'        => (int) ($pc->item_count ?? 1),
+                    'total_qty'         => (float) ($pc->total_qty ?? 0),
                 ];
 
-                $orderMap[$docKey]['item_count']++;
-                $orderMap[$docKey]['total_qty'] += $qty;
-                $orderMap[$docKey]['total_amount'] += $amount;
-                if (!$match) {
-                    $orderMap[$docKey]['order_total'] += $amount;
+                if ($locationVal && !isset($locationNamesPool[$locationVal])) {
+                    $locationNamesPool[$locationVal] = true;
                 }
             }
 
-            // Totals
-            $totalQty = 0;
-            $totalAmount = 0;
-            foreach ($details as $d) {
-                $totalQty += $d['qty'];
-                $totalAmount += $d['amount'];
+            // ---- 5. Enrich location names ----
+            $locaCodes = array_keys($locationNamesPool);
+            $locationNames = [];
+            if (!empty($locaCodes)) {
+                $locationNames = DB::table('locations')
+                    ->whereIn('loca_code', $locaCodes)
+                    ->pluck('loca_name', 'loca_code')
+                    ->toArray();
             }
 
-            $orders = array_values($orderMap);
+            foreach ($orders as &$order) {
+                $lc = $order['location'];
+                $order['location_name'] = $locationNames[$lc] ?? '';
+            }
+            unset($order);
+
+            // ---- 6. Compute totals ----
+            $totalProductValue = 0;
+            $totalDiscount = 0;
+            $totalSubTotal = 0;
+            $totalCourierCharge = 0;
+            $totalCodCharge = 0;
+            $totalNetTotal = 0;
+
+            foreach ($orders as $o) {
+                $totalProductValue += $o['product_value'];
+                $totalDiscount += $o['discount'];
+                $totalSubTotal += $o['sub_total'];
+                $totalCourierCharge += $o['courier_charge'];
+                $totalCodCharge += $o['cod_charge'];
+                $totalNetTotal += $o['net_total'];
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Web sales report fetched successfully',
                 'data' => [
-                    'details' => $details,
-                    'orders'  => $orders,
-                    'totals'  => [
-                        'total_qty'    => $totalQty,
-                        'total_amount' => $totalAmount,
-                        'record_count' => count($details),
-                        'order_count'  => count($orders),
+                    'orders' => $orders,
+                    'totals' => [
+                        'total_product_value' => $totalProductValue,
+                        'total_discount'      => $totalDiscount,
+                        'total_sub_total'     => $totalSubTotal,
+                        'total_courier_charge' => $totalCourierCharge,
+                        'total_cod_charge'    => $totalCodCharge,
+                        'total_net_total'     => $totalNetTotal,
+                        'order_count'         => count($orders),
                     ],
                 ],
             ], 200);
@@ -722,6 +651,35 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to export sales report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function exportWebSalesReport(Request $request)
+    {
+        try {
+            $reportResponse = $this->getWebSalesReport($request);
+            $reportData = $reportResponse->getData(true);
+
+            if (!$reportData['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to fetch web sales report',
+                ], 400);
+            }
+
+            $orders = $reportData['data']['orders'] ?? [];
+            $totals = $reportData['data']['totals'] ?? null;
+
+            return Excel::download(
+                new WebSalesReportExport($orders, $totals),
+                'Web_Sales_Report.xlsx'
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export web sales report',
                 'error' => $e->getMessage()
             ], 500);
         }
