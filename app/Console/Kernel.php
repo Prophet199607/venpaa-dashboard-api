@@ -8,22 +8,17 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
-    /**
-     * Define the application's command schedule.
-     *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     * @return void
-     */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Keep DB backups on personal Google Drive twice per day.
+        $schedule->command('backup:run --only-db --disable-notifications')
+            ->twiceDaily(1, 13);
+
+        // Prune old backups daily according to config/backup.php cleanup strategy.
+        $schedule->command('backup:clean --disable-notifications')
+            ->dailyAt('00:30');
     }
 
-    /**
-     * Register the commands for the application.
-     *
-     * @return void
-     */
     protected function commands()
     {
         $this->load(__DIR__ . '/Commands');
