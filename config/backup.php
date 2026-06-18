@@ -83,6 +83,7 @@ return [
              */
             'databases' => [
                 'mysql',
+                'mysql_cart',
             ],
         ],
 
@@ -110,9 +111,9 @@ return [
         'destination' => [
 
             /*
-             * The filename prefix used for the backup zip file.
+             * Set per-database in backup:run-databases command (--filename).
              */
-            'filename_prefix' => env('DB_DATABASE', 'db').'-',
+            'filename_prefix' => '',
 
             /*
              * The disk names on which the backups will be stored.
