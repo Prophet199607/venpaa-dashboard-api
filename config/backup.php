@@ -5,10 +5,12 @@ return [
     'backup' => [
 
         /*
-         * The name of this application. You can use this name to monitor
-         * the backups.
+         * Must stay empty for Google Drive uploads.
+         * Spatie normally prefixes backups with this name (e.g. Laravel/file.zip).
+         * The Google Drive adapter cannot resolve that folder name and returns 404.
+         * Backup zip files are named with date/time via Spatie's default filename format.
          */
-        'name' => env('APP_NAME', 'laravel-backup'),
+        'name' => env('BACKUP_NAME', ''),
 
         'source' => [
 
@@ -110,7 +112,7 @@ return [
             /*
              * The filename prefix used for the backup zip file.
              */
-            'filename_prefix' => '',
+            'filename_prefix' => env('DB_DATABASE', 'db').'-',
 
             /*
              * The disk names on which the backups will be stored.
@@ -204,7 +206,7 @@ return [
      */
     'monitor_backups' => [
         [
-            'name' => env('APP_NAME', 'laravel-backup'),
+            'name' => env('BACKUP_NAME', ''),
             'disks' => ['google'],
             'health_checks' => [
                 \Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays::class => 5,
