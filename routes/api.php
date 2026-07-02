@@ -461,6 +461,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/pos-collection-summary-report', [ReportController::class, 'getPosCollectionSummaryReport'])->middleware('can:view daily-collection-report');
         Route::get('/sales-report', [ReportController::class, 'getSalesReport'])->middleware('can:view sales-report');
         Route::get('/sales-report/export', [ReportController::class, 'exportSalesReport'])->middleware('can:view sales-report');
+        Route::get('/supplier-wise-purchasing-report', [ReportController::class, 'getSupplierWisePurchasingReport']);
+        Route::get('/supplier-wise-purchasing-report/export', [ReportController::class, 'exportSupplierWisePurchasingReport']);
         Route::get('/web-sales-report', [ReportController::class, 'getWebSalesReport'])->middleware('can:view web-sales-report');
         Route::get('/web-sales-report/export', [ReportController::class, 'exportWebSalesReport'])->middleware('can:view web-sales-report');
     });

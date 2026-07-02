@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use App\Exports\SalesReportExport;
 use App\Exports\CurrentStockExport;
 use App\Exports\WebSalesReportExport;
+use App\Models\TransactionHeader;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -209,6 +211,217 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getSupplierWisePurchasingReport(Request $request)
+    {
+        try {
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
+            $supplierCode = trim((string) $request->input('supplier', $request->input('supplierCode', '')));
+            $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
+            $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
+
+            $query = TransactionHeader::query()
+                ->where('iid', 'GRN')
+                ->with(['supplier', 'transactionDetails']);
+
+            if ($location !== '' && strtoupper($location) !== 'ALL') {
+                $query->where('location', $location);
+            }
+
+            if ($supplierCode !== '' && strtoupper($supplierCode) !== 'ALL') {
+                $query->where('supplier_code', $supplierCode);
+            }
+
+            if ($dateFrom) {
+                $query->where(function ($subQuery) use ($dateFrom) {
+                    $subQuery->whereDate('transaction_date', '>=', $dateFrom)
+                        ->orWhere(function ($fallbackQuery) use ($dateFrom) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '>=', $dateFrom);
+                        });
+                });
+            }
+
+            if ($dateTo) {
+                $query->where(function ($subQuery) use ($dateTo) {
+                    $subQuery->whereDate('transaction_date', '<=', $dateTo)
+                        ->orWhere(function ($fallbackQuery) use ($dateTo) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '<=', $dateTo);
+                        });
+                });
+            }
+
+            $headers = $query->orderBy('transaction_date', 'desc')
+                ->orderBy('document_date', 'desc')
+                ->get();
+
+            $uniqueLocas = array_values(array_unique($headers->pluck('location')->filter()->toArray()));
+            $locationMap = [];
+            if (!empty($uniqueLocas)) {
+                $locationRows = DB::table('locations')
+                    ->whereIn('loca_code', $uniqueLocas)
+                    ->pluck('loca_name', 'loca_code')
+                    ->toArray();
+                foreach ($uniqueLocas as $code) {
+                    $name = $locationRows[$code] ?? '';
+                    if (empty($name)) {
+                        $padded2 = str_pad(ltrim($code, '0'), 2, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded2] ?? '';
+                    }
+                    if (empty($name)) {
+                        $padded3 = str_pad(ltrim($code, '0'), 3, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded3] ?? '';
+                    }
+                    $locationMap[$code] = $name ?: $code;
+                }
+            }
+
+            $data = $headers->map(function (TransactionHeader $header) use ($locationMap) {
+                $purchaseAmount = (float) $header->transactionDetails()->sum('amount');
+                $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+
+                return [
+                    'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
+                    'location' => $locationMap[$header->location] ?? '',
+                    'supplier' => $header->supplier?->sup_name ?? '',
+                    'grn_number' => $header->doc_no,
+                    'invoice_number' => $header->invoice_no ?? '',
+                    'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
+                    'purchase_amount' => round($purchaseAmount, 2),
+                    'vat' => round((float) $header->tax, 2),
+                    'invoice_value' => round($invoiceValue, 2),
+                ];
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier wise purchasing report fetched successfully',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch supplier wise purchasing report',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function exportSupplierWisePurchasingReport(Request $request)
+    {
+        try {
+            // Reuse the data from getSupplierWisePurchasingReport
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
+            $supplierCode = trim((string) $request->input('supplier', $request->input('supplierCode', '')));
+            $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
+            $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
+
+            $query = TransactionHeader::query()
+                ->where('iid', 'GRN')
+                ->with(['supplier', 'transactionDetails']);
+
+            if ($location !== '' && strtoupper($location) !== 'ALL') {
+                $query->where('location', $location);
+            }
+
+            if ($supplierCode !== '' && strtoupper($supplierCode) !== 'ALL') {
+                $query->where('supplier_code', $supplierCode);
+            }
+
+            if ($dateFrom) {
+                $query->where(function ($subQuery) use ($dateFrom) {
+                    $subQuery->whereDate('transaction_date', '>=', $dateFrom)
+                        ->orWhere(function ($fallbackQuery) use ($dateFrom) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '>=', $dateFrom);
+                        });
+                });
+            }
+
+            if ($dateTo) {
+                $query->where(function ($subQuery) use ($dateTo) {
+                    $subQuery->whereDate('transaction_date', '<=', $dateTo)
+                        ->orWhere(function ($fallbackQuery) use ($dateTo) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '<=', $dateTo);
+                        });
+                });
+            }
+
+            $headers = $query->orderBy('transaction_date', 'desc')
+                ->orderBy('document_date', 'desc')
+                ->get();
+
+            $uniqueLocas = array_values(array_unique($headers->pluck('location')->filter()->toArray()));
+            $locationMap = [];
+            if (!empty($uniqueLocas)) {
+                $locationRows = DB::table('locations')
+                    ->whereIn('loca_code', $uniqueLocas)
+                    ->pluck('loca_name', 'loca_code')
+                    ->toArray();
+                foreach ($uniqueLocas as $code) {
+                    $name = $locationRows[$code] ?? '';
+                    if (empty($name)) {
+                        $padded2 = str_pad(ltrim($code, '0'), 2, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded2] ?? '';
+                    }
+                    if (empty($name)) {
+                        $padded3 = str_pad(ltrim($code, '0'), 3, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded3] ?? '';
+                    }
+                    $locationMap[$code] = $name ?: $code;
+                }
+            }
+
+            $data = $headers->map(function (TransactionHeader $header) use ($locationMap) {
+                $purchaseAmount = (float) $header->transactionDetails()->sum('amount');
+                $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+
+                return [
+                    'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
+                    'location' => $locationMap[$header->location] ?? '',
+                    'supplier' => $header->supplier?->sup_name ?? '',
+                    'grn_number' => $header->doc_no,
+                    'invoice_number' => $header->invoice_no ?? '',
+                    'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
+                    'purchase_amount' => round($purchaseAmount, 2),
+                    'vat' => round((float) $header->tax, 2),
+                    'invoice_value' => round($invoiceValue, 2),
+                ];
+            })->values()->toArray();
+
+            return Excel::download(
+                new \App\Exports\SupplierWisePurchasingExport($data),
+                'Supplier_Wise_Purchasing_Report.xlsx'
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export supplier wise purchasing report',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function normalizeReportDate(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        $trimmedValue = trim($value);
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $trimmedValue)) {
+            return $trimmedValue;
+        }
+
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $trimmedValue)) {
+            return Carbon::createFromFormat('d/m/Y', $trimmedValue)->format('Y-m-d');
+        }
+
+        return $trimmedValue;
     }
 
     public function getSalesReport(Request $request)
