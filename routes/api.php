@@ -461,10 +461,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/pos-collection-summary-report', [ReportController::class, 'getPosCollectionSummaryReport'])->middleware('can:view daily-collection-report');
         Route::get('/sales-report', [ReportController::class, 'getSalesReport'])->middleware('can:view sales-report');
         Route::get('/sales-report/export', [ReportController::class, 'exportSalesReport'])->middleware('can:view sales-report');
-        Route::get('/supplier-wise-purchasing-report', [ReportController::class, 'getSupplierWisePurchasingReport']);
-        Route::get('/supplier-wise-purchasing-report/export', [ReportController::class, 'exportSupplierWisePurchasingReport']);
-        Route::get('/item-wise-purchasing-report', [ReportController::class, 'getItemWisePurchasingReport']);
-        Route::get('/item-wise-purchasing-report/export', [ReportController::class, 'exportItemWisePurchasingReport']);
+        Route::get('/supplier-wise-purchasing-report', [ReportController::class, 'getSupplierWisePurchasingReport'])->middleware('can:view supplier-wise-purchasing-report');
+        Route::get('/supplier-wise-purchasing-report/export', [ReportController::class, 'exportSupplierWisePurchasingReport'])->middleware('can:view supplier-wise-purchasing-report');
+        Route::get('/item-wise-purchasing-report', [ReportController::class, 'getItemWisePurchasingReport'])->middleware('can:view item-wise-purchasing-report');
+        Route::get('/item-wise-purchasing-report/export', [ReportController::class, 'exportItemWisePurchasingReport'])->middleware('can:view item-wise-purchasing-report');
         Route::get('/web-sales-report', [ReportController::class, 'getWebSalesReport'])->middleware('can:view web-sales-report');
         Route::get('/web-sales-report/export', [ReportController::class, 'exportWebSalesReport'])->middleware('can:view web-sales-report');
     });
