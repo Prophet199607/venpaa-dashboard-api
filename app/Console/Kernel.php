@@ -10,13 +10,16 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        // Separate zip per database on Google Drive, twice per day.
-        $schedule->command('backup:run-databases --disable-notifications')
-            ->twiceDaily(1, 13);
+        $logFile = storage_path('logs/backup-scheduler.log');
 
-        // Prune old backups daily according to config/backup.php cleanup strategy.
+        // Runs only at 01:00 and 13:00 (Asia/Colombo). "schedule:run" must be called every minute via cron.
+        $schedule->command('backup:run-databases --disable-notifications')
+            ->twiceDaily(1, 13)
+            ->appendOutputTo($logFile);
+
         $schedule->command('backup:clean --disable-notifications')
-            ->dailyAt('00:30');
+            ->dailyAt('00:30')
+            ->appendOutputTo($logFile);
     }
 
     protected function commands()
