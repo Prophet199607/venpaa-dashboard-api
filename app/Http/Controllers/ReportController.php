@@ -405,6 +405,197 @@ class ReportController extends Controller
         }
     }
 
+    public function getItemWisePurchasingReport(Request $request)
+    {
+        try {
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
+            $productCode = trim((string) $request->input('product', ''));
+            $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
+            $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
+
+            $query = TransactionHeader::query()
+                ->where('iid', 'GRN')
+                ->with(['supplier', 'transactionDetails.product']);
+
+            if ($location !== '' && strtoupper($location) !== 'ALL') {
+                $query->where('location', $location);
+            }
+
+            if ($dateFrom) {
+                $query->where(function ($subQuery) use ($dateFrom) {
+                    $subQuery->whereDate('transaction_date', '>=', $dateFrom)
+                        ->orWhere(function ($fallbackQuery) use ($dateFrom) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '>=', $dateFrom);
+                        });
+                });
+            }
+
+            if ($dateTo) {
+                $query->where(function ($subQuery) use ($dateTo) {
+                    $subQuery->whereDate('transaction_date', '<=', $dateTo)
+                        ->orWhere(function ($fallbackQuery) use ($dateTo) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '<=', $dateTo);
+                        });
+                });
+            }
+
+            $headers = $query->orderBy('transaction_date', 'desc')
+                ->orderBy('document_date', 'desc')
+                ->get();
+
+            $uniqueLocas = array_values(array_unique($headers->pluck('location')->filter()->toArray()));
+            $locationMap = [];
+            if (!empty($uniqueLocas)) {
+                $locationRows = DB::table('locations')
+                    ->whereIn('loca_code', $uniqueLocas)
+                    ->pluck('loca_name', 'loca_code')
+                    ->toArray();
+                foreach ($uniqueLocas as $code) {
+                    $name = $locationRows[$code] ?? '';
+                    if (empty($name)) {
+                        $padded2 = str_pad(ltrim($code, '0'), 2, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded2] ?? '';
+                    }
+                    if (empty($name)) {
+                        $padded3 = str_pad(ltrim($code, '0'), 3, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded3] ?? '';
+                    }
+                    $locationMap[$code] = $name ?: $code;
+                }
+            }
+
+            $data = [];
+            foreach ($headers as $header) {
+                foreach ($header->transactionDetails as $detail) {
+                    if ($productCode !== '' && strtoupper($productCode) !== 'ALL' && $detail->prod_code !== $productCode) {
+                        continue;
+                    }
+
+                    $data[] = [
+                        'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
+                        'location' => $locationMap[$header->location] ?? '',
+                        'grn_number' => $header->doc_no,
+                        'prod_code' => $detail->prod_code,
+                        'prod_name' => $detail->prod_name,
+                        'supplier' => $header->supplier?->sup_name ?? '',
+                        'qty' => (float) ($detail->total_qty ?? 0),
+                        'rate' => (float) ($detail->purchase_price ?? 0),
+                        'amount' => (float) ($detail->amount ?? 0),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item wise purchasing report fetched successfully',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch item wise purchasing report',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function exportItemWisePurchasingReport(Request $request)
+    {
+        try {
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
+            $productCode = trim((string) $request->input('product', ''));
+            $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
+            $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
+
+            $query = TransactionHeader::query()
+                ->where('iid', 'GRN')
+                ->with(['supplier', 'transactionDetails.product']);
+
+            if ($location !== '' && strtoupper($location) !== 'ALL') {
+                $query->where('location', $location);
+            }
+
+            if ($dateFrom) {
+                $query->where(function ($subQuery) use ($dateFrom) {
+                    $subQuery->whereDate('transaction_date', '>=', $dateFrom)
+                        ->orWhere(function ($fallbackQuery) use ($dateFrom) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '>=', $dateFrom);
+                        });
+                });
+            }
+
+            if ($dateTo) {
+                $query->where(function ($subQuery) use ($dateTo) {
+                    $subQuery->whereDate('transaction_date', '<=', $dateTo)
+                        ->orWhere(function ($fallbackQuery) use ($dateTo) {
+                            $fallbackQuery->whereNull('transaction_date')
+                                ->whereDate('document_date', '<=', $dateTo);
+                        });
+                });
+            }
+
+            $headers = $query->orderBy('transaction_date', 'desc')
+                ->orderBy('document_date', 'desc')
+                ->get();
+
+            $uniqueLocas = array_values(array_unique($headers->pluck('location')->filter()->toArray()));
+            $locationMap = [];
+            if (!empty($uniqueLocas)) {
+                $locationRows = DB::table('locations')
+                    ->whereIn('loca_code', $uniqueLocas)
+                    ->pluck('loca_name', 'loca_code')
+                    ->toArray();
+                foreach ($uniqueLocas as $code) {
+                    $name = $locationRows[$code] ?? '';
+                    if (empty($name)) {
+                        $padded2 = str_pad(ltrim($code, '0'), 2, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded2] ?? '';
+                    }
+                    if (empty($name)) {
+                        $padded3 = str_pad(ltrim($code, '0'), 3, '0', STR_PAD_LEFT);
+                        $name = $locationRows[$padded3] ?? '';
+                    }
+                    $locationMap[$code] = $name ?: $code;
+                }
+            }
+
+            $data = [];
+            foreach ($headers as $header) {
+                foreach ($header->transactionDetails as $detail) {
+                    if ($productCode !== '' && strtoupper($productCode) !== 'ALL' && $detail->prod_code !== $productCode) {
+                        continue;
+                    }
+
+                    $data[] = [
+                        'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
+                        'location' => $locationMap[$header->location] ?? '',
+                        'grn_number' => $header->doc_no,
+                        'prod_code' => $detail->prod_code,
+                        'prod_name' => $detail->prod_name,
+                        'supplier' => $header->supplier?->sup_name ?? '',
+                        'qty' => (float) ($detail->total_qty ?? 0),
+                        'rate' => (float) ($detail->purchase_price ?? 0),
+                        'amount' => (float) ($detail->amount ?? 0),
+                    ];
+                }
+            }
+
+            return Excel::download(
+                new \App\Exports\ItemWisePurchasingExport($data),
+                'Item_Wise_Purchasing_Report.xlsx'
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export item wise purchasing report',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     private function normalizeReportDate(?string $value): ?string
     {
         if (empty($value)) {
