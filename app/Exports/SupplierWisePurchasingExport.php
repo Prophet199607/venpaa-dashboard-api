@@ -6,8 +6,10 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class SupplierWisePurchasingExport implements FromArray, WithHeadings, WithTitle, ShouldAutoSize
+class SupplierWisePurchasingExport implements FromArray, WithHeadings, WithTitle, ShouldAutoSize, WithColumnFormatting
 {
     protected $reportData;
 
@@ -26,10 +28,10 @@ class SupplierWisePurchasingExport implements FromArray, WithHeadings, WithTitle
                 $row['supplier'],
                 $row['grn_number'],
                 $row['invoice_number'],
-                $row['purchase_type'] ? ucfirst($row['purchase_type']) : '-',
-                number_format((float) ($row['purchase_amount'] ?? 0), 2),
-                number_format((float) ($row['vat'] ?? 0), 2),
-                number_format((float) ($row['invoice_value'] ?? 0), 2),
+                isset($row['purchase_type']) ? ucfirst($row['purchase_type']) : '-',
+                (float) ($row['purchase_amount'] ?? 0),
+                (float) ($row['vat'] ?? 0),
+                (float) ($row['invoice_value'] ?? 0),
             ];
         }
         return $formatted;
@@ -42,11 +44,20 @@ class SupplierWisePurchasingExport implements FromArray, WithHeadings, WithTitle
             'Location',
             'Supplier',
             'GRN No',
-            'Invoice No',
+            'Supplier Invoice No',
             'Purchase Type',
             'Purchase Amount',
             'VAT',
             'Invoice Value',
+        ];
+    }
+
+    public function columnFormats(): array
+    {
+        return [
+            'G' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
+            'H' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
+            'I' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
         ];
     }
 

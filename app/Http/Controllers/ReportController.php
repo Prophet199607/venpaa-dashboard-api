@@ -281,6 +281,8 @@ class ReportController extends Controller
             $data = $headers->map(function (TransactionHeader $header) use ($locationMap) {
                 $purchaseAmount = (float) $header->transactionDetails()->sum('amount');
                 $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+                $taxPer = (float) ($header->tax_per ?? 0);
+                $vat = $taxPer > 0 ? round($purchaseAmount * $taxPer / 100, 2) : 0;
 
                 return [
                     'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
@@ -290,7 +292,7 @@ class ReportController extends Controller
                     'invoice_number' => $header->invoice_no ?? '',
                     'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
                     'purchase_amount' => round($purchaseAmount, 2),
-                    'vat' => round((float) $header->tax, 2),
+                    'vat' => $vat,
                     'invoice_value' => round($invoiceValue, 2),
                 ];
             })->values();
@@ -378,6 +380,8 @@ class ReportController extends Controller
             $data = $headers->map(function (TransactionHeader $header) use ($locationMap) {
                 $purchaseAmount = (float) $header->transactionDetails()->sum('amount');
                 $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+                $taxPer = (float) ($header->tax_per ?? 0);
+                $vat = $taxPer > 0 ? round($purchaseAmount * $taxPer / 100, 2) : 0;
 
                 return [
                     'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
@@ -387,7 +391,7 @@ class ReportController extends Controller
                     'invoice_number' => $header->invoice_no ?? '',
                     'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
                     'purchase_amount' => round($purchaseAmount, 2),
-                    'vat' => round((float) $header->tax, 2),
+                    'vat' => $vat,
                     'invoice_value' => round($invoiceValue, 2),
                 ];
             })->values()->toArray();
@@ -468,21 +472,33 @@ class ReportController extends Controller
 
             $data = [];
             foreach ($headers as $header) {
+                $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+                $taxPer = (float) ($header->tax_per ?? 0);
+
                 foreach ($header->transactionDetails as $detail) {
                     if ($productCode !== '' && strtoupper($productCode) !== 'ALL' && $detail->prod_code !== $productCode) {
                         continue;
                     }
 
+                    $qty = (float) ($detail->total_qty ?? 0);
+                    $rate = (float) ($detail->purchase_price ?? 0);
+                    $lineAmount = round($qty * $rate, 2);
+                    $lineVat = $taxPer > 0 ? round($lineAmount * $taxPer / 100, 2) : 0;
+
                     $data[] = [
                         'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
                         'location' => $locationMap[$header->location] ?? '',
                         'grn_number' => $header->doc_no,
+                        'invoice_number' => $header->invoice_no ?? '',
+                        'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
                         'prod_code' => $detail->prod_code,
                         'prod_name' => $detail->prod_name,
                         'supplier' => $header->supplier?->sup_name ?? '',
-                        'qty' => (float) ($detail->total_qty ?? 0),
-                        'rate' => (float) ($detail->purchase_price ?? 0),
-                        'amount' => (float) ($detail->amount ?? 0),
+                        'qty' => $qty,
+                        'rate' => $rate,
+                        'amount' => $lineAmount,
+                        'vat' => $lineVat,
+                        'invoice_value' => round($invoiceValue, 2),
                     ];
                 }
             }
@@ -564,21 +580,33 @@ class ReportController extends Controller
 
             $data = [];
             foreach ($headers as $header) {
+                $invoiceValue = (float) ($header->invoice_amount > 0 ? $header->invoice_amount : $header->net_total);
+                $taxPer = (float) ($header->tax_per ?? 0);
+
                 foreach ($header->transactionDetails as $detail) {
                     if ($productCode !== '' && strtoupper($productCode) !== 'ALL' && $detail->prod_code !== $productCode) {
                         continue;
                     }
 
+                    $qty = (float) ($detail->total_qty ?? 0);
+                    $rate = (float) ($detail->purchase_price ?? 0);
+                    $lineAmount = round($qty * $rate, 2);
+                    $lineVat = $taxPer > 0 ? round($lineAmount * $taxPer / 100, 2) : 0;
+
                     $data[] = [
                         'date' => $header->transaction_date ? $header->transaction_date->format('Y-m-d') : ($header->document_date ? $header->document_date->format('Y-m-d') : ''),
                         'location' => $locationMap[$header->location] ?? '',
                         'grn_number' => $header->doc_no,
+                        'invoice_number' => $header->invoice_no ?? '',
+                        'purchase_type' => strtolower((string) ($header->payment_mode ?? '')),
                         'prod_code' => $detail->prod_code,
                         'prod_name' => $detail->prod_name,
                         'supplier' => $header->supplier?->sup_name ?? '',
-                        'qty' => (float) ($detail->total_qty ?? 0),
-                        'rate' => (float) ($detail->purchase_price ?? 0),
-                        'amount' => (float) ($detail->amount ?? 0),
+                        'qty' => $qty,
+                        'rate' => $rate,
+                        'amount' => $lineAmount,
+                        'vat' => $lineVat,
+                        'invoice_value' => round($invoiceValue, 2),
                     ];
                 }
             }
