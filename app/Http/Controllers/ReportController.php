@@ -110,11 +110,16 @@ class ReportController extends Controller
     public function getCurrentStockReport(Request $request)
     {
         try {
-            $location = $request->input('location', $request->input('Loca', ''));
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
             $supplierCodes = $request->input('supplierCodes', '');
             $department = $request->input('department', '');
             $prodCodes = $request->input('prodCodes', '');
             $category = $request->input('category', '');
+
+            // Empty or "all" means all locations
+            if ($location === '' || strtoupper($location) === 'ALL') {
+                $location = '';
+            }
 
             DB::statement('SET @pErrorCode = 0');
 
@@ -165,11 +170,16 @@ class ReportController extends Controller
     public function exportCurrentStockReport(Request $request)
     {
         try {
-            $location = $request->input('location', $request->input('Loca', ''));
+            $location = trim((string) $request->input('location', $request->input('Loca', '')));
             $supplierCodes = $request->input('supplierCodes', '');
             $department = $request->input('department', '');
             $prodCodes = $request->input('prodCodes', '');
             $category = $request->input('category', '');
+
+            // Empty or "all" means all locations
+            if ($location === '' || strtoupper($location) === 'ALL') {
+                $location = '';
+            }
 
             DB::statement('SET @pErrorCode = 0');
 
