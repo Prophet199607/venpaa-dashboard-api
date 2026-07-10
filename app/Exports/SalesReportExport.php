@@ -27,6 +27,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
             
             $formatted[] = [
                 $rowObj->BillDate ?? '',
+                $rowObj->Receipt_No ?? '',
                 $rowObj->Loca_Name ?? '',
                 $rowObj->CODE ?? '',
                 $rowObj->Description ?? '',
@@ -53,6 +54,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
                 '',
                 '',
                 '',
+                '',
                 $t->Qty ?? 0,
                 $t->Order_Value ?? 0,
                 $t->COD_Charge ?? 0,
@@ -73,6 +75,7 @@ class SalesReportExport implements FromArray, WithHeadings, WithTitle, ShouldAut
     {
         return [
             'Sale Date',
+            'Receipt No',
             'Location',
             'Code',
             'Description',
