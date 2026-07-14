@@ -86,6 +86,7 @@ class PriceLevelController extends Controller
             ], 422);
         }
 
+        $this->logAction($priceLevel, 'updated_old');
         $priceLevel->update($validated);
 
         $this->logAction($priceLevel->fresh(), 'updated');

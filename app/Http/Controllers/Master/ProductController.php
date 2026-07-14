@@ -13,6 +13,7 @@ use App\Models\StockMaster;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use App\Models\ProductImage;
+use App\Models\PriceLevelLog;
 use App\Exports\BinCardExport;
 use App\Models\ProductSupplier;
 use App\Models\TransactionDetail;
@@ -888,6 +889,35 @@ class ProductController extends Controller
                 ->orderBy('id')
                 ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
 
+            $existingPriceKeys = $rawPriceLevels->map(function ($pl) {
+                return round((float)$pl->purchase_price, 2) . '|' . round((float)$pl->selling_price, 2);
+            })->toArray();
+
+            $historicalLogs = PriceLevelLog::where('prod_code', $prod_code)
+                ->whereIn('action', ['deleted', 'updated_old'])
+                ->orderBy('id')
+                ->get();
+
+            $fauxIdOffset = PriceLevel::max('id') ?? 0;
+            $fauxIds = [];
+
+            foreach ($historicalLogs as $log) {
+                $priceKey = round((float)$log->purchase_price, 2) . '|' . round((float)$log->selling_price, 2);
+                if (!in_array($priceKey, $existingPriceKeys)) {
+                    $fauxIdOffset++;
+                    $fauxIds[] = $fauxIdOffset;
+                    $rawPriceLevels->push((object) [
+                        'id' => $fauxIdOffset,
+                        'purchase_price' => $log->purchase_price,
+                        'selling_price' => $log->selling_price,
+                        'wholesale_price' => $log->wholesale_price,
+                        'has_expiry' => $log->has_expiry,
+                        'expiry_date' => $log->expiry_date,
+                    ]);
+                    $existingPriceKeys[] = $priceKey;
+                }
+            }
+
             $hasOriginalLevel = $rawPriceLevels->contains(function ($level) use ($product) {
                 return round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
                     && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
@@ -968,15 +998,6 @@ class ProductController extends Controller
                         }
 
                         if ($matchedLevelKey === null) {
-                            foreach ($priceLevels as $level) {
-                                if (round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2)) {
-                                    $matchedLevelKey = $level['level_key'];
-                                    break;
-                                }
-                            }
-                        }
-
-                        if ($matchedLevelKey === null) {
                             $matchedLevelKey = 'original';
                         }
 
@@ -1012,6 +1033,30 @@ class ProductController extends Controller
                         'selling_price' => $level['selling_price'],
                         'qty' => (float) ($levelLocationStockMap[$loc->loca_code][$level['level_key']] ?? 0),
                     ];
+                }
+            }
+
+            if (!empty($fauxIds)) {
+                $totalStockPerLevel = [];
+                foreach ($levelLocationStocks as $row) {
+                    $key = $row['level_key'];
+                    $totalStockPerLevel[$key] = ($totalStockPerLevel[$key] ?? 0) + $row['qty'];
+                }
+
+                $hideLevelKeys = [];
+                foreach ($priceLevels as $level) {
+                    if (in_array($level['id'], $fauxIds) && ($totalStockPerLevel[$level['level_key']] ?? 0) == 0) {
+                        $hideLevelKeys[] = $level['level_key'];
+                    }
+                }
+
+                if (!empty($hideLevelKeys)) {
+                    $priceLevels = array_values(array_filter($priceLevels, function ($level) use ($hideLevelKeys) {
+                        return !in_array($level['level_key'], $hideLevelKeys);
+                    }));
+                    $levelLocationStocks = array_values(array_filter($levelLocationStocks, function ($row) use ($hideLevelKeys) {
+                        return !in_array($row['level_key'], $hideLevelKeys);
+                    }));
                 }
             }
 
