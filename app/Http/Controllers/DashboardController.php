@@ -133,18 +133,15 @@ class DashboardController extends Controller
     public function getBills(Request $request)
     {
         try {
-            // ── Location ──────────────────────────────────────────────────────────
             $locaRaw  = $request->input('location', $request->input('Loca', ''));
             $location = $locaRaw !== ''
                 ? str_pad(ltrim((string) $locaRaw, '0'), 2, '0', STR_PAD_LEFT)
                 : '';
 
-            // ── Dates ─────────────────────────────────────────────────────────────
             $dateFrom = trim($request->input('date_from', ''));
             $dateTo   = trim($request->input('date_to',   ''));
             $unit     = trim($request->input('unit',      ''));
 
-            // ── Validation ────────────────────────────────────────────────────────
             if ($location === '' || $dateFrom === '' || $unit === '') {
                 return response()->json([
                     'success' => false,
@@ -159,7 +156,6 @@ class DashboardController extends Controller
                 ], 400);
             }
 
-            // ── Normalise dates: yyyy-MM-dd → dd/MM/yyyy (SP format) ─────────────
             $dateFrom = self::normaliseDateForSP($dateFrom);
             if ($dateFrom === null) {
                 return response()->json([
@@ -168,7 +164,6 @@ class DashboardController extends Controller
                 ], 400);
             }
 
-            // date_to defaults to date_from (single-day query) when omitted
             if ($dateTo === '') {
                 $dateTo = $dateFrom;
             } else {
@@ -181,13 +176,11 @@ class DashboardController extends Controller
                 }
             }
 
-            // ── PaymentCategory  NULL | 'CASH' | 'CREDIT' ────────────────────────
             $payTypeRaw  = $request->input('pay_type', null);
             $payCategory = (isset($payTypeRaw) && $payTypeRaw !== '' && $payTypeRaw !== 'ALL')
                 ? strtoupper(trim($payTypeRaw))
                 : null;
 
-            // ── PaymentType  NULL | exact Item_Descrip e.g. 'VISA', 'BANK TRANSFER'
             $paymentMethodRaw = $request->input('payment_method', null);
             $paymentMethod    = (isset($paymentMethodRaw) && $paymentMethodRaw !== '' && $paymentMethodRaw !== 'ALL')
                 ? strtoupper(trim($paymentMethodRaw))
@@ -221,6 +214,213 @@ class DashboardController extends Controller
         }
     }
 
+    public function getSalesOverview(Request $request)
+    {
+        try {
+            $days = (int) $request->input('days', 14);
+            $location = $request->input('location', '');
+
+            $daily001 = DB::table('stock_masters')
+                ->select(DB::raw('DATE(transaction_date) as date'), DB::raw('SUM(amount) as amount'))
+                ->where('iid', '001')
+                ->whereNotNull('transaction_date')
+                ->when($location, function ($q) use ($location) {
+                    return $q->where('location', $location);
+                })
+                ->where('transaction_date', '>=', today()->subDays($days))
+                ->groupBy(DB::raw('DATE(transaction_date)'))
+                ->orderBy('date')
+                ->get()
+                ->keyBy('date')
+                ->map(function ($row) {
+                    return ['date' => $row->date, 'amount' => (float) $row->amount];
+                });
+
+            $dailyONL = DB::table('stock_masters')
+                ->select(DB::raw('DATE(transaction_date) as date'), DB::raw('SUM(amount) as amount'))
+                ->where('iid', 'ONL')
+                ->whereNotNull('transaction_date')
+                ->when($location, function ($q) use ($location) {
+                    return $q->where('location', $location);
+                })
+                ->where('transaction_date', '>=', today()->subDays($days))
+                ->groupBy(DB::raw('DATE(transaction_date)'))
+                ->orderBy('date')
+                ->get()
+                ->keyBy('date')
+                ->map(function ($row) {
+                    return ['date' => $row->date, 'amount' => (float) $row->amount];
+                });
+
+            $allPosDates = collect(array_merge(
+                $daily001->keys()->toArray(),
+                $dailyONL->keys()->toArray()
+            ))->unique()->sort()->values();
+
+            $posDaily = $allPosDates->map(function ($date) use ($daily001, $dailyONL) {
+                $has001 = isset($daily001[$date]);
+                return [
+                    'date'   => $date,
+                    'amount' => $has001
+                        ? (float) ($daily001[$date]['amount'] ?? 0)
+                        : (float) ($dailyONL[$date]['amount'] ?? 0),
+                ];
+            })->keyBy('date');
+
+            $totalPos001 = (float) DB::table('stock_masters')
+                ->where('iid', '001')
+                ->when($location, function ($q) use ($location) {
+                    return $q->where('location', $location);
+                })
+                ->sum('amount');
+            $todayPos001 = (float) DB::table('stock_masters')
+                ->where('iid', '001')
+                ->when($location, function ($q) use ($location) {
+                    return $q->where('location', $location);
+                })
+                ->whereDate('transaction_date', today())
+                ->sum('amount');
+            $todayPosONL = (float) DB::table('stock_masters')
+                ->where('iid', 'ONL')
+                ->when($location, function ($q) use ($location) {
+                    return $q->where('location', $location);
+                })
+                ->whereDate('transaction_date', today())
+                ->sum('amount');
+
+            $totalPos = $totalPos001 + $todayPosONL;
+            $todayPos = $todayPos001 > 0 ? $todayPos001 : $todayPosONL;
+
+            $cartDb = 'venpaa-cart';
+            $onlineTotalRevenue = 0;
+            $onlineTodayRevenue = 0;
+            $onlineTotalOrders = 0;
+            $onlineTodayOrders = 0;
+            $sourceBreakdown = ['WEB' => ['orders' => 0, 'revenue' => 0], 'APP' => ['orders' => 0, 'revenue' => 0]];
+            $onlineDaily = [];
+
+            try {
+                $checkouts = DB::connection()->select("
+                    SELECT co.id, co.created_at, co.payload, co.type, u.platform
+                    FROM `{$cartDb}`.checkouts co
+                    JOIN `{$cartDb}`.users u ON co.user_id = u.id
+                    WHERE co.payment_status = 'success'
+                    AND co.created_at >= ?
+                ", [today()->subDays($days)]);
+
+                foreach ($checkouts as $co) {
+                    $payload = json_decode($co->payload, true);
+                    $totals = $payload['totals'] ?? [];
+                    $isCod = ((int) $co->type === 1);
+                    $subTotal = (float) ($totals['subTotal'] ?? 0);
+                    $courierCharge = (float) ($totals['courierCharge'] ?? 0);
+                    $codCharge = $isCod ? (float) ($totals['codCharge'] ?? 0) : 0;
+                    $netTotal = $isCod
+                        ? (float) ($totals['netTotalWithCod'] ?? $subTotal + $courierCharge + $codCharge)
+                        : (float) ($totals['netTotalWithoutCod'] ?? $subTotal + $courierCharge);
+                    $platform = strtoupper((string) ($co->platform ?? ''));
+                    $source = in_array($platform, ['3', 'WEB', 'WEBSITE']) ? 'WEB' : 'APP';
+                    $date = date('Y-m-d', strtotime($co->created_at));
+
+                    $onlineTotalRevenue += $netTotal;
+                    $onlineTotalOrders++;
+                    $sourceBreakdown[$source]['orders']++;
+                    $sourceBreakdown[$source]['revenue'] += $netTotal;
+
+                    if (date('Y-m-d', strtotime($co->created_at)) === today()->format('Y-m-d')) {
+                        $onlineTodayRevenue += $netTotal;
+                        $onlineTodayOrders++;
+                    }
+
+                    if (!isset($onlineDaily[$date])) {
+                        $onlineDaily[$date] = ['date' => $date, 'revenue' => 0];
+                    }
+                    $onlineDaily[$date]['revenue'] += $netTotal;
+                }
+
+                $pcOrders = DB::connection()->select("
+                    SELECT pc.pick_and_collect_id, pc.created_at, pc.type, u.platform, pc.net_amount
+                    FROM `{$cartDb}`.pick_and_collects pc
+                    JOIN `{$cartDb}`.users u ON pc.user_id = u.id
+                    WHERE pc.payment_status = 'success'
+                    AND pc.created_at >= ?
+                    GROUP BY pc.pick_and_collect_id
+                ", [today()->subDays($days)]);
+
+                foreach ($pcOrders as $pc) {
+                    $netAmount = (float) ($pc->net_amount ?? 0);
+                    $platform = strtoupper((string) ($pc->platform ?? ''));
+                    $source = in_array($platform, ['3', 'WEB', 'WEBSITE']) ? 'WEB' : 'APP';
+                    $date = date('Y-m-d', strtotime($pc->created_at));
+
+                    $onlineTotalRevenue += $netAmount;
+                    $onlineTotalOrders++;
+                    $sourceBreakdown[$source]['orders']++;
+                    $sourceBreakdown[$source]['revenue'] += $netAmount;
+
+                    if (date('Y-m-d', strtotime($pc->created_at)) === today()->format('Y-m-d')) {
+                        $onlineTodayRevenue += $netAmount;
+                        $onlineTodayOrders++;
+                    }
+
+                    if (!isset($onlineDaily[$date])) {
+                        $onlineDaily[$date] = ['date' => $date, 'revenue' => 0];
+                    }
+                    $onlineDaily[$date]['revenue'] += $netAmount;
+                }
+            } catch (\Exception $e) {
+            }
+
+            $allDates = collect(array_merge(
+                $posDaily->keys()->toArray(),
+                array_keys($onlineDaily)
+            ))->unique()->sort()->values();
+
+            $mergedDaily = $allDates->map(function ($date) use ($posDaily, $onlineDaily) {
+                return [
+                    'date'           => $date,
+                    'pos_amount'     => (float) ($posDaily[$date]['amount'] ?? 0),
+                    'online_revenue' => (float) ($onlineDaily[$date]['revenue'] ?? 0),
+                ];
+            });
+
+            $combinedTotal = $totalPos + $onlineTotalRevenue;
+            $posPct = $combinedTotal > 0 ? round(($totalPos / $combinedTotal) * 100, 1) : 0;
+            $onlinePct = $combinedTotal > 0 ? round(($onlineTotalRevenue / $combinedTotal) * 100, 1) : 0;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'pos' => [
+                        'today_sales' => $todayPos,
+                        'total_sales' => $totalPos,
+                    ],
+                    'online' => [
+                        'today_orders'     => $onlineTodayOrders,
+                        'today_revenue'    => $onlineTodayRevenue,
+                        'total_orders'     => $onlineTotalOrders,
+                        'total_revenue'    => $onlineTotalRevenue,
+                        'source_breakdown' => $sourceBreakdown,
+                    ],
+                    'daily_trend' => $mergedDaily,
+                    'combined' => [
+                        'total_revenue'    => $combinedTotal,
+                        'pos_percentage'   => $posPct,
+                        'online_percentage'=> $onlinePct,
+                        'pos_revenue'      => $totalPos,
+                        'online_revenue'   => $onlineTotalRevenue,
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch sales overview',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Accept yyyy-MM-dd or dd/MM/yyyy, always return dd/MM/yyyy.
      * Returns null on unrecognised format.
@@ -236,4 +436,3 @@ class DashboardController extends Controller
         return null;
     }
 }
-
