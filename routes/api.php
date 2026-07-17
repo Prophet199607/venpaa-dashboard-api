@@ -421,7 +421,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
     });
 
     // cod management routes
-    Route::group(['prefix' => 'cod-management'], function () {
+    Route::group(['prefix' => 'cod-management', 'middleware' => ['can:view cod-management-report']], function () {
         Route::get('/', [CodManagementController::class, 'index']);
         Route::get('/report', [CodManagementController::class, 'report']);
         Route::get('/report/export', [CodManagementController::class, 'exportReport']);
