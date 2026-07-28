@@ -788,6 +788,7 @@ class ReportController extends Controller
                 FROM `{$cartDb}`.checkouts co
                 JOIN `{$cartDb}`.users u ON co.user_id = u.id
                 WHERE co.payment_status = 'success'
+                AND co.status NOT IN ('canceled', 'returned')
                 {$coDateClause}
                 ORDER BY co.created_at DESC
             ";
@@ -816,6 +817,7 @@ class ReportController extends Controller
                 FROM `{$cartDb}`.pick_and_collects pc
                 JOIN `{$cartDb}`.users u ON pc.user_id = u.id
                 WHERE pc.payment_status = 'success'
+                AND pc.status NOT IN ('canceled', 'returned')
                 {$pcDateClause}
                 GROUP BY pc.pick_and_collect_id, pc.type, pc.type_name, pc.location, pc.location_name, pc.created_at, pc.payment_status, u.id, u.fname, u.lname, u.email, u.phone, u.platform
                 ORDER BY pc.created_at DESC
