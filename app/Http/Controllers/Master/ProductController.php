@@ -583,6 +583,9 @@ class ProductController extends Controller
                 ->select('stock_masters.*', 'iids.name as iid_name')
                 ->get();
 
+            $definitions = $this->buildPriceLevelDefinitions($product);
+            $priceLevels = $definitions['price_levels'];
+
             $balance = 0;
             $transactions = [];
             foreach ($rows as $row) {
@@ -590,15 +593,29 @@ class ProductController extends Controller
                 $balance += $qty;
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
+
+                $matchedLevel = null;
+                foreach ($priceLevels as $level) {
+                    if (
+                        round((float) $row->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                        round((float) $row->selling_price, 2) === round((float) $level['selling_price'], 2)
+                    ) {
+                        $matchedLevel = $level;
+                        break;
+                    }
+                }
+
                 $transactions[] = [
-                    'transaction' => $row->iid_name ?? $row->iid,
-                    'date'        => $row->transaction_date,
-                    'document'    => $row->doc_no,
-                    'reference'   => $row->doc_no,
-                    'cost'        => number_format((float) $row->purchase_price, 2, '.', ''),
-                    'stock_in'    => $stockIn,
-                    'stock_out'   => $stockOut,
-                    'balance'     => (string) round($balance, 3),
+                    'transaction'   => $row->iid_name ?? $row->iid,
+                    'date'          => $row->transaction_date,
+                    'document'      => $row->doc_no,
+                    'reference'     => $row->doc_no,
+                    'cost'          => number_format((float) $row->purchase_price, 2, '.', ''),
+                    'price_level'   => $matchedLevel['label'] ?? 'Original',
+                    'selling_price' => number_format((float) ($matchedLevel['selling_price'] ?? $row->selling_price), 2, '.', ''),
+                    'stock_in'      => $stockIn,
+                    'stock_out'     => $stockOut,
+                    'balance'       => (string) round($balance, 3),
                 ];
             }
 
@@ -658,6 +675,9 @@ class ProductController extends Controller
                 ->select('stock_masters.*', 'iids.name as iid_name')
                 ->get();
 
+            $definitions = $this->buildPriceLevelDefinitions($product);
+            $priceLevels = $definitions['price_levels'];
+
             $balance = 0;
             $transactions = [];
             foreach ($rows as $row) {
@@ -665,15 +685,29 @@ class ProductController extends Controller
                 $balance += $qty;
                 $stockIn = $qty > 0 ? (string) round($qty, 3) : '';
                 $stockOut = $qty < 0 ? (string) round(abs($qty), 3) : '';
+
+                $matchedLevel = null;
+                foreach ($priceLevels as $level) {
+                    if (
+                        round((float) $row->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                        round((float) $row->selling_price, 2) === round((float) $level['selling_price'], 2)
+                    ) {
+                        $matchedLevel = $level;
+                        break;
+                    }
+                }
+
                 $transactions[] = [
-                    'transaction' => $row->iid_name ?? $row->iid,
-                    'date'        => (string) $row->transaction_date,
-                    'document'    => $row->doc_no,
-                    'reference'   => $row->doc_no,
-                    'cost'        => number_format((float) $row->purchase_price, 2, '.', ''),
-                    'stock_in'    => $stockIn,
-                    'stock_out'   => $stockOut,
-                    'balance'     => (string) round($balance, 3),
+                    'transaction'   => $row->iid_name ?? $row->iid,
+                    'date'          => (string) $row->transaction_date,
+                    'document'      => $row->doc_no,
+                    'reference'     => $row->doc_no,
+                    'cost'          => number_format((float) $row->purchase_price, 2, '.', ''),
+                    'price_level'   => $matchedLevel['label'] ?? 'Original',
+                    'selling_price' => number_format((float) ($matchedLevel['selling_price'] ?? $row->selling_price), 2, '.', ''),
+                    'stock_in'      => $stockIn,
+                    'stock_out'     => $stockOut,
+                    'balance'       => (string) round($balance, 3),
                 ];
             }
 
@@ -885,77 +919,9 @@ class ProductController extends Controller
                 ];
             })->values();
 
-            $rawPriceLevels = PriceLevel::where('prod_code', $prod_code)
-                ->orderBy('id')
-                ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
-
-            $existingPriceKeys = $rawPriceLevels->map(function ($pl) {
-                return round((float)$pl->purchase_price, 2) . '|' . round((float)$pl->selling_price, 2);
-            })->toArray();
-
-            $historicalLogs = PriceLevelLog::where('prod_code', $prod_code)
-                ->whereIn('action', ['deleted', 'updated_old'])
-                ->orderBy('id')
-                ->get();
-
-            $fauxIdOffset = PriceLevel::max('id') ?? 0;
-            $fauxIds = [];
-
-            foreach ($historicalLogs as $log) {
-                $priceKey = round((float)$log->purchase_price, 2) . '|' . round((float)$log->selling_price, 2);
-                if (!in_array($priceKey, $existingPriceKeys)) {
-                    $fauxIdOffset++;
-                    $fauxIds[] = $fauxIdOffset;
-                    $rawPriceLevels->push((object) [
-                        'id' => $fauxIdOffset,
-                        'purchase_price' => $log->purchase_price,
-                        'selling_price' => $log->selling_price,
-                        'wholesale_price' => $log->wholesale_price,
-                        'has_expiry' => $log->has_expiry,
-                        'expiry_date' => $log->expiry_date,
-                    ]);
-                    $existingPriceKeys[] = $priceKey;
-                }
-            }
-
-            $hasOriginalLevel = $rawPriceLevels->contains(function ($level) use ($product) {
-                return round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
-                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
-                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
-            });
-
-            $priceLevels = [];
-            $additionalLevelNo = 1;
-
-            if (!$hasOriginalLevel) {
-                $priceLevels[] = [
-                    'id' => null,
-                    'level_key' => 'original',
-                    'label' => 'Original',
-                    'purchase_price' => (float) $product->purchase_price,
-                    'selling_price' => (float) $product->selling_price,
-                    'wholesale_price' => (float) $product->wholesale_price,
-                    'has_expiry' => false,
-                    'expiry_date' => null,
-                ];
-            }
-
-            foreach ($rawPriceLevels as $level) {
-                $isOriginal = round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
-                    && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
-                    && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
-
-                $priceLevels[] = [
-                    'id' => $level->id,
-                    'level_key' => $isOriginal ? 'original' : ('level_' . $level->id),
-                    'label' => $isOriginal ? 'Original' : ('Level ' . $additionalLevelNo++),
-                    'purchase_price' => (float) $level->purchase_price,
-                    'selling_price' => (float) $level->selling_price,
-                    'wholesale_price' => (float) $level->wholesale_price,
-                    'has_expiry' => (bool) $level->has_expiry,
-                    'expiry_date' => $level->expiry_date,
-                ];
-            }
+            $definitions = $this->buildPriceLevelDefinitions($product);
+            $priceLevels = $definitions['price_levels'];
+            $fauxIds = $definitions['faux_ids'];
 
             $stockRows = StockMaster::where('prod_code', $prod_code)
                 ->where('iid', '!=', 'CREATE')
@@ -1017,6 +983,31 @@ class ProductController extends Controller
                             }
                         }
                         unset($batch);
+
+                        // Outward may exceed the stock left in the FIFO queue (e.g. an
+                        // oversell that makes the running balance negative). Attribute the
+                        // uncovered portion so the per-level totals stay reconciled with the
+                        // actual (possibly negative) running balance instead of silently
+                        // dropping it and leaving phantom stock in the level buckets.
+                        if ($remaining > 0) {
+                            $uncoveredLevelKey = null;
+                            foreach ($priceLevels as $level) {
+                                if (
+                                    round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
+                                    round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
+                                ) {
+                                    $uncoveredLevelKey = $level['level_key'];
+                                    break;
+                                }
+                            }
+                            if ($uncoveredLevelKey === null) {
+                                $uncoveredLevelKey = 'original';
+                            }
+                            if (!isset($levelLocationStockMap[$location][$uncoveredLevelKey])) {
+                                $levelLocationStockMap[$location][$uncoveredLevelKey] = 0;
+                            }
+                            $levelLocationStockMap[$location][$uncoveredLevelKey] -= $remaining;
+                        }
                     }
                 }
             }
@@ -1075,5 +1066,87 @@ class ProductController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function buildPriceLevelDefinitions($product)
+    {
+        $prod_code = $product->prod_code;
+
+        $rawPriceLevels = PriceLevel::where('prod_code', $prod_code)
+            ->orderBy('id')
+            ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
+
+        $existingPriceKeys = $rawPriceLevels->map(function ($pl) {
+            return round((float)$pl->purchase_price, 2) . '|' . round((float)$pl->selling_price, 2);
+        })->toArray();
+
+        $historicalLogs = PriceLevelLog::where('prod_code', $prod_code)
+            ->whereIn('action', ['deleted', 'updated_old'])
+            ->orderBy('id')
+            ->get();
+
+        $fauxIdOffset = PriceLevel::max('id') ?? 0;
+        $fauxIds = [];
+
+        foreach ($historicalLogs as $log) {
+            $priceKey = round((float)$log->purchase_price, 2) . '|' . round((float)$log->selling_price, 2);
+            if (!in_array($priceKey, $existingPriceKeys)) {
+                $fauxIdOffset++;
+                $fauxIds[] = $fauxIdOffset;
+                $rawPriceLevels->push((object) [
+                    'id' => $fauxIdOffset,
+                    'purchase_price' => $log->purchase_price,
+                    'selling_price' => $log->selling_price,
+                    'wholesale_price' => $log->wholesale_price,
+                    'has_expiry' => $log->has_expiry,
+                    'expiry_date' => $log->expiry_date,
+                ]);
+                $existingPriceKeys[] = $priceKey;
+            }
+        }
+
+        $hasOriginalLevel = $rawPriceLevels->contains(function ($level) use ($product) {
+            return round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+        });
+
+        $priceLevels = [];
+        $additionalLevelNo = 1;
+
+        if (!$hasOriginalLevel) {
+            $priceLevels[] = [
+                'id' => null,
+                'level_key' => 'original',
+                'label' => 'Original',
+                'purchase_price' => (float) $product->purchase_price,
+                'selling_price' => (float) $product->selling_price,
+                'wholesale_price' => (float) $product->wholesale_price,
+                'has_expiry' => false,
+                'expiry_date' => null,
+            ];
+        }
+
+        foreach ($rawPriceLevels as $level) {
+            $isOriginal = round((float) $level->purchase_price, 2) === round((float) $product->purchase_price, 2)
+                && round((float) $level->selling_price, 2) === round((float) $product->selling_price, 2)
+                && round((float) $level->wholesale_price, 2) === round((float) $product->wholesale_price, 2);
+
+            $priceLevels[] = [
+                'id' => $level->id,
+                'level_key' => $isOriginal ? 'original' : ('level_' . $level->id),
+                'label' => $isOriginal ? 'Original' : ('Level ' . $additionalLevelNo++),
+                'purchase_price' => (float) $level->purchase_price,
+                'selling_price' => (float) $level->selling_price,
+                'wholesale_price' => (float) $level->wholesale_price,
+                'has_expiry' => (bool) $level->has_expiry,
+                'expiry_date' => $level->expiry_date,
+            ];
+        }
+
+        return [
+            'price_levels' => $priceLevels,
+            'faux_ids' => $fauxIds,
+        ];
     }
 }
