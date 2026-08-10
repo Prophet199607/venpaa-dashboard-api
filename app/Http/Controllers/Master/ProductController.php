@@ -920,8 +920,13 @@ class ProductController extends Controller
             })->values();
 
             $definitions = $this->buildPriceLevelDefinitions($product);
-            $priceLevels = $definitions['price_levels'];
             $fauxIds = $definitions['faux_ids'];
+            // Only current (non-deleted) price levels are used for stock allocation.
+            // Deleted levels from logs are kept for bin-card transaction labels only.
+            $priceLevels = array_values(array_filter(
+                $definitions['price_levels'],
+                fn ($level) => $level['id'] === null || !in_array($level['id'], $fauxIds, true)
+            ));
 
             $stockRows = StockMaster::where('prod_code', $prod_code)
                 ->where('iid', '!=', 'CREATE')
@@ -950,22 +955,11 @@ class ProductController extends Controller
                     $qty = (float) $stockRow->qty;
 
                     if ($qty > 0) {
-                        // Inward: match to a price level
-                        $matchedLevelKey = null;
-
-                        foreach ($priceLevels as $level) {
-                            if (
-                                round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
-                                round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
-                            ) {
-                                $matchedLevelKey = $level['level_key'];
-                                break;
-                            }
-                        }
-
-                        if ($matchedLevelKey === null) {
-                            $matchedLevelKey = 'original';
-                        }
+                        $matchedLevelKey = $this->resolveActiveLevelKey(
+                            $stockRow->purchase_price,
+                            $stockRow->selling_price,
+                            $priceLevels
+                        );
 
                         $levelLocationStockMap[$location][$matchedLevelKey] += $qty;
                         $fifoQueue[] = ['level_key' => $matchedLevelKey, 'qty' => $qty];
@@ -986,23 +980,14 @@ class ProductController extends Controller
 
                         // Outward may exceed the stock left in the FIFO queue (e.g. an
                         // oversell that makes the running balance negative). Attribute the
-                        // uncovered portion so the per-level totals stay reconciled with the
-                        // actual (possibly negative) running balance instead of silently
-                        // dropping it and leaving phantom stock in the level buckets.
+                        // uncovered portion to an active price level so totals reconcile
+                        // with the bin-card running balance.
                         if ($remaining > 0) {
-                            $uncoveredLevelKey = null;
-                            foreach ($priceLevels as $level) {
-                                if (
-                                    round((float) $stockRow->purchase_price, 2) === round((float) $level['purchase_price'], 2) &&
-                                    round((float) $stockRow->selling_price, 2) === round((float) $level['selling_price'], 2)
-                                ) {
-                                    $uncoveredLevelKey = $level['level_key'];
-                                    break;
-                                }
-                            }
-                            if ($uncoveredLevelKey === null) {
-                                $uncoveredLevelKey = 'original';
-                            }
+                            $uncoveredLevelKey = $this->resolveActiveLevelKey(
+                                $stockRow->purchase_price,
+                                $stockRow->selling_price,
+                                $priceLevels
+                            );
                             if (!isset($levelLocationStockMap[$location][$uncoveredLevelKey])) {
                                 $levelLocationStockMap[$location][$uncoveredLevelKey] = 0;
                             }
@@ -1024,30 +1009,6 @@ class ProductController extends Controller
                         'selling_price' => $level['selling_price'],
                         'qty' => (float) ($levelLocationStockMap[$loc->loca_code][$level['level_key']] ?? 0),
                     ];
-                }
-            }
-
-            if (!empty($fauxIds)) {
-                $totalStockPerLevel = [];
-                foreach ($levelLocationStocks as $row) {
-                    $key = $row['level_key'];
-                    $totalStockPerLevel[$key] = ($totalStockPerLevel[$key] ?? 0) + $row['qty'];
-                }
-
-                $hideLevelKeys = [];
-                foreach ($priceLevels as $level) {
-                    if (in_array($level['id'], $fauxIds) && ($totalStockPerLevel[$level['level_key']] ?? 0) == 0) {
-                        $hideLevelKeys[] = $level['level_key'];
-                    }
-                }
-
-                if (!empty($hideLevelKeys)) {
-                    $priceLevels = array_values(array_filter($priceLevels, function ($level) use ($hideLevelKeys) {
-                        return !in_array($level['level_key'], $hideLevelKeys);
-                    }));
-                    $levelLocationStocks = array_values(array_filter($levelLocationStocks, function ($row) use ($hideLevelKeys) {
-                        return !in_array($row['level_key'], $hideLevelKeys);
-                    }));
                 }
             }
 
@@ -1148,5 +1109,23 @@ class ProductController extends Controller
             'price_levels' => $priceLevels,
             'faux_ids' => $fauxIds,
         ];
+    }
+
+    /**
+     * Map a stock transaction's prices to a current (non-deleted) price level.
+     * Historical transactions tied to deleted levels fall back to Original.
+     */
+    private function resolveActiveLevelKey($purchasePrice, $sellingPrice, array $activePriceLevels): string
+    {
+        foreach ($activePriceLevels as $level) {
+            if (
+                round((float) $purchasePrice, 2) === round((float) $level['purchase_price'], 2) &&
+                round((float) $sellingPrice, 2) === round((float) $level['selling_price'], 2)
+            ) {
+                return $level['level_key'];
+            }
+        }
+
+        return 'original';
     }
 }
