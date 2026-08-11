@@ -20,6 +20,9 @@ class CodManagementController extends Controller
         $queryResult = CodManagement::when($userLocation, fn($q, $loc) => $q->where('location', $loc))
             ->when($request->filled('start_date'), fn($q) => $q->whereDate('transaction_date', '>=', $request->start_date))
             ->when($request->filled('end_date'), fn($q) => $q->whereDate('transaction_date', '<=', $request->end_date))
+            ->when($request->filled('status'), fn($q) => $q->where('status', $request->status), fn($q) => $q->where(function ($sub) {
+                $sub->where('status', 'Pending')->orWhereNull('status');
+            }))
             ->orderBy('transaction_date', 'desc')
             ->get();
 
