@@ -115,6 +115,7 @@ class ReportController extends Controller
             $department = $request->input('department', '');
             $prodCodes = $request->input('prodCodes', '');
             $category = $request->input('category', '');
+            $transactionDate = $this->normalizeReportDate($request->input('transactionDate', ''));
 
             // Empty or "all" means all locations
             if ($location === '' || strtoupper($location) === 'ALL') {
@@ -123,12 +124,13 @@ class ReportController extends Controller
 
             DB::statement('SET @pErrorCode = 0');
 
-            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?, ?)', [
+            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?, ?, ?)', [
                 $location,
                 $department,
                 $category,
                 $supplierCodes,
-                $prodCodes
+                $prodCodes,
+                $transactionDate
             ]);
 
             $errorCode = DB::select('SELECT @pErrorCode as error_code')[0]->error_code;
@@ -175,6 +177,7 @@ class ReportController extends Controller
             $department = $request->input('department', '');
             $prodCodes = $request->input('prodCodes', '');
             $category = $request->input('category', '');
+            $transactionDate = $this->normalizeReportDate($request->input('transactionDate', ''));
 
             // Empty or "all" means all locations
             if ($location === '' || strtoupper($location) === 'ALL') {
@@ -183,12 +186,13 @@ class ReportController extends Controller
 
             DB::statement('SET @pErrorCode = 0');
 
-            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?, ?)', [
+            $summary = DB::select('CALL sp_CurrentStockReport(@pErrorCode, ?, ?, ?, ?, ?, ?)', [
                 $location,
                 $department,
                 $category,
                 $supplierCodes,
-                $prodCodes
+                $prodCodes,
+                $transactionDate
             ]);
 
             $errorCode = DB::select('SELECT @pErrorCode as error_code')[0]->error_code;
@@ -213,7 +217,7 @@ class ReportController extends Controller
                 $row->Loca_Name = $locations[$row->Loca] ?? '';
             }
 
-            return Excel::download(new CurrentStockExport($summary), 'Current_Stock_Report.xlsx');
+            return Excel::download(new CurrentStockExport($summary, $transactionDate), 'Current_Stock_Report.xlsx');
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
