@@ -115,7 +115,9 @@ class RolePermissionSeeder extends Seeder
             'manage-pending-item-request',
             'manage-open-stock',
             'view order',
-            'update order'
+            'update order',
+            'view cod-management-report',
+            'edit cod-management'
         ];
 
         $allPermissionsList = array_merge($allPermissionsList, $otherPermissions);
