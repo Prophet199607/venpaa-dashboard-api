@@ -189,19 +189,21 @@ class CodManagementController extends Controller
         $orderNo = $record->doc_no;
         $receiptNo = $record->receipt_no;
 
-        $cartDb = 'venpaa-cart';
+        $cartDb = env('DB_CART_DATABASE');
 
         // 1. Try web checkout (delivery orders)
-        if ($orderNo) {
+        // Some records store the courier tracking number in doc_no (e.g. BD...LK)
+        // while the actual cart order_id lives in receipt_no, so match on both.
+        if ($orderNo || $receiptNo) {
             $checkout = DB::selectOne("
                 SELECT co.*, u.fname, u.lname, u.email, u.phone,
                        u.address, u.city, u.province, u.postal_code, u.country,
                        u.platform
                 FROM `{$cartDb}`.checkouts co
                 JOIN `{$cartDb}`.users u ON co.user_id = u.id
-                WHERE co.order_id = ?
+                WHERE co.order_id IN (?, ?)
                 LIMIT 1
-            ", [$orderNo]);
+            ", [$orderNo ?: null, $receiptNo ?: null]);
 
             if ($checkout) {
                 $payload = json_decode($checkout->payload, true);
@@ -262,9 +264,9 @@ class CodManagementController extends Controller
                 SELECT pc.*, u.fname, u.lname, u.email, u.phone
                 FROM `{$cartDb}`.pick_and_collects pc
                 JOIN `{$cartDb}`.users u ON pc.user_id = u.id
-                WHERE pc.pick_and_collect_id = ?
+                WHERE pc.pick_and_collect_id IN (?, ?)
                 LIMIT 1
-            ", [$orderNo]);
+            ", [$orderNo ?: null, $receiptNo ?: null]);
 
             if ($pc) {
                 $isCod = ((int) $pc->type === 1);
