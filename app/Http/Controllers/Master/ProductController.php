@@ -585,6 +585,7 @@ class ProductController extends Controller
 
             $definitions = $this->buildPriceLevelDefinitions($product);
             $priceLevels = $definitions['price_levels'];
+            $priceKeyLabelMap = $definitions['price_key_label_map'];
 
             $balance = 0;
             $transactions = [];
@@ -602,6 +603,12 @@ class ProductController extends Controller
                     ) {
                         $matchedLevel = $level;
                         break;
+                    }
+                }
+                if ($matchedLevel === null) {
+                    $priceKey = round((float) $row->purchase_price, 2) . '|' . round((float) $row->selling_price, 2);
+                    if (isset($priceKeyLabelMap[$priceKey])) {
+                        $matchedLevel = $priceKeyLabelMap[$priceKey];
                     }
                 }
 
@@ -677,6 +684,7 @@ class ProductController extends Controller
 
             $definitions = $this->buildPriceLevelDefinitions($product);
             $priceLevels = $definitions['price_levels'];
+            $priceKeyLabelMap = $definitions['price_key_label_map'];
 
             $balance = 0;
             $transactions = [];
@@ -694,6 +702,12 @@ class ProductController extends Controller
                     ) {
                         $matchedLevel = $level;
                         break;
+                    }
+                }
+                if ($matchedLevel === null) {
+                    $priceKey = round((float) $row->purchase_price, 2) . '|' . round((float) $row->selling_price, 2);
+                    if (isset($priceKeyLabelMap[$priceKey])) {
+                        $matchedLevel = $priceKeyLabelMap[$priceKey];
                     }
                 }
 
@@ -921,12 +935,11 @@ class ProductController extends Controller
 
             $definitions = $this->buildPriceLevelDefinitions($product);
             $fauxIds = $definitions['faux_ids'];
-            // Only current (non-deleted) price levels are used for stock allocation.
-            // Deleted levels from logs are kept for bin-card transaction labels only.
             $priceLevels = array_values(array_filter(
                 $definitions['price_levels'],
                 fn ($level) => $level['id'] === null || !in_array($level['id'], $fauxIds, true)
             ));
+            $priceKeyLevelMap = $definitions['price_key_level_map'];
 
             $stockRows = StockMaster::where('prod_code', $prod_code)
                 ->where('iid', '!=', 'CREATE')
@@ -958,7 +971,8 @@ class ProductController extends Controller
                         $matchedLevelKey = $this->resolveActiveLevelKey(
                             $stockRow->purchase_price,
                             $stockRow->selling_price,
-                            $priceLevels
+                            $priceLevels,
+                            $priceKeyLevelMap
                         );
 
                         $levelLocationStockMap[$location][$matchedLevelKey] += $qty;
@@ -978,15 +992,12 @@ class ProductController extends Controller
                         }
                         unset($batch);
 
-                        // Outward may exceed the stock left in the FIFO queue (e.g. an
-                        // oversell that makes the running balance negative). Attribute the
-                        // uncovered portion to an active price level so totals reconcile
-                        // with the bin-card running balance.
                         if ($remaining > 0) {
                             $uncoveredLevelKey = $this->resolveActiveLevelKey(
                                 $stockRow->purchase_price,
                                 $stockRow->selling_price,
-                                $priceLevels
+                                $priceLevels,
+                                $priceKeyLevelMap
                             );
                             if (!isset($levelLocationStockMap[$location][$uncoveredLevelKey])) {
                                 $levelLocationStockMap[$location][$uncoveredLevelKey] = 0;
@@ -1041,16 +1052,30 @@ class ProductController extends Controller
             return round((float)$pl->purchase_price, 2) . '|' . round((float)$pl->selling_price, 2);
         })->toArray();
 
+        $existingLevelIds = $rawPriceLevels->pluck('id')->all();
+
         $historicalLogs = PriceLevelLog::where('prod_code', $prod_code)
             ->whereIn('action', ['deleted', 'updated_old'])
             ->orderBy('id')
             ->get();
 
         $fauxIdOffset = PriceLevel::max('id') ?? 0;
-        $fauxIds = [];
+        $fauxIds = [];$owningLevelIdMap = [];
+        $owningLevelSellingPrice = [];
 
         foreach ($historicalLogs as $log) {
             $priceKey = round((float)$log->purchase_price, 2) . '|' . round((float)$log->selling_price, 2);
+
+            if (
+                $log->action === 'updated_old'
+                && $log->price_level_id !== null
+                && in_array($log->price_level_id, $existingLevelIds, true)
+            ) {
+                $owningLevelIdMap[$priceKey] = $log->price_level_id;
+                $owningLevelSellingPrice[$priceKey] = (float) $log->selling_price;
+                continue;
+            }
+
             if (!in_array($priceKey, $existingPriceKeys)) {
                 $fauxIdOffset++;
                 $fauxIds[] = $fauxIdOffset;
@@ -1105,17 +1130,37 @@ class ProductController extends Controller
             ];
         }
 
+        $priceKeyLevelMap = [];
+        $priceKeyLabelMap = [];
+        foreach ($owningLevelIdMap as $priceKey => $levelId) {
+            foreach ($priceLevels as $level) {
+                if (isset($level['id']) && $level['id'] === $levelId) {
+                    $priceKeyLevelMap[$priceKey] = $level['level_key'];
+                    $priceKeyLabelMap[$priceKey] = [
+                        'label' => $level['label'],
+                        'selling_price' => $owningLevelSellingPrice[$priceKey] ?? $level['selling_price'],
+                    ];
+                    break;
+                }
+            }
+        }
+
         return [
             'price_levels' => $priceLevels,
             'faux_ids' => $fauxIds,
+            'price_key_level_map' => $priceKeyLevelMap,
+            'price_key_label_map' => $priceKeyLabelMap,
         ];
     }
 
     /**
      * Map a stock transaction's prices to a current (non-deleted) price level.
-     * Historical transactions tied to deleted levels fall back to Original.
+     * - exact price match on active levels wins,
+     * - then historical prices that belong to an updated level are attributed
+     *   to that same level,
+     * - otherwise the transaction falls back to Original.
      */
-    private function resolveActiveLevelKey($purchasePrice, $sellingPrice, array $activePriceLevels): string
+    private function resolveActiveLevelKey($purchasePrice, $sellingPrice, array $activePriceLevels, array $priceKeyLevelMap = []): string
     {
         foreach ($activePriceLevels as $level) {
             if (
@@ -1124,6 +1169,11 @@ class ProductController extends Controller
             ) {
                 return $level['level_key'];
             }
+        }
+
+        $priceKey = round((float) $purchasePrice, 2) . '|' . round((float) $sellingPrice, 2);
+        if (isset($priceKeyLevelMap[$priceKey])) {
+            return $priceKeyLevelMap[$priceKey];
         }
 
         return 'original';
