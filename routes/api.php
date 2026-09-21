@@ -43,6 +43,7 @@ use App\Http\Controllers\Transaction\TransferGoodReturnController;
 
 use App\Http\Controllers\Payment\PaymentVoucherController;
 use App\Http\Controllers\Payment\CodManagementController;
+use App\Http\Controllers\Payment\BankTransferController;
 
 
 /*
@@ -428,6 +429,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['auth:sanctum']], function () {
         Route::get('/report/export', [CodManagementController::class, 'exportReport']);
         Route::put('/{id}/received', [CodManagementController::class, 'markAsReceived'])->middleware('can:edit cod-management');
         Route::put('/{id}/returned', [CodManagementController::class, 'markAsReturned'])->middleware('can:edit cod-management');
+    });
+
+    // bank transfer routes
+    Route::group(['prefix' => 'bank-transfer'], function () {
+        Route::get('/', [BankTransferController::class, 'index']);
+        Route::get('/{id}/details', [BankTransferController::class, 'details']);
     });
 
     // invoice routes

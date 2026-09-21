@@ -117,7 +117,8 @@ class RolePermissionSeeder extends Seeder
             'view order',
             'update order',
             'view cod-management-report',
-            'edit cod-management'
+            'edit cod-management',
+            'view bank-transfer',
         ];
 
         $allPermissionsList = array_merge($allPermissionsList, $otherPermissions);
