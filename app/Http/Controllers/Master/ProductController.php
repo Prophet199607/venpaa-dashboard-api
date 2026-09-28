@@ -1046,7 +1046,13 @@ class ProductController extends Controller
 
         $rawPriceLevels = PriceLevel::where('prod_code', $prod_code)
             ->orderBy('id')
-            ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date']);
+            ->get(['id', 'purchase_price', 'selling_price', 'wholesale_price', 'has_expiry', 'expiry_date'])
+            ->unique(function ($pl) {
+                return round((float) $pl->purchase_price, 2) . '|'
+                    . round((float) $pl->selling_price, 2) . '|'
+                    . round((float) $pl->wholesale_price, 2);
+            })
+            ->values();
 
         $existingPriceKeys = $rawPriceLevels->map(function ($pl) {
             return round((float)$pl->purchase_price, 2) . '|' . round((float)$pl->selling_price, 2);
