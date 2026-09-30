@@ -106,6 +106,17 @@ class RolePermissionSeeder extends Seeder
             $allPermissionsList[] = "view $module";
         }
 
+        $websiteModules = [
+            'website-detail', 'web-discount', 'web-customer', 'book-request',
+            'navbar-item', 'carousel', 'banner', 'coupon', 'section',
+            'featured-author', 'featured-publisher',
+        ];
+
+        // Website Permissions (Manage Only)
+        foreach ($websiteModules as $module) {
+            $allPermissionsList[] = "manage $module";
+        }
+
         // System/Other Permissions
         $otherPermissions = [
             'view dashboard stats',
@@ -116,6 +127,7 @@ class RolePermissionSeeder extends Seeder
             'manage-open-stock',
             'view order',
             'update order',
+            'view cod-management',
             'view cod-management-report',
             'edit cod-management',
             'view bank-transfer',
