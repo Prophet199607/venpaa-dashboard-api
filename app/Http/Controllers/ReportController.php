@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
 use App\Exports\SalesReportExport;
 use App\Exports\CurrentStockExport;
-use App\Exports\WebSalesReportExport;
-use App\Models\TransactionHeader;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\WebSalesReportExport;
+use App\Exports\InventoryMovementExport;
 
 /**
  * Class ReportController
@@ -225,6 +226,178 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get Inventory Movement Report
+     */
+    public function getInventoryMovementReport(Request $request)
+    {
+        try {
+            $result = $this->runInventoryMovementReport($request);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventory movement report fetched successfully',
+                'data' => $result['rows'],
+                'totals' => $result['totals'],
+                'filters' => $result['filters']
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch inventory movement report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export Inventory Movement Report to Excel
+     */
+    public function exportInventoryMovementReport(Request $request)
+    {
+        try {
+            $result = $this->runInventoryMovementReport($request);
+
+            return Excel::download(
+                new InventoryMovementExport($result['rows'], $result['filters']),
+                'Inventory_Movement_Report.xlsx'
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export inventory movement report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Run sp_InventoryMovementReport and shape the result set for the API and the
+     * Excel export.
+     */
+    private function runInventoryMovementReport(Request $request): array
+    {
+        $location = trim((string) $request->input('location', $request->input('Loca', '')));
+
+        // Empty or "all" means all locations
+        if ($location === '' || strcasecmp($location, 'all') === 0) {
+            $location = '';
+        }
+
+        $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
+        $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
+
+        // The procedure takes plain "Y-m-d" bounds (both parameters are VARCHAR(10)).
+        $rows = DB::select('CALL sp_InventoryMovementReport(?, ?, ?)', [
+            $dateFrom,
+            $dateTo,
+            $location !== '' ? $location : null
+        ]);
+
+        $locations = DB::table('locations')->pluck('loca_name', 'loca_code');
+
+        // The procedure only returns the location name, so map it back to its code.
+        $locaCodeByName = [];
+        foreach ($locations as $locaCode => $locaName) {
+            $locaCodeByName[(string) $locaName] = (string) $locaCode;
+        }
+
+        $quantityColumns = [
+            'open_stock_qty', 'grn_qty', 'transfer_in_qty', 'total_in_qty', 'sale_qty',
+            'good_return_qty', 'transfer_out_qty', 'product_discard_qty',
+            'total_out_qty', 'adjustment_qty', 'close_stock_qty',
+        ];
+
+        $valueColumns = [
+            'open_stock_value', 'grn_value', 'transfer_in_value', 'total_in_value',
+            'sale_value', 'good_return_value', 'transfer_out_value',
+            'product_discard_value', 'total_out_value', 'adjustment_value',
+            'close_stock_value',
+        ];
+
+        // The procedure aliases its measures with spaces, e.g. "open stock qty".
+        $aliases = [
+            'open_stock_qty' => 'open stock qty',
+            'grn_qty' => 'grn qty',
+            'transfer_in_qty' => 'transfer in qty',
+            'total_in_qty' => 'total in qty',
+            'sale_qty' => 'sale qty',
+            'good_return_qty' => 'good return qty',
+            'transfer_out_qty' => 'transfer out qty',
+            'product_discard_qty' => 'product discard qty',
+            'total_out_qty' => 'total out qty',
+            'adjustment_qty' => 'adjustment qty',
+            'close_stock_qty' => 'close stock qty',
+            'open_stock_value' => 'open stock value',
+            'grn_value' => 'grn value',
+            'transfer_in_value' => 'transfer in value',
+            'total_in_value' => 'total in value',
+            'sale_value' => 'sale value',
+            'good_return_value' => 'good return value',
+            'transfer_out_value' => 'transfer out value',
+            'product_discard_value' => 'product discard value',
+            'total_out_value' => 'total out value',
+            'adjustment_value' => 'adjustment value',
+            'close_stock_value' => 'close stock value',
+        ];
+
+        $totals = array_fill_keys(array_merge($quantityColumns, $valueColumns), 0);
+
+        $mappedRows = [];
+
+        foreach ($rows as $row) {
+            $raw = (array) $row;
+            $locaName = (string) ($raw['loca_name'] ?? '');
+
+            $record = [
+                'loca_code' => $locaCodeByName[$locaName] ?? '',
+                'loca_name' => $locaName,
+                'prod_code' => (string) ($raw['prod_code'] ?? ''),
+                'prod_name' => (string) ($raw['prod_name'] ?? ''),
+                'unit' => (string) ($raw['unit'] ?? ''),
+            ];
+
+            foreach ($quantityColumns as $column) {
+                $value = round((float) ($raw[$aliases[$column]] ?? 0), 3);
+                $record[$column] = $value;
+                $totals[$column] += $value;
+            }
+
+            foreach ($valueColumns as $column) {
+                $value = round((float) ($raw[$aliases[$column]] ?? 0), 2);
+                $record[$column] = $value;
+                $totals[$column] += $value;
+            }
+
+            $mappedRows[] = $record;
+        }
+
+        // Re-round the accumulated totals to match the per row precision.
+        foreach ($quantityColumns as $column) {
+            $totals[$column] = round($totals[$column], 3);
+        }
+
+        foreach ($valueColumns as $column) {
+            $totals[$column] = round($totals[$column], 2);
+        }
+
+        // The procedure groups by product/location but leaves the row order undefined.
+        usort($mappedRows, function ($a, $b) {
+            return [$a['loca_code'], $a['prod_code']] <=> [$b['loca_code'], $b['prod_code']];
+        });
+
+        return [
+            'rows' => $mappedRows,
+            'totals' => $totals,
+            'filters' => [
+                'location' => $location,
+                'location_name' => $location !== '' ? ($locations[$location] ?? $location) : '',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ],
+        ];
     }
 
     public function getSupplierWisePurchasingReport(Request $request)

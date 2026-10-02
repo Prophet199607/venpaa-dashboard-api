@@ -43,6 +43,7 @@ class RolePermissionSeeder extends Seeder
 
         $reportModules = [
             'pos-sales-summary-report', 'daily-collection-report', 'current-stock-report',
+            'inventory-movement-report',
             'sales-report', 'web-sales-report', 'supplier-wise-purchasing-report',
             'item-wise-purchasing-report',
         ];
