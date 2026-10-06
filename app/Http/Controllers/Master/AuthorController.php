@@ -10,11 +10,21 @@ use App\Exports\AuthorExport;
 use App\Http\Controllers\Controller;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use App\Http\Requests\Master\AuthorRequest;
 use App\Http\Resources\Master\AuthorResource;
 
 class AuthorController extends Controller
 {
+    private function dropLanguageIfColumnMissing(array $data): array
+    {
+        if (array_key_exists('language', $data) && !Schema::hasColumn('authors', 'language')) {
+            unset($data['language']);
+        }
+
+        return $data;
+    }
+
     public function generateAuthorCode()
     {
         try {
@@ -101,7 +111,7 @@ class AuthorController extends Controller
     public function store(AuthorRequest $request)
     {
         try {
-            $data = $request->validated();
+            $data = $this->dropLanguageIfColumnMissing($request->validated());
             $data['created_by'] = auth()->id();
 
             // Check if Author code already exists
@@ -140,7 +150,7 @@ class AuthorController extends Controller
     {
         try {
             $author = Author::where('auth_code', $auth_code)->first();
-            $data = $request->validated();
+            $data = $this->dropLanguageIfColumnMissing($request->validated());
             $data['updated_by'] = auth()->id();
 
             $new_auth_code = $data['auth_code'] ?? $auth_code;

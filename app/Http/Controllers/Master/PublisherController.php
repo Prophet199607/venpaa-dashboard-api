@@ -10,13 +10,22 @@ use App\Exports\PublisherExport;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Maatwebsite\Excel\Facades\Excel;    
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Master\PublisherRequest;
 use App\Http\Resources\Master\PublisherResource;
 
-
 class PublisherController extends Controller
 {
+    private function dropLanguageIfColumnMissing(array $data): array
+    {
+        if (array_key_exists('language', $data) && !Schema::hasColumn('publishers', 'language')) {
+            unset($data['language']);
+        }
+
+        return $data;
+    }
+
     public function generatePublisherCode()
     {
         try {
@@ -76,7 +85,7 @@ class PublisherController extends Controller
     {
         try {
             DB::beginTransaction();
-            $data = $request->validated();
+            $data = $this->dropLanguageIfColumnMissing($request->validated());
             $data['created_by'] = auth()->id();
 
             // Check if publisher code already exists
@@ -118,7 +127,7 @@ class PublisherController extends Controller
         try {
             DB::beginTransaction();
             $publisher = Publisher::where('pub_code', $pub_code)->first();
-            $data = $request->validated();
+            $data = $this->dropLanguageIfColumnMissing($request->validated());
             $data['updated_by'] = auth()->id();
 
             $new_pub_code = $data['pub_code'] ?? $pub_code;

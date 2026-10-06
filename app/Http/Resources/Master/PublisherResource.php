@@ -25,7 +25,7 @@ class PublisherResource extends JsonResource
             'email'         => $this->email,
             'description'   => $this->description,
             'language'      => $this->language,
-            'language_name' => Language::where('lang_code', $this->language)->value('lang_name'),
+            'language_name' => $this->language ? Language::where('lang_code', $this->language)->value('lang_name') : null,
             'pub_image'     => $this->pub_image,
             'pub_image_url' => $this->getS3Url(),
             // 'pub_image_url' => $this->pub_image ? asset('storage/' . $this->pub_image) : null,

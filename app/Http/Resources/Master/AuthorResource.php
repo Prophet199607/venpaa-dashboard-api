@@ -21,7 +21,7 @@ class AuthorResource extends JsonResource
             'auth_name'             => $this->auth_name,
             'auth_name_other_language'       => $this->auth_name_other_language,
             'language'            => $this->language,
-            'language_name'       => Language::where('lang_code', $this->language)->value('lang_name'),
+            'language_name'       => $this->language ? Language::where('lang_code', $this->language)->value('lang_name') : null,
             'description'           => $this->description,
             'auth_image'            => $this->auth_image,
             'auth_image_url'        => $this->getS3Url(),
