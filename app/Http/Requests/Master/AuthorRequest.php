@@ -38,6 +38,7 @@ class AuthorRequest extends FormRequest
             'auth_name_other_language' => 'nullable|string',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
+            'language' => 'nullable|string',
         ];
     }
 }

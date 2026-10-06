@@ -39,6 +39,7 @@ class PublisherRequest extends FormRequest
             'email' => 'nullable|string|email',
             'description' => 'nullable|string',
             'status' => 'nullable|integer',
+            'language' => 'nullable|string',
         ];
     }
 }

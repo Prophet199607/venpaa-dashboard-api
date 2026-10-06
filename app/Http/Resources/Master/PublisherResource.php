@@ -4,6 +4,7 @@ namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Language;
 
 class PublisherResource extends JsonResource
 {
@@ -23,6 +24,8 @@ class PublisherResource extends JsonResource
             'contact'       => $this->contact,
             'email'         => $this->email,
             'description'   => $this->description,
+            'language'      => $this->language,
+            'language_name' => Language::where('lang_code', $this->language)->value('lang_name'),
             'pub_image'     => $this->pub_image,
             'pub_image_url' => $this->getS3Url(),
             // 'pub_image_url' => $this->pub_image ? asset('storage/' . $this->pub_image) : null,

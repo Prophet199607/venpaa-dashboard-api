@@ -4,6 +4,7 @@ namespace App\Http\Resources\Master;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Language;
 
 class AuthorResource extends JsonResource
 {
@@ -19,6 +20,8 @@ class AuthorResource extends JsonResource
             'auth_code'             => $this->auth_code,
             'auth_name'             => $this->auth_name,
             'auth_name_other_language'       => $this->auth_name_other_language,
+            'language'            => $this->language,
+            'language_name'       => Language::where('lang_code', $this->language)->value('lang_name'),
             'description'           => $this->description,
             'auth_image'            => $this->auth_image,
             'auth_image_url'        => $this->getS3Url(),
