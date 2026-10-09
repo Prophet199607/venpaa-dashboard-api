@@ -48,22 +48,27 @@ class BookController extends Controller
     {
         try {
             $userLocation = $request->user()->location ?? null;
+            $perPage = (int) $request->input('per_page', 10);
+            $perPage = max(1, min($perPage, 100));
 
             $products = Product::where('status', 1)
                 ->where('department', '10')
                 ->with(['authors', 'category', 'subCategories', 'department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation', 'unit'])
-                ->get();
+                ->orderBy('id')
+                ->paginate($perPage);
 
             if ($userLocation) {
-                // Get stock sum per product for the user's location
-                $stocks = StockMaster::whereIn('prod_code', $products->pluck('prod_code'))
+                $pageProducts = $products->getCollection();
+
+                // Get stock sum per product for the user's location (current page only)
+                $stocks = StockMaster::whereIn('prod_code', $pageProducts->pluck('prod_code'))
                     ->where('location', $userLocation)
                     ->where('iid', '!=', 'CREATE')
                     ->groupBy('prod_code')
                     ->select('prod_code', DB::raw('SUM(qty) as total_qty'))
                     ->pluck('total_qty', 'prod_code');
 
-                foreach ($products as $product) {
+                foreach ($pageProducts as $product) {
                     $product->current_stock = (float) ($stocks[$product->prod_code] ?? 0);
                 }
             }
@@ -71,7 +76,15 @@ class BookController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Books fetched successfully',
-                'data' => BookResource::collection($products)
+                'data' => BookResource::collection($products->items()),
+                'pagination' => [
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                    'per_page' => $products->perPage(),
+                    'total' => $products->total(),
+                    'from' => $products->firstItem(),
+                    'to' => $products->lastItem(),
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
