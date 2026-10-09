@@ -48,6 +48,7 @@ class MagazineController extends Controller
 
             $products = Product::where('status', 1)
                 ->where('department', '15')
+                ->search($request->input('search'))
                 ->with(['category', 'subCategories', 'subCategoryL2s', 'department', 'publisher', 'suppliers', 'images', 'languageRelation', 'unit'])
                 ->get();
 

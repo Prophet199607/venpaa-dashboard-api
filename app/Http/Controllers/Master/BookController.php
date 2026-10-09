@@ -53,6 +53,7 @@ class BookController extends Controller
 
             $products = Product::where('status', 1)
                 ->where('department', '10')
+                ->search($request->input('search'))
                 ->with(['authors', 'category', 'subCategories', 'department', 'bookType', 'publisher', 'suppliers', 'images', 'languageRelation', 'unit'])
                 ->orderBy('id')
                 ->paginate($perPage);

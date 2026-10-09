@@ -74,6 +74,30 @@ class Product extends Model
         return $this->hasMany(PriceLevel::class, 'prod_code', 'prod_code');
     }
 
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string|null  $term
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearch($query, ?string $term)
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%' . $term . '%';
+
+        return $query->where(function ($q) use ($like) {
+            $q->where('prod_code', 'like', $like)
+                ->orWhere('prod_name', 'like', $like)
+                ->orWhere('barcode', 'like', $like)
+                ->orWhere('isbn', 'like', $like)
+                ->orWhere('title_in_other_language', 'like', $like);
+        });
+    }
+
     protected static function booted()
     {
         // Update DocNumber after successful creation

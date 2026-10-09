@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -56,6 +57,12 @@ class AuthController extends Controller
 
     public function me(Request $request) {
         $user = $request->user()->load('roles');
+
+        // Surface the logged-in location name for the navbar (kept separate from
+        // the `location` code so no extra, permission-gated request is needed).
+        $user->location_name = $user->location
+            ? Location::where('loca_code', $user->location)->value('loca_name')
+            : null;
 
         return response()->json([
             'user' => $user,
