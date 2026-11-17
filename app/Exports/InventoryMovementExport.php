@@ -5,7 +5,8 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
@@ -14,15 +15,22 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, ShouldAutoSize, WithEvents, WithStrictNullComparison, WithColumnFormatting
+class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, WithColumnWidths, WithCustomStartCell, WithEvents, WithStrictNullComparison, WithColumnFormatting
 {
     protected $reportData;
     protected $filters;
+    protected $totals;
 
-    public function __construct(array $reportData, array $filters = [])
+    public function __construct(array $reportData, array $filters = [], array $totals = [])
     {
         $this->reportData = $reportData;
         $this->filters = $filters;
+        $this->totals = $totals;
+    }
+
+    public function startCell(): string
+    {
+        return 'A3';
     }
 
     public function array(): array
@@ -32,7 +40,7 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
         foreach ($this->reportData as $row) {
             $row = (object) $row;
 
-            $locationDisplay = !empty($row->loca_name) ? $row->loca_name : $row->loca_code;
+            $locationDisplay = !empty($row->loca_name) ? $row->loca_name : ($row->loca_code ?? '');
 
             $formatted[] = [
                 $locationDisplay,
@@ -106,6 +114,38 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
         return 'Inventory Movement Report';
     }
 
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 18, // Location
+            'B' => 14, // Prod Code
+            'C' => 32, // Product Name
+            'D' => 10, // Unit
+            'E' => 15, // Open Stock Qty
+            'F' => 16, // Open Stock Value
+            'G' => 14, // GRN Qty
+            'H' => 15, // GRN Value
+            'I' => 15, // Transfer In Qty
+            'J' => 16, // Transfer In Value
+            'K' => 14, // Total In Qty
+            'L' => 15, // Total In Value
+            'M' => 14, // Sale Qty
+            'N' => 15, // Sale Value
+            'O' => 15, // Good Return Qty
+            'P' => 16, // Good Return Value
+            'Q' => 15, // Transfer Out Qty
+            'R' => 16, // Transfer Out Value
+            'S' => 17, // Product Discard Qty
+            'T' => 18, // Product Discard Value
+            'U' => 14, // Total Out Qty
+            'V' => 15, // Total Out Value
+            'W' => 15, // Adjustment Qty
+            'X' => 16, // Adjustment Value
+            'Y' => 15, // Close Stock Qty
+            'Z' => 16, // Close Stock Value
+        ];
+    }
+
     public function columnFormats(): array
     {
         return [
@@ -139,15 +179,15 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                $lastColumn = $sheet->getHighestColumn();
+                $lastColumn = 'Z';
 
-                $sheet->insertNewRowBefore(1, 2);
-
+                // Row 1: Title
                 $sheet->setCellValue('A1', 'Inventory Movement Report');
                 $sheet->mergeCells('A1:' . $lastColumn . '1');
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
                 $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
+                // Row 2: Filter criteria subtitle
                 $filterParts = [];
                 if (!empty($this->filters['location_name'])) {
                     $filterParts[] = 'Location: ' . $this->filters['location_name'];
@@ -163,7 +203,7 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
                 $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
                 $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                // Headings row (shifted down to row 3 by insertNewRowBefore)
+                // Row 3: Headings row (starts at A3 via startCell)
                 $headingRow = 3;
                 $sheet->getStyle('A' . $headingRow . ':' . $lastColumn . $headingRow)
                     ->getFont()
@@ -177,9 +217,9 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
                     ->getOutline()
                     ->setBorderStyle(Border::BORDER_THIN);
 
-                // Bold the appended total row
+                // Trailing TOTAL row (bold)
                 $lastRow = $sheet->getHighestRow();
-                if ($lastRow > $headingRow + 1) {
+                if ($lastRow > $headingRow) {
                     $sheet->getStyle('A' . $lastRow . ':' . $lastColumn . $lastRow)
                         ->getFont()
                         ->setBold(true);
@@ -189,17 +229,19 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithTitle, Sho
     }
 
     /**
-     * Build the trailing TOTAL row from the already-summed data.
+     * Build the trailing TOTAL row using precomputed totals or fallback.
      */
     private function totalRow(): array
     {
-        $totals = [];
+        $totals = $this->totals;
 
-        foreach ($this->reportData as $row) {
-            $row = (object) $row;
-
-            foreach ($this->measureColumns() as $column) {
-                $totals[$column] = ($totals[$column] ?? 0) + (float) ($row->{$column} ?? 0);
+        if (empty($totals)) {
+            $totals = [];
+            foreach ($this->reportData as $row) {
+                $row = (object) $row;
+                foreach ($this->measureColumns() as $column) {
+                    $totals[$column] = ($totals[$column] ?? 0) + (float) ($row->{$column} ?? 0);
+                }
             }
         }
 

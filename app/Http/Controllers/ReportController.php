@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\TransactionHeader;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Exports\SalesReportExport;
 use App\Exports\CurrentStockExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -18,6 +19,19 @@ use App\Exports\InventoryMovementExport;
  */
 class ReportController extends Controller
 {
+    /**
+     * Get the underlying PDO connection instance.
+     *
+     * @return \PDO
+     */
+    protected function getPdo(): \PDO
+    {
+        /** @var \Illuminate\Database\Connection $connection */
+        $connection = DB::connection();
+
+        return $connection->getPdo();
+    }
+
     /**
      * Get POS sales summary report
      */
@@ -243,10 +257,15 @@ class ReportController extends Controller
                 'totals' => $result['totals'],
                 'filters' => $result['filters']
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch inventory movement report: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch inventory movement report',
+                'message' => 'Failed to fetch inventory movement report: ' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -257,19 +276,59 @@ class ReportController extends Controller
      */
     public function exportInventoryMovementReport(Request $request)
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        // Ensure temp directory exists for Excel generation
+        $tempDir = storage_path('framework/cache/laravel-excel');
+        if (!file_exists($tempDir)) {
+            @mkdir($tempDir, 0775, true);
+        }
+
         try {
             $result = $this->runInventoryMovementReport($request);
 
-            return Excel::download(
-                new InventoryMovementExport($result['rows'], $result['filters']),
-                'Inventory_Movement_Report.xlsx'
-            );
-        } catch (\Exception $e) {
-            return response()->json([
+            if (empty($result['rows'])) {
+                $response = response()->json([
+                    'success' => false,
+                    'message' => 'No inventory movement data found for the selected criteria'
+                ], 404);
+            } else {
+                $response = Excel::download(
+                    new InventoryMovementExport($result['rows'], $result['filters'], $result['totals']),
+                    'Inventory_Movement_Report.xlsx'
+                );
+            }
+
+            // Ensure CORS headers on download response
+            $origin = $request->header('Origin');
+            $allowedOrigins = config('cors.allowed_origins', ['http://localhost:3000', 'https://web.venpaa.lk']);
+            if ($origin && (in_array('*', $allowedOrigins) || in_array($origin, $allowedOrigins))) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            }
+
+            return $response;
+        } catch (\Throwable $e) {
+            Log::error('Failed to export inventory movement report: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $response = response()->json([
                 'success' => false,
-                'message' => 'Failed to export inventory movement report',
+                'message' => 'Failed to export inventory movement report: ' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
+
+            $origin = $request->header('Origin');
+            $allowedOrigins = config('cors.allowed_origins', ['http://localhost:3000', 'https://web.venpaa.lk']);
+            if ($origin && (in_array('*', $allowedOrigins) || in_array($origin, $allowedOrigins))) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            }
+
+            return $response;
         }
     }
 
@@ -279,6 +338,9 @@ class ReportController extends Controller
      */
     private function runInventoryMovementReport(Request $request): array
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
         $location = trim((string) $request->input('location', $request->input('Loca', '')));
 
         // Empty or "all" means all locations
@@ -289,13 +351,7 @@ class ReportController extends Controller
         $dateFrom = $this->normalizeReportDate($request->input('dateFrom', $request->input('date_from', '')));
         $dateTo = $this->normalizeReportDate($request->input('dateTo', $request->input('date_to', '')));
 
-        // The procedure takes plain "Y-m-d" bounds (both parameters are VARCHAR(10)).
-        $rows = DB::select('CALL sp_InventoryMovementReport(?, ?, ?)', [
-            $dateFrom,
-            $dateTo,
-            $location !== '' ? $location : null
-        ]);
-
+        // Fetch locations first so the connection isn't busy after stored procedure
         $locations = DB::table('locations')->pluck('loca_name', 'loca_code');
 
         // The procedure only returns the location name, so map it back to its code.
@@ -303,6 +359,14 @@ class ReportController extends Controller
         foreach ($locations as $locaCode => $locaName) {
             $locaCodeByName[(string) $locaName] = (string) $locaCode;
         }
+
+        // The procedure takes plain "Y-m-d" bounds (both parameters are VARCHAR(10)).
+        $pdo = $this->getPdo();
+        $stmt = $pdo->prepare('CALL sp_InventoryMovementReport(?, ?, ?)');
+        $locParam = $location !== '' ? $location : null;
+        $stmt->execute([$dateFrom, $dateTo, $locParam]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        $stmt->closeCursor();
 
         $quantityColumns = [
             'open_stock_qty', 'grn_qty', 'transfer_in_qty', 'total_in_qty', 'sale_qty',
@@ -849,7 +913,7 @@ class ReportController extends Controller
                 $dateTo = date('d/m/Y', strtotime($dateTo));
             }
 
-            $pdo = DB::getPdo();
+            $pdo = $this->getPdo();
             $stmt = $pdo->prepare("CALL sp_SalesReport(@pErrorCode, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $location,
@@ -1212,7 +1276,7 @@ class ReportController extends Controller
                 $dateTo = date('d/m/Y', strtotime($dateTo));
             }
 
-            $pdo = DB::getPdo();
+            $pdo = $this->getPdo();
             $stmt = $pdo->prepare("CALL sp_SalesReport(@pErrorCode, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $location,
